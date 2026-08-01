@@ -1,0 +1,867 @@
+<!-- index.html -->
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dedetiza+ - Sistema de Gestão de Serviços</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
+    <link rel="shortcut icon" href="assets/dedetiza+_icon.png" type="image/x-icon">
+    <link rel="stylesheet" href="style.css" />
+    
+    <!-- Firebase - Carregado primeiro -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
+    
+    <!-- Bibliotecas para exportação -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    
+    <!-- Configuração do Firebase -->
+    <script src="firebase-config.js"></script>
+    
+    <!-- Serviços Firebase (depende do firebase-config) -->
+    <script src="firebase-service.js"></script>
+    
+    <!-- Script principal (depende dos serviços) -->
+    <script src="script.js"></script>
+</head>
+<body>
+    <!-- SIDEBAR -->
+    <aside class="sidebar" id="sidebar">
+        <div class="brand">
+    <div class="brand-logo-small">
+        <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="50" cy="50" r="45" fill="url(#circleGrad2)" stroke="#1d7a6b" stroke-width="1.5"/>
+            <path d="M50 10 L82 22 L82 44 C82 63 66 77 50 83 C34 77 18 63 18 44 L18 22 L50 10Z" 
+                  fill="url(#shieldGrad2)" stroke="#7bc6a4" stroke-width="1"/>
+            <ellipse cx="50" cy="44" rx="10" ry="14" fill="#f5f5f5" stroke="#0b2a3b" stroke-width="1.2"/>
+            <circle cx="50" cy="33" r="7" fill="#f5f5f5" stroke="#0b2a3b" stroke-width="1.2"/>
+            <circle cx="47" cy="31" r="2.5" fill="#0b2a3b"/>
+            <circle cx="53" cy="31" r="2.5" fill="#0b2a3b"/>
+            <path d="M45 27 L38 19" stroke="#0b2a3b" stroke-width="1.2" stroke-linecap="round"/>
+            <path d="M55 27 L62 19" stroke="#0b2a3b" stroke-width="1.2" stroke-linecap="round"/>
+            <path d="M38 40 C26 33 22 46 30 52" stroke="#7bc6a4" stroke-width="1.5" stroke-linecap="round"/>
+            <path d="M62 40 C74 33 78 46 70 52" stroke="#7bc6a4" stroke-width="1.5" stroke-linecap="round"/>
+            <defs>
+                <linearGradient id="circleGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#f0f8f5"/>
+                    <stop offset="100%" stop-color="#e8eff5"/>
+                </linearGradient>
+                <linearGradient id="shieldGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#0b2a3b"/>
+                    <stop offset="100%" stop-color="#1d7a6b"/>
+                </linearGradient>
+            </defs>
+        </svg>
+    </div>
+    <span>Dedetiza+</span>
+</div>
+
+        <nav class="nav-menu">
+            <ul>
+                <li class="active" data-page="dashboard"><i class="fas fa-chart-pie"></i> <span>Dashboard</span></li>
+                <li data-page="ordens"><i class="fas fa-file-signature"></i> <span>Ordens de Serviço</span></li>
+                <li data-page="mapa"><i class="fas fa-map-marked-alt"></i> <span>Mapa de Iscas</span></li>
+                <li data-page="servicos"><i class="fas fa-spray-can"></i> <span>Serviços</span></li>
+                <li data-page="orcamentos"><i class="fas fa-file-invoice-dollar"></i> <span>Proposta Comercial</span></li>
+                <li data-page="clientes"><i class="fas fa-users"></i> <span>Clientes</span></li>
+                <li data-page="agenda"><i class="fas fa-calendar-alt"></i> <span>Agenda</span></li>
+                <li data-page="equipe"><i class="fas fa-hard-hat"></i> <span>Equipe</span></li>
+                <li data-page="relatorios"><i class="fas fa-file-alt"></i> <span>Relatórios</span></li>
+                <li data-page="estoque"><i class="fas fa-boxes"></i> <span>Estoque</span></li>
+                <li data-page="financeiro"><i class="fas fa-chart-line"></i> <span>Financeiro</span></li>
+                <li data-page="configuracoes"><i class="fas fa-cog"></i> <span>Configurações</span></li>
+            </ul>
+        </nav>
+        <div class="sidebar-footer" id="logoutBtn">
+            <i class="fas fa-sign-out-alt"></i> <span>Sair</span>
+        </div>
+    </aside>
+
+    <!-- OVERLAY PARA MOBILE -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <!-- MAIN -->
+    <main class="main-content">
+        <!-- TOPBAR -->
+        <header class="topbar">
+            <div class="menu-toggle" id="menuToggle">
+                <i class="fas fa-bars"></i>
+            </div>
+            <div class="topbar-title">
+                <span>Click Saúde Ambiental</span>
+            </div>
+            <div class="topbar-user">
+                <span><i class="fas fa-bell"></i></span>
+                <span><i class="fas fa-user-circle"></i> <span id="userName">Carregando...</span></span>
+            </div>
+        </header>
+
+        <!-- PÁGINAS -->
+        <section class="page-content" id="pageContent">
+            <!-- DASHBOARD -->
+            <div id="page-dashboard" class="page active">
+                <h1><i class="fas fa-chart-pie"></i> Dashboard</h1>
+                
+                <div class="dashboard-filters">
+                    <div class="filter-group">
+                        <select id="filtroTipoServico">
+                            <option value="todos">Todos os Serviços</option>
+                            <option value="Desratização">Desratização</option>
+                            <option value="Desinsetização">Desinsetização</option>
+                            <option value="Descupinização">Descupinização</option>
+                        </select>
+                        <select id="filtroStatusOS">
+                            <option value="todos">Todas as OS</option>
+                            <option value="Pendente">Pendente</option>
+                            <option value="Em andamento">Em andamento</option>
+                            <option value="Concluída">Concluída</option>
+                            <option value="Cancelada">Cancelada</option>
+                        </select>
+                        <input type="month" id="filtroMesDashboard" />
+                        <button class="btn-primary btn-sm" onclick="aplicarFiltrosDashboard()"><i class="fas fa-filter"></i> Filtrar</button>
+                        <button class="btn-secondary btn-sm" onclick="limparFiltrosDashboard()"><i class="fas fa-undo"></i> Limpar</button>
+                    </div>
+                    <div class="filter-group">
+                        <button class="btn-success btn-sm" onclick="exportarDashboardExcel()"><i class="fas fa-file-excel"></i> Excel</button>
+                        <button class="btn-danger btn-sm" onclick="exportarDashboardPDF()"><i class="fas fa-file-pdf"></i> PDF</button>
+                    </div>
+                </div>
+
+                <div class="kpi-grid" id="kpiGrid">
+                    <div class="kpi-card"><i class="fas fa-file-signature"></i> <div><span id="totalOS">0</span> Ordens de Serviço</div></div>
+                    <div class="kpi-card"><i class="fas fa-calendar-check"></i> <div><span id="totalServicosHoje">0</span> Serviços Hoje</div></div>
+                    <div class="kpi-card"><i class="fas fa-user-check"></i> <div><span id="totalClientes">0</span> Clientes Ativos</div></div>
+                    <div class="kpi-card"><i class="fas fa-tools"></i> <div><span id="totalEquipeCampo">0</span> Equipe em Campo</div></div>
+                </div>
+                <div class="chart-area">
+                    <div class="chart-box">
+                        <i class="fas fa-chart-line"></i>
+                        <p>Status das Ordens de Serviço</p>
+                        <div id="statusOrdens"></div>
+                    </div>
+                    <div class="chart-box">
+                        <i class="fas fa-pie-chart"></i>
+                        <p>Serviços por Tipo</p>
+                        <div id="servicosPorTipo"></div>
+                    </div>
+                </div>
+                <div class="chart-box" style="margin-top:20px;">
+                    <i class="fas fa-calendar-alt"></i>
+                    <p>Resumo do Mês <span id="mesReferencia"></span></p>
+                    <div id="resumoMensal" class="resumo-mensal-grid"></div>
+                </div>
+            </div>
+
+            <!-- ORDENS DE SERVIÇO -->
+            <div id="page-ordens" class="page">
+                <h1><i class="fas fa-file-signature"></i> Ordens de Serviço</h1>
+                
+                <div class="filtros-container">
+                    <div class="filtros-row">
+                        <div class="filtro-group">
+                            <label><i class="fas fa-calendar-alt"></i> Data Início</label>
+                            <input type="date" id="filtroOSDataInicio" />
+                        </div>
+                        <div class="filtro-group">
+                            <label><i class="fas fa-calendar-alt"></i> Data Fim</label>
+                            <input type="date" id="filtroOSDataFim" />
+                        </div>
+                        <div class="filtro-group">
+                            <label><i class="fas fa-user"></i> Cliente</label>
+                            <select id="filtroOSCliente">
+                                <option value="">Todos os Clientes</option>
+                            </select>
+                        </div>
+                        <div class="filtro-group">
+                            <label><i class="fas fa-circle"></i> Status</label>
+                            <select id="filtroOSStatus">
+                                <option value="">Todos os Status</option>
+                                <option value="Pendente">Pendente</option>
+                                <option value="Em andamento">Em andamento</option>
+                                <option value="Concluída">Concluída</option>
+                                <option value="Cancelada">Cancelada</option>
+                            </select>
+                        </div>
+                        <div class="filtro-actions">
+                            <button class="btn-primary btn-sm" onclick="aplicarFiltrosOS()">
+                                <i class="fas fa-filter"></i> Filtrar
+                            </button>
+                            <button class="btn-secondary btn-sm" onclick="limparFiltrosOS()">
+                                <i class="fas fa-undo"></i> Limpar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="toolbar">
+                    <button class="btn-primary" id="btnNovaOS"><i class="fas fa-plus"></i> Nova Ordem de Serviço</button>
+                    <button class="btn-success btn-sm" onclick="exportarOSExcel()"><i class="fas fa-file-excel"></i> Excel</button>
+                    <button class="btn-danger btn-sm" onclick="exportarOSPDF()"><i class="fas fa-file-pdf"></i> PDF</button>
+                </div>
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>OS #</th>
+                                <th>Cliente</th>
+                                <th>Data</th>
+                                <th>Valor Total</th>
+                                <th>Status</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabelaOrdens"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- MAPA DE ISCAS -->
+            <div id="page-mapa" class="page">
+                <h1><i class="fas fa-map-marked-alt"></i> Mapa de Portas Iscas e Túneis</h1>
+                
+                <div class="filtros-container">
+                    <div class="filtros-row">
+                        <div class="filtro-group">
+                            <label><i class="fas fa-user"></i> Cliente</label>
+                            <select id="filtroMapaCliente">
+                                <option value="">Todos os Clientes</option>
+                            </select>
+                        </div>
+                        <div class="filtro-group">
+                            <label><i class="fas fa-tag"></i> Tipo</label>
+                            <select id="filtroMapaTipo">
+                                <option value="">Todos os Tipos</option>
+                                <option value="porta-isca">Porta Isca</option>
+                                <option value="tunel">Túnel</option>
+                            </select>
+                        </div>
+                        <div class="filtro-group">
+                            <label><i class="fas fa-circle"></i> Status</label>
+                            <select id="filtroMapaStatus">
+                                <option value="">Todos os Status</option>
+                                <option value="ativo">✅ Ativo</option>
+                                <option value="inativo">❌ Inativo</option>
+                                <option value="manutencao">🔧 Manutenção</option>
+                            </select>
+                        </div>
+                        <div class="filtro-group">
+                            <label><i class="fas fa-search"></i> Busca</label>
+                            <input type="text" id="filtroMapaBusca" placeholder="Nome, endereço..." />
+                        </div>
+                        <div class="filtro-actions">
+                            <button class="btn-primary btn-sm" onclick="aplicarFiltrosMapa()">
+                                <i class="fas fa-filter"></i> Filtrar
+                            </button>
+                            <button class="btn-secondary btn-sm" onclick="limparFiltrosMapa()">
+                                <i class="fas fa-undo"></i> Limpar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="toolbar">
+                    <button class="btn-primary" id="btnNovoPonto"><i class="fas fa-plus"></i> Novo Ponto</button>
+                    <button class="btn-success btn-sm" onclick="exportarMapaExcel()"><i class="fas fa-file-excel"></i> Excel</button>
+                    <button class="btn-danger btn-sm" onclick="exportarMapaPDF()"><i class="fas fa-file-pdf"></i> PDF</button>
+                </div>
+                <div id="mapaGrid" class="mapa-grid"></div>
+            </div>
+
+            <!-- SERVIÇOS -->
+            <div id="page-servicos" class="page">
+                <h1><i class="fas fa-spray-can"></i> Serviços</h1>
+                
+                <div class="filtros-container">
+                    <div class="filtros-row">
+                        <div class="filtro-group">
+                            <label><i class="fas fa-calendar-alt"></i> Data Início</label>
+                            <input type="date" id="filtroServicosDataInicio" />
+                        </div>
+                        <div class="filtro-group">
+                            <label><i class="fas fa-calendar-alt"></i> Data Fim</label>
+                            <input type="date" id="filtroServicosDataFim" />
+                        </div>
+                        <div class="filtro-group">
+                            <label><i class="fas fa-user"></i> Cliente</label>
+                            <select id="filtroServicosCliente">
+                                <option value="">Todos os Clientes</option>
+                            </select>
+                        </div>
+                        <div class="filtro-group">
+                            <label><i class="fas fa-tag"></i> Tipo</label>
+                            <select id="filtroServicosTipo">
+                                <option value="">Todos os Tipos</option>
+                                <option value="Desratização">Desratização</option>
+                                <option value="Desinsetização">Desinsetização</option>
+                                <option value="Descupinização">Descupinização</option>
+                            </select>
+                        </div>
+                        <div class="filtro-group">
+                            <label><i class="fas fa-circle"></i> Status</label>
+                            <select id="filtroServicosStatus">
+                                <option value="">Todos os Status</option>
+                                <option value="Agendado">Agendado</option>
+                                <option value="Em andamento">Em andamento</option>
+                                <option value="Pendente">Pendente</option>
+                                <option value="Concluído">Concluído</option>
+                                <option value="Cancelado">Cancelado</option>
+                            </select>
+                        </div>
+                        <div class="filtro-actions">
+                            <button class="btn-primary btn-sm" onclick="aplicarFiltrosServicos()">
+                                <i class="fas fa-filter"></i> Filtrar
+                            </button>
+                            <button class="btn-secondary btn-sm" onclick="limparFiltrosServicos()">
+                                <i class="fas fa-undo"></i> Limpar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="toolbar">
+                    <button class="btn-primary" id="btnNovoServico"><i class="fas fa-plus"></i> Novo Serviço</button>
+                    <button class="btn-success btn-sm" onclick="exportarServicosExcel()"><i class="fas fa-file-excel"></i> Excel</button>
+                    <button class="btn-danger btn-sm" onclick="exportarServicosPDF()"><i class="fas fa-file-pdf"></i> PDF</button>
+                </div>
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Cliente</th>
+                                <th>Tipo</th>
+                                <th>Data</th>
+                                <th>Status</th>
+                                <th>Validade</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabelaServicos"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- PROPOSTA COMERCIAL (NOVO MÓDULO) -->
+            <div id="page-orcamentos" class="page">
+                <h1><i class="fas fa-file-invoice-dollar"></i> Proposta Comercial</h1>
+                
+                <div class="filtros-container">
+                    <div class="filtros-row">
+                        <div class="filtro-group">
+                            <label><i class="fas fa-user"></i> Cliente</label>
+                            <select id="filtroOrcCliente">
+                                <option value="">Todos os Clientes</option>
+                            </select>
+                        </div>
+                        <div class="filtro-group">
+                            <label><i class="fas fa-circle"></i> Status</label>
+                            <select id="filtroOrcStatus">
+                                <option value="">Todos os Status</option>
+                                <option value="Rascunho">Rascunho</option>
+                                <option value="Enviado">Enviado</option>
+                                <option value="Aprovado">Aprovado</option>
+                                <option value="Rejeitado">Rejeitado</option>
+                            </select>
+                        </div>
+                        <div class="filtro-group">
+                            <label><i class="fas fa-calendar-alt"></i> Data Início</label>
+                            <input type="date" id="filtroOrcDataInicio" />
+                        </div>
+                        <div class="filtro-group">
+                            <label><i class="fas fa-calendar-alt"></i> Data Fim</label>
+                            <input type="date" id="filtroOrcDataFim" />
+                        </div>
+                        <div class="filtro-actions">
+                            <button class="btn-primary btn-sm" onclick="aplicarFiltrosOrcamentos()">
+                                <i class="fas fa-filter"></i> Filtrar
+                            </button>
+                            <button class="btn-secondary btn-sm" onclick="limparFiltrosOrcamentos()">
+                                <i class="fas fa-undo"></i> Limpar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="toolbar">
+                    <button class="btn-primary" id="btnNovoOrcamento"><i class="fas fa-plus"></i> Nova Proposta</button>
+                    <button class="btn-success btn-sm" onclick="exportarOrcamentosExcel()"><i class="fas fa-file-excel"></i> Excel</button>
+                    <button class="btn-danger btn-sm" onclick="exportarOrcamentosPDF()"><i class="fas fa-file-pdf"></i> PDF</button>
+                </div>
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Cliente</th>
+                                <th>Data</th>
+                                <th>Valor Total</th>
+                                <th>Status</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabelaOrcamentos"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- CLIENTES -->
+            <div id="page-clientes" class="page">
+                <h1><i class="fas fa-users"></i> Clientes</h1>
+                <div class="toolbar">
+                    <button class="btn-primary" id="btnNovoCliente"><i class="fas fa-user-plus"></i> Adicionar Cliente</button>
+                </div>
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Nome</th>
+                                <th>Documento</th>
+                                <th>Tipo</th>
+                                <th>Telefone</th>
+                                <th>Endereço</th>
+                                <th>Último serviço</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabelaClientes"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- AGENDA -->
+            <div id="page-agenda" class="page">
+                <h1><i class="fas fa-calendar-alt"></i> Agenda</h1>
+                
+                <div class="filtros-container">
+                    <div class="filtros-row">
+                        <div class="filtro-group">
+                            <label><i class="fas fa-calendar-alt"></i> Data Início</label>
+                            <input type="date" id="filtroAgendaDataInicio" />
+                        </div>
+                        <div class="filtro-group">
+                            <label><i class="fas fa-calendar-alt"></i> Data Fim</label>
+                            <input type="date" id="filtroAgendaDataFim" />
+                        </div>
+                        <div class="filtro-group">
+                            <label><i class="fas fa-user"></i> Cliente</label>
+                            <select id="filtroAgendaCliente">
+                                <option value="">Todos os Clientes</option>
+                            </select>
+                        </div>
+                        <div class="filtro-group">
+                            <label><i class="fas fa-circle"></i> Status</label>
+                            <select id="filtroAgendaStatus">
+                                <option value="">Todos os Status</option>
+                                <option value="Agendado">Agendado</option>
+                                <option value="Em andamento">Em andamento</option>
+                                <option value="Pendente">Pendente</option>
+                                <option value="Concluído">Concluído</option>
+                                <option value="Cancelado">Cancelado</option>
+                            </select>
+                        </div>
+                        <div class="filtro-actions">
+                            <button class="btn-primary btn-sm" onclick="aplicarFiltrosAgenda()">
+                                <i class="fas fa-filter"></i> Filtrar
+                            </button>
+                            <button class="btn-secondary btn-sm" onclick="limparFiltrosAgenda()">
+                                <i class="fas fa-undo"></i> Limpar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="toolbar">
+                    <button class="btn-success btn-sm" onclick="exportarAgendaExcel()"><i class="fas fa-file-excel"></i> Excel</button>
+                    <button class="btn-danger btn-sm" onclick="exportarAgendaPDF()"><i class="fas fa-file-pdf"></i> PDF</button>
+                </div>
+                <div id="agendaList" class="agenda-grid"></div>
+            </div>
+
+            <!-- EQUIPE -->
+            <div id="page-equipe" class="page">
+                <h1><i class="fas fa-hard-hat"></i> Equipe</h1>
+                <div class="toolbar">
+                    <button class="btn-primary" id="btnNovoMembro"><i class="fas fa-user-plus"></i> Adicionar Membro</button>
+                </div>
+                <div id="teamCards" class="team-cards"></div>
+            </div>
+
+            <!-- RELATÓRIOS -->
+            <div id="page-relatorios" class="page">
+                <h1><i class="fas fa-file-alt"></i> Relatórios Especializados</h1>
+                <div class="toolbar">
+                    <button class="btn-primary" id="btnNovoRelatorio"><i class="fas fa-plus"></i> Novo Relatório</button>
+                </div>
+                <div id="relatorioContent" class="relatorio-list"></div>
+            </div>
+
+            <!-- ESTOQUE -->
+            <div id="page-estoque" class="page">
+                <h1><i class="fas fa-boxes"></i> Controle de Estoque</h1>
+                
+                <div class="estoque-dashboard">
+                    <div class="kpi-grid">
+                        <div class="kpi-card">
+                            <i class="fas fa-cubes"></i>
+                            <div><span id="totalProdutos">0</span> Total de Produtos</div>
+                        </div>
+                        <div class="kpi-card">
+                            <i class="fas fa-box"></i>
+                            <div><span id="totalItensEstoque">0</span> Itens em Estoque</div>
+                        </div>
+                        <div class="kpi-card" style="border-left: 4px solid #e67e22;">
+                            <i class="fas fa-exclamation-triangle" style="color:#e67e22;"></i>
+                            <div><span id="estoqueBaixo">0</span> Estoque Baixo</div>
+                        </div>
+                        <div class="kpi-card">
+                            <i class="fas fa-exchange-alt"></i>
+                            <div><span id="totalMovimentacoes">0</span> Movimentações</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="estoque-tabs">
+                    <button class="tab-btn active" data-tab="produtos"><i class="fas fa-list"></i> Produtos</button>
+                    <button class="tab-btn" data-tab="movimentacoes"><i class="fas fa-exchange-alt"></i> Movimentações</button>
+                    <button class="tab-btn" data-tab="historico"><i class="fas fa-history"></i> Histórico</button>
+                    <button class="tab-btn" data-tab="relatorio-estoque"><i class="fas fa-file-alt"></i> Relatório</button>
+                </div>
+
+                <div id="tab-produtos" class="tab-content active">
+                    <div class="toolbar">
+                        <button class="btn-primary" id="btnNovoProduto"><i class="fas fa-plus"></i> Novo Produto</button>
+                        <button class="btn-primary" id="btnEntradaEstoque"><i class="fas fa-arrow-down"></i> Entrada</button>
+                        <button class="btn-primary" id="btnSaidaEstoque"><i class="fas fa-arrow-up"></i> Saída</button>
+                    </div>
+                    <div class="table-wrapper">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Código</th>
+                                    <th>Produto</th>
+                                    <th>Categoria</th>
+                                    <th>Qtd.</th>
+                                    <th>Mínimo</th>
+                                    <th>Status</th>
+                                    <th>Localização</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabelaEstoque"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="tab-movimentacoes" class="tab-content">
+                    <div class="toolbar">
+                        <div class="filter-group">
+                            <select id="filtroMovimentacao">
+                                <option value="todos">Todas</option>
+                                <option value="entrada">Entradas</option>
+                                <option value="saida">Saídas</option>
+                            </select>
+                            <input type="text" id="filtroProdutoMov" placeholder="Filtrar por produto..." />
+                        </div>
+                    </div>
+                    <div class="table-wrapper">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Data/Hora</th>
+                                    <th>Produto</th>
+                                    <th>Tipo</th>
+                                    <th>Quantidade</th>
+                                    <th>Motivo</th>
+                                    <th>Observação</th>
+                                    <th>Usuário</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabelaMovimentacoes"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="tab-historico" class="tab-content">
+                    <div class="toolbar">
+                        <div class="filter-group">
+                            <input type="date" id="filtroDataInicio" />
+                            <span>até</span>
+                            <input type="date" id="filtroDataFim" />
+                            <button class="btn-primary btn-sm" onclick="filtrarHistorico()"><i class="fas fa-filter"></i> Filtrar</button>
+                            <button class="btn-primary btn-sm" onclick="limparFiltroHistorico()"><i class="fas fa-undo"></i> Limpar</button>
+                        </div>
+                    </div>
+                    <div class="table-wrapper">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Data/Hora</th>
+                                    <th>Produto</th>
+                                    <th>Tipo</th>
+                                    <th>Quantidade</th>
+                                    <th>Motivo</th>
+                                    <th>Estoque Anterior</th>
+                                    <th>Estoque Atual</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabelaHistorico"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="tab-relatorio-estoque" class="tab-content">
+                    <div class="toolbar">
+                        <button class="btn-primary" onclick="gerarRelatorioEstoque()"><i class="fas fa-file-pdf"></i> Gerar Relatório</button>
+                        <button class="btn-primary" onclick="exportarEstoqueCSV()"><i class="fas fa-file-excel"></i> Exportar CSV</button>
+                    </div>
+                    <div id="relatorioEstoqueContent">
+                        <div class="relatorio-estoque-summary">
+                            <h3>Resumo do Estoque</h3>
+                            <div class="chart-area">
+                                <div class="chart-box">
+                                    <i class="fas fa-chart-pie"></i>
+                                    <p>Distribuição por Categoria</p>
+                                    <div id="graficoCategorias"></div>
+                                </div>
+                                <div class="chart-box">
+                                    <i class="fas fa-chart-bar"></i>
+                                    <p>Produtos com Estoque Baixo</p>
+                                    <div id="listaEstoqueBaixo"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- FINANCEIRO -->
+            <div id="page-financeiro" class="page">
+                <h1><i class="fas fa-chart-line"></i> Relatório Financeiro</h1>
+                
+                <div class="filtros-container">
+                    <div class="filtros-row">
+                        <div class="filtro-group">
+                            <label><i class="fas fa-calendar-alt"></i> Data Início</label>
+                            <input type="date" id="filtroFinanceiroDataInicio" />
+                        </div>
+                        <div class="filtro-group">
+                            <label><i class="fas fa-calendar-alt"></i> Data Fim</label>
+                            <input type="date" id="filtroFinanceiroDataFim" />
+                        </div>
+                        <div class="filtro-group">
+                            <label><i class="fas fa-user"></i> Cliente</label>
+                            <select id="filtroFinanceiroCliente">
+                                <option value="">Todos os Clientes</option>
+                            </select>
+                        </div>
+                        <div class="filtro-group">
+                            <label><i class="fas fa-tag"></i> Tipo</label>
+                            <select id="filtroFinanceiroTipo">
+                                <option value="">Todos os Tipos</option>
+                                <option value="Desratização">Desratização</option>
+                                <option value="Desinsetização">Desinsetização</option>
+                                <option value="Descupinização">Descupinização</option>
+                            </select>
+                        </div>
+                        <div class="filtro-actions">
+                            <button class="btn-primary btn-sm" onclick="aplicarFiltrosFinanceiro()">
+                                <i class="fas fa-filter"></i> Filtrar
+                            </button>
+                            <button class="btn-secondary btn-sm" onclick="limparFiltrosFinanceiro()">
+                                <i class="fas fa-undo"></i> Limpar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="financeiro-resumo">
+                    <div class="kpi-grid" id="financeiroKPI">
+                        <div class="kpi-card">
+                            <i class="fas fa-dollar-sign" style="color:#1d7a6b;"></i>
+                            <div>
+                                <span id="financeiroTotalFaturado">R$ 0,00</span>
+                                <span>Total Faturado</span>
+                            </div>
+                        </div>
+                        <div class="kpi-card">
+                            <i class="fas fa-receipt" style="color:#e67e22;"></i>
+                            <div>
+                                <span id="financeiroTotalServicos">0</span>
+                                <span>Total de Serviços</span>
+                            </div>
+                        </div>
+                        <div class="kpi-card">
+                            <i class="fas fa-file-invoice" style="color:#8e44ad;"></i>
+                            <div>
+                                <span id="financeiroTotalOS">0</span>
+                                <span>Total de OS</span>
+                            </div>
+                        </div>
+                        <div class="kpi-card">
+                            <i class="fas fa-users" style="color:#2c5c6b;"></i>
+                            <div>
+                                <span id="financeiroTotalClientes">0</span>
+                                <span>Clientes Atendidos</span>
+                            </div>
+                        </div>
+                        <div class="kpi-card" style="border-left: 4px solid #c0392b;">
+                            <i class="fas fa-percent" style="color:#c0392b;"></i>
+                            <div>
+                                <span id="financeiroTicketMedio">R$ 0,00</span>
+                                <span>Ticket Médio</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="chart-area">
+                    <div class="chart-box">
+                        <i class="fas fa-chart-bar"></i>
+                        <p>Faturamento por Período</p>
+                        <div id="financeiroGraficoPeriodo"></div>
+                    </div>
+                    <div class="chart-box">
+                        <i class="fas fa-pie-chart"></i>
+                        <p>Faturamento por Tipo de Serviço</p>
+                        <div id="financeiroGraficoTipo"></div>
+                    </div>
+                </div>
+
+                <div class="toolbar" style="margin-top:20px;">
+                    <button class="btn-success btn-sm" onclick="exportarFinanceiroExcel()"><i class="fas fa-file-excel"></i> Exportar Excel</button>
+                    <button class="btn-danger btn-sm" onclick="exportarFinanceiroPDF()"><i class="fas fa-file-pdf"></i> Exportar PDF</button>
+                    <button class="btn-primary btn-sm" onclick="gerarRelatorioFinanceiroCompleto()"><i class="fas fa-file-alt"></i> Relatório Completo</button>
+                </div>
+
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Data</th>
+                                <th>Cliente</th>
+                                <th>Tipo</th>
+                                <th>Serviço/OS</th>
+                                <th>Valor (R$)</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabelaFinanceiro"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- CONFIGURAÇÕES -->
+            <div id="page-configuracoes" class="page">
+                <h1><i class="fas fa-cog"></i> Configurações da Empresa</h1>
+                <div class="config-container">
+                    <div class="config-card">
+                        <h3><i class="fas fa-building"></i> Dados da Empresa</h3>
+                        <div class="form-group">
+                            <label>Nome da Empresa</label>
+                            <input type="text" id="configEmpresaNome" placeholder="Nome da empresa" />
+                        </div>
+                        <div class="form-group">
+                            <label>CNPJ</label>
+                            <input type="text" id="configEmpresaCnpj" placeholder="00.000.000/0001-00" />
+                        </div>
+                        <div class="form-group">
+                            <label>Telefone</label>
+                            <input type="text" id="configEmpresaTelefone" placeholder="(11) 99999-9999" />
+                        </div>
+                        <div class="form-group">
+                            <label>Endereço</label>
+                            <input type="text" id="configEmpresaEndereco" placeholder="Rua, número, bairro, cidade - UF" />
+                        </div>
+                        <div class="form-group">
+                            <label>Email</label>
+                            <input type="email" id="configEmpresaEmail" placeholder="contato@empresa.com" />
+                        </div>
+                        <div class="form-group">
+                            <label>Logo da Empresa</label>
+                            <input type="file" id="configEmpresaLogo" accept="image/*" />
+                            <div id="logoPreview" style="margin-top:8px;"></div>
+                        </div>
+                        <button class="btn-primary" onclick="salvarConfiguracoes()"><i class="fas fa-save"></i> Salvar Configurações</button>
+                    </div>
+                    <div class="config-card">
+                        <h3><i class="fas fa-file-signature"></i> Cabeçalho do Relatório</h3>
+                        <div class="form-group">
+                            <label>Título do Relatório</label>
+                            <input type="text" id="configRelatorioTitulo" placeholder="Relatório Técnico" />
+                        </div>
+                        <div class="form-group">
+                            <label>Subtítulo</label>
+                            <input type="text" id="configRelatorioSubtitulo" placeholder="Controle de Pragas" />
+                        </div>
+                        <div class="form-group">
+                            <label>Cor Principal</label>
+                            <input type="color" id="configRelatorioCor" value="#0b2a3b" />
+                        </div>
+                        <div class="form-group">
+                            <label>Rodapé do Relatório</label>
+                            <textarea id="configRelatorioRodape" rows="2" placeholder="Informações adicionais no rodapé..."></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Texto da Garantia do Serviço</label>
+                            <textarea id="configRelatorioGarantia" rows="3" placeholder="Digite o texto da garantia do serviço..." style="width:100%;padding:10px 14px;border:1px solid #dce4ec;border-radius:10px;font-size:0.95rem;outline:none;transition:0.2s;resize:vertical;font-family:inherit;"></textarea>
+                            <small style="color:#4d687a;font-size:0.8rem;">Este texto aparecerá no rodapé da Ordem de Serviço.</small>
+                        </div>
+                        <button class="btn-primary" onclick="salvarConfiguracoes()"><i class="fas fa-save"></i> Salvar Configurações</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- MODAL GERAL -->
+    <div id="modalOverlay" class="modal-overlay">
+        <div class="modal modal-large">
+            <div class="modal-header">
+                <h3 id="modalTitle">Título</h3>
+                <span class="modal-close" id="modalClose">&times;</span>
+            </div>
+            <div class="modal-body" id="modalBody"></div>
+        </div>
+    </div>
+
+    <!-- MODAL DE VISUALIZAÇÃO DE OS -->
+    <div id="modalOSOverlay" class="modal-overlay">
+        <div class="modal modal-os">
+            <div class="modal-header">
+                <h3 id="modalOSTitle">Ordem de Serviço</h3>
+                <span class="modal-close" id="modalOSClose">&times;</span>
+            </div>
+            <div class="modal-body" id="modalOSBody"></div>
+        </div>
+    </div>
+
+    <!-- MODAL DE VISUALIZAÇÃO DE RELATÓRIO -->
+    <div id="modalRelatorioOverlay" class="modal-overlay">
+        <div class="modal modal-os modal-large">
+            <div class="modal-header">
+                <h3 id="modalRelatorioTitle">Relatório</h3>
+                <span class="modal-close" id="modalRelatorioClose">&times;</span>
+            </div>
+            <div class="modal-body" id="modalRelatorioBody"></div>
+        </div>
+    </div>
+
+    <!-- MODAL DE PROPOSTA COMERCIAL -->
+    <div id="modalOrcamentoOverlay" class="modal-overlay">
+        <div class="modal modal-orcamento modal-large">
+            <div class="modal-header">
+                <h3 id="modalOrcamentoTitle">Proposta Comercial</h3>
+                <span class="modal-close" id="modalOrcamentoClose">&times;</span>
+            </div>
+            <div class="modal-body" id="modalOrcamentoBody"></div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

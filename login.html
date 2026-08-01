@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Login | Dedetiza+ - Sistema de Gestão de Serviços</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
+    <link rel="shortcut icon" href="assets/dedetiza+_icon.png" type="image/x-icon">
+    <link rel="stylesheet" href="login.css" />
+
+    <!-- Firebase - Carregado primeiro -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
+
+    <!-- Configuração do Firebase -->
+    <script src="firebase-config.js"></script>
+    
+    <!-- SERVIÇOS FIREBASE - ESSENCIAL PARA O LOGIN -->
+    <script src="firebase-service.js"></script>
+</head>
+
+<body>
+    <div class="login-container">
+        <div class="login-box">
+            <div class="login-header">
+                <div class="brand-container">
+                    <div class="brand-logo">
+                        <svg viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="60" cy="60" r="55" fill="url(#circleGrad)" stroke="#0b2a3b" stroke-width="2" />
+                            <path d="M60 12 L95 25 L95 50 C95 72 78 88 60 95 C42 88 25 72 25 50 L25 25 L60 12Z"
+                                fill="url(#shieldGrad)" stroke="#1d7a6b" stroke-width="1.5" />
+                            <ellipse cx="60" cy="52" rx="12" ry="16" fill="#f5f5f5" stroke="#0b2a3b" stroke-width="1.5" />
+                            <circle cx="60" cy="40" r="8" fill="#f5f5f5" stroke="#0b2a3b" stroke-width="1.5" />
+                            <circle cx="56" cy="38" r="3" fill="#0b2a3b" />
+                            <circle cx="64" cy="38" r="3" fill="#0b2a3b" />
+                            <circle cx="57" cy="37" r="1.2" fill="white" />
+                            <circle cx="65" cy="37" r="1.2" fill="white" />
+                            <path d="M54 33 L46 24" stroke="#0b2a3b" stroke-width="1.5" stroke-linecap="round" />
+                            <path d="M66 33 L74 24" stroke="#0b2a3b" stroke-width="1.5" stroke-linecap="round" />
+                            <circle cx="46" cy="24" r="2.5" fill="#1d7a6b" />
+                            <circle cx="74" cy="24" r="2.5" fill="#1d7a6b" />
+                            <path d="M45 48 C30 40 25 55 35 62" stroke="#7bc6a4" stroke-width="2"
+                                fill="rgba(123,198,164,0.2)" stroke-linecap="round" />
+                            <path d="M75 48 C90 40 95 55 85 62" stroke="#7bc6a4" stroke-width="2"
+                                fill="rgba(123,198,164,0.2)" stroke-linecap="round" />
+                            <path d="M52 50 L68 50" stroke="#0b2a3b" stroke-width="1" stroke-linecap="round" />
+                            <path d="M52 54 L68 54" stroke="#0b2a3b" stroke-width="1" stroke-linecap="round" />
+                            <path d="M52 58 L68 58" stroke="#0b2a3b" stroke-width="1" stroke-linecap="round" />
+                            <path d="M38 82 L36 75 C36 72 40 72 40 75 L38 82Z" fill="#1d7a6b" opacity="0.7" />
+                            <path d="M82 82 L80 75 C80 72 84 72 84 75 L82 82Z" fill="#1d7a6b" opacity="0.7" />
+                            <defs>
+                                <linearGradient id="circleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" stop-color="#f0f8f5" />
+                                    <stop offset="100%" stop-color="#e8eff5" />
+                                </linearGradient>
+                                <linearGradient id="shieldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" stop-color="#0b2a3b" />
+                                    <stop offset="100%" stop-color="#1d7a6b" />
+                                </linearGradient>
+                            </defs>
+                        </svg>
+                    </div>
+                    <div class="brand-text">
+                        <h1 class="brand-name">Dedetiza<strong>+</strong></h1>
+                        <p class="brand-subtitle">Sistema de Gestão de Serviços</p>
+                    </div>
+                </div>
+                <div id="empresaAtual" style="margin-top:8px;font-size:0.75rem;color:#4d687a;display:none;"></div>
+                <div id="loginMessage" style="display:none;"></div>
+                <div id="empresasLink" style="margin-top:8px;font-size:0.8rem;display:none;text-align:center;">
+                    <span style="color:#4d687a;">Empresas disponíveis:</span>
+                </div>
+            </div>
+
+            <!-- Tela de Login -->
+            <div id="loginForm" class="form-container active">
+                <h2><i class="fas fa-sign-in-alt"></i> Acessar Sistema</h2>
+                <form id="loginFormElement" onsubmit="return false;">
+                    <div class="form-group">
+                        <label><i class="fas fa-envelope"></i> E-mail</label>
+                        <input type="email" id="loginUser" placeholder="Digite seu e-mail" required />
+                    </div>
+                    <div class="form-group">
+                        <label><i class="fas fa-lock"></i> Senha</label>
+                        <div class="password-wrapper">
+                            <input type="password" id="loginPassword" placeholder="Digite sua senha" required />
+                            <i class="fas fa-eye toggle-password" onclick="togglePassword('loginPassword', this)"></i>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn-login" onclick="fazerLogin()">
+                        <i class="fas fa-sign-in-alt"></i> Entrar
+                    </button>
+                    <div class="login-footer">
+                        <a href="#" onclick="mostrarCadastro()">Cadastrar-se</a>
+                        <span>|</span>
+                        <a href="#" onclick="mostrarRecuperar()">Esqueceu a senha?</a>
+                    </div>
+                </form>
+                <div id="loginError" class="error-message"></div>
+            </div>
+
+            <!-- Tela de Cadastro -->
+            <div id="cadastroForm" class="form-container">
+                <h2><i class="fas fa-user-plus"></i> Criar Conta Admin</h2>
+                <p class="form-desc">Crie sua conta de administrador para acessar o sistema.</p>
+                <form id="cadastroFormElement" onsubmit="return false;">
+                    <div class="form-group">
+                        <label><i class="fas fa-user"></i> Nome Completo</label>
+                        <input type="text" id="cadastroNome" placeholder="Seu nome completo" required />
+                    </div>
+                    <div class="form-group">
+                        <label><i class="fas fa-user-tag"></i> Usuário</label>
+                        <input type="text" id="cadastroUser" placeholder="Escolha um usuário" required />
+                    </div>
+                    <div class="form-group">
+                        <label><i class="fas fa-envelope"></i> E-mail</label>
+                        <input type="email" id="cadastroEmail" placeholder="seu@email.com" required />
+                    </div>
+                    <div class="form-group">
+                        <label><i class="fas fa-lock"></i> Senha</label>
+                        <div class="password-wrapper">
+                            <input type="password" id="cadastroPassword" placeholder="Mínimo 6 caracteres" required
+                                minlength="6" />
+                            <i class="fas fa-eye toggle-password"
+                                onclick="togglePassword('cadastroPassword', this)"></i>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label><i class="fas fa-lock"></i> Confirmar Senha</label>
+                        <div class="password-wrapper">
+                            <input type="password" id="cadastroConfirm" placeholder="Confirme sua senha" required />
+                            <i class="fas fa-eye toggle-password" onclick="togglePassword('cadastroConfirm', this)"></i>
+                        </div>
+                    </div>
+                    <div class="form-group checkbox-group">
+                        <input type="checkbox" id="cadastroTermos" required />
+                        <label for="cadastroTermos">Li e aceito os <a href="#"
+                                onclick="alert('Termos de uso...')">termos de uso</a></label>
+                    </div>
+                    <button type="submit" class="btn-login btn-cadastro" onclick="fazerCadastro()">
+                        <i class="fas fa-user-plus"></i> Criar Conta
+                    </button>
+                    <div class="login-footer">
+                        <a href="#" onclick="mostrarLogin()">Já tem uma conta? Faça login</a>
+                    </div>
+                </form>
+                <div id="cadastroError" class="error-message"></div>
+                <div id="cadastroSuccess" class="success-message"></div>
+            </div>
+
+            <!-- Tela de Recuperação -->
+            <div id="recuperarForm" class="form-container">
+                <h2><i class="fas fa-key"></i> Recuperar Senha</h2>
+                <p class="form-desc">Informe seu e-mail para receber as instruções de recuperação.</p>
+                <form id="recuperarFormElement" onsubmit="return false;">
+                    <div class="form-group">
+                        <label><i class="fas fa-envelope"></i> E-mail</label>
+                        <input type="email" id="recuperarEmail" placeholder="seu@email.com" required />
+                    </div>
+                    <button type="submit" class="btn-login btn-recuperar" onclick="recuperarSenha()">
+                        <i class="fas fa-paper-plane"></i> Enviar Instruções
+                    </button>
+                    <div class="login-footer">
+                        <a href="#" onclick="mostrarLogin()">Voltar ao login</a>
+                    </div>
+                </form>
+                <div id="recuperarError" class="error-message"></div>
+                <div id="recuperarSuccess" class="success-message"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="login.js"></script>
+</body>
+
+</html>

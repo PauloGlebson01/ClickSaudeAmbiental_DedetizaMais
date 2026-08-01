@@ -1,0 +1,108 @@
+{
+  "rules": {
+    "usuarios": {
+      "$uid": {
+        ".read": "$uid === auth.uid || auth.token.admin === true",
+        ".write": "$uid === auth.uid || auth.token.admin === true"
+      }
+    },
+    "clientes": {
+      ".read": "auth !== null",
+      ".write": "auth !== null"
+    },
+    "servicos": {
+      ".read": "auth !== null",
+      ".write": "auth !== null"
+    },
+    "ordens": {
+      ".read": "auth !== null",
+      ".write": "auth !== null"
+    },
+    "agenda": {
+      ".read": "auth !== null",
+      ".write": "auth !== null"
+    },
+    "equipe": {
+      ".read": "auth !== null",
+      ".write": "auth !== null"
+    },
+    "pontosIscas": {
+      ".read": "auth !== null",
+      ".write": "auth !== null"
+    },
+    "relatorios": {
+      ".read": "auth !== null",
+      ".write": "auth !== null"
+    },
+    "modelos": {
+      ".read": "auth !== null",
+      ".write": "auth !== null"
+    },
+    "estoque": {
+      ".read": "auth !== null",
+      ".write": "auth !== null"
+    },
+    "movimentacoes": {
+      ".read": "auth !== null",
+      ".write": "auth !== null"
+    },
+    "configuracoes": {
+      ".read": "auth !== null",
+      ".write": "auth !== null"
+    }
+  },
+  "firestore": {
+    "rules": {
+      "usuarios": {
+        "$uid": {
+          ".read": "$uid === auth.uid || auth.token.admin === true",
+          ".write": "$uid === auth.uid || auth.token.admin === true"
+        }
+      },
+      "clientes": {
+        ".read": "auth !== null",
+        ".write": "auth !== null"
+      },
+      "servicos": {
+        ".read": "auth !== null",
+        ".write": "auth !== null"
+      },
+      "ordens": {
+        ".read": "auth !== null",
+        ".write": "auth !== null"
+      },
+      "agenda": {
+        ".read": "auth !== null",
+        ".write": "auth !== null"
+      },
+      "equipe": {
+        ".read": "auth !== null",
+        ".write": "auth !== null"
+      },
+      "pontosIscas": {
+        ".read": "auth !== null",
+        ".write": "auth !== null"
+      },
+      "relatorios": {
+        ".read": "auth !== null",
+        ".write": "auth !== null"
+      },
+      "modelos": {
+        ".read": "auth !== null",
+        ".write": "auth !== null"
+      },
+      "estoque": {
+        ".read": "auth !== null",
+        ".write": "auth !== null"
+      },
+      "movimentacoes": {
+        ".read": "auth !== null",
+        ".write": "auth !== null"
+      },
+      "configuracoes": {
+        ".read": "auth !== null",
+        ".write": "auth !== null"
+      }
+    }
+  }
+}
