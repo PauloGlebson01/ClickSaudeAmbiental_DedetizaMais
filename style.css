@@ -1942,3 +1942,37 @@ td i:hover { background: #e8eff5; }
         display: none;
     }
 }
+
+/* Campos CNPJ com transição suave */
+#camposCnpj {
+    overflow: hidden;
+    transition: all 0.3s ease;
+    padding: 0;
+}
+
+#camposCnpj.visible {
+    padding: 8px 0;
+}
+
+/* Estilo para label de Razão Social */
+#modalRazaoSocial {
+    text-transform: uppercase;
+}
+
+/* Pequeno ajuste para o nome fantasia */
+#modalNomeFantasia {
+    font-weight: 500;
+}
+
+/* Badge de CNPJ com destaque */
+.cliente-tipo-badge.cnpj {
+    background: #d1f0e5;
+    color: #006b4f;
+    font-weight: 600;
+}
+
+.cliente-tipo-badge.cpf {
+    background: #d6eaf8;
+    color: #1a5276;
+    font-weight: 600;
+}

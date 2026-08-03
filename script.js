@@ -2,6 +2,7 @@
 // CORRIGIDO - Eliminação de duplicação de dados e controle de sessão
 // CORRIGIDO - Atualização imediata da lista de clientes
 // CORRIGIDO - Renderização imediata da equipe
+// CORRIGIDO - Cadastro de clientes com Razão Social e Nome Fantasia para CNPJ
 
 // =============================================
 // ===== PREVENÇÃO DE ERROS DE REFERÊNCIA =====
@@ -920,7 +921,13 @@
         var clientes = DB.getAll('clientes');
         var idStr = String(id);
         var cliente = clientes.find(function (c) { return String(c.id) === idStr; });
-        return cliente ? cliente.nome || 'Cliente sem nome' : 'Cliente #' + id;
+        if (!cliente) return 'Cliente #' + id;
+        
+        // Para CNPJ, exibe Nome Fantasia ou Razão Social
+        if (cliente.tipoCliente === 'cnpj') {
+            return cliente.nomeFantasia || cliente.nome || cliente.razaoSocial || 'Cliente #' + id;
+        }
+        return cliente.nome || 'Cliente sem nome';
     }
 
     function getCliente(id) {
@@ -1916,7 +1923,7 @@
     }
 
     // =============================================
-    // ===== RENDER CLIENTES (CORRIGIDO) =====
+    // ===== RENDER CLIENTES (CORRIGIDO COM CNPJ) =====
     // =============================================
     function renderClientes() {
         // FORÇA A ATUALIZAÇÃO DO CACHE PARA CLIENTES
@@ -1933,8 +1940,15 @@
         tbody.innerHTML = clientes.map(function (c) {
             var tipoLabel = c.tipoCliente === 'cnpj' ? '🏢 CNPJ' : '👤 CPF';
             var tipoClass = c.tipoCliente === 'cnpj' ? 'cnpj' : 'cpf';
+            
+            // Exibe Nome Fantasia para CNPJ, senão exibe o nome normal
+            var nomeExibido = c.nome || c.nomeFantasia || c.nome;
+            if (c.tipoCliente === 'cnpj' && c.nomeFantasia) {
+                nomeExibido = c.nomeFantasia + (c.razaoSocial ? ' <small style="color:#999;font-size:0.7rem;">(' + c.razaoSocial + ')</small>' : '');
+            }
+            
             return '<tr>' +
-                '<td><strong>' + c.nome + '</strong></td>' +
+                '<td><strong>' + nomeExibido + '</strong></td>' +
                 '<td>' + (c.documento || 'N/A') + '</td>' +
                 '<td><span class="cliente-tipo-badge ' + tipoClass + '">' + tipoLabel + '</span></td>' +
                 '<td>' + c.telefone + '</td>' +
@@ -2062,6 +2076,30 @@
         container.innerHTML = html || '<p style="color:#999;text-align:center;padding:40px;">Nenhum relatório cadastrado</p>';
     }
 
+    // ===== FUNÇÃO TOGGLE PARA CAMPOS DE CNPJ =====
+    window.toggleCamposCnpj = function() {
+        var tipo = document.getElementById('modalTipoCliente')?.value || 'cpf';
+        var camposCnpj = document.getElementById('camposCnpj');
+        var labelNome = document.getElementById('labelNome');
+        var inputNome = document.getElementById('modalNome');
+        
+        if (tipo === 'cnpj') {
+            if (camposCnpj) camposCnpj.style.display = 'block';
+            if (labelNome) labelNome.textContent = 'Nome Fantasia *';
+            if (inputNome) {
+                inputNome.placeholder = 'Nome Fantasia da empresa';
+                inputNome.value = '';
+            }
+        } else {
+            if (camposCnpj) camposCnpj.style.display = 'none';
+            if (labelNome) labelNome.textContent = 'Nome *';
+            if (inputNome) {
+                inputNome.placeholder = 'Nome completo';
+                inputNome.value = '';
+            }
+        }
+    };
+
     window.toggleDocumentoCliente = function () {
         var tipo = document.getElementById('modalTipoCliente')?.value || 'cpf';
         var label = document.getElementById('labelDocumento');
@@ -2075,6 +2113,9 @@
             input.maxLength = tipo === 'cpf' ? 14 : 18;
             input.value = '';
         }
+        
+        // Atualiza os campos de CNPJ
+        toggleCamposCnpj();
     };
 
     // ==========================================
@@ -2917,19 +2958,19 @@
             });
         }
 
-        // Botão Novo Cliente - CORRIGIDO
+        // Botão Novo Cliente - CORRIGIDO COM RAZÃO SOCIAL E NOME FANTASIA
         var btnNovoCliente = document.getElementById('btnNovoCliente');
         if (btnNovoCliente) {
             btnNovoCliente.addEventListener('click', function () {
                 abrirModal('Novo Cliente', `
                     <div class="form-group">
-                        <label>Nome *</label>
+                        <label id="labelNome">Nome *</label>
                         <input type="text" id="modalNome" placeholder="Nome completo" />
                     </div>
                     <div class="form-row">
                         <div class="form-group">
                             <label>Tipo de Cliente *</label>
-                            <select id="modalTipoCliente" onchange="toggleDocumentoCliente()">
+                            <select id="modalTipoCliente" onchange="toggleDocumentoCliente(); toggleCamposCnpj();">
                                 <option value="cpf">Pessoa Física (CPF)</option>
                                 <option value="cnpj">Pessoa Jurídica (CNPJ)</option>
                             </select>
@@ -2938,6 +2979,13 @@
                             <label id="labelDocumento">CPF *</label>
                             <input type="text" id="modalDocumento" placeholder="000.000.000-00" maxlength="14" />
                         </div>
+                    </div>
+                    <!-- Campos adicionais para CNPJ (inicialmente ocultos) -->
+                    <div id="camposCnpj" style="display:none;">
+                        <div class="form-group">
+                            <label>Razão Social *</label>
+                            <input type="text" id="modalRazaoSocial" placeholder="Razão Social da empresa" />
+                        </div>                       
                     </div>
                     <div class="form-group">
                         <label>Telefone</label>
@@ -2960,6 +3008,9 @@
                             aplicarMascaraDocumento(e.target);
                         });
                     }
+                    
+                    // Inicializa os campos CNPJ
+                    toggleCamposCnpj();
                 }, 100);
             });
         }
@@ -4604,172 +4655,169 @@
         renderAgendaComFiltros();
     };
 
-function renderAgendaComFiltros() {
-    DB.forceClearCache('agenda');
-    var agendaKey = DB.getFullKey('agenda');
-    var agenda = JSON.parse(localStorage.getItem(agendaKey) || '[]');
-    var container = document.getElementById('agendaList');
-    if (!container) return;
-
-    var temFiltroAtivo = filtrosAgenda.dataInicio || filtrosAgenda.dataFim ||
-        filtrosAgenda.clienteId || filtrosAgenda.status;
-
-    if (!temFiltroAtivo) {
-        var hoje = new Date().toLocaleDateString('pt-BR');
-        agenda = agenda.filter(function (a) {
-            return a.data === hoje;
-        });
-    }
-
-    var servicos = DB.getAll('servicos');
-    var agendaAtualizada = false;
-
-    agenda = agenda.map(function (a) {
-        if (a.servicoId) {
-            var servico = servicos.find(function (s) { return s.id === a.servicoId; });
-            if (servico) {
-                if (a.statusServico !== servico.status) {
-                    a.statusServico = servico.status;
-                    a.descricao = atualizarDescricaoAgendamento(a, servico);
-                    a.atualizadoEm = new Date().toISOString();
-                    agendaAtualizada = true;
-                }
-                var cliente = getCliente(servico.clienteId);
-                a.clienteNome = cliente ? cliente.nome : 'Cliente #' + servico.clienteId;
-                a.clienteId = servico.clienteId;
-                a.data = servico.data;
-                a.tipoServico = servico.tipo;
-                a.horario = servico.horario || a.horario || '09:00';
-            }
-        } else if (a.clienteId) {
-            var cliente = getCliente(a.clienteId);
-            a.clienteNome = cliente ? cliente.nome : 'Cliente #' + a.clienteId;
-        } else {
-            a.clienteNome = 'Cliente não definido';
-        }
-        return a;
-    });
-
-    if (agendaAtualizada) {
-        localStorage.setItem(agendaKey, JSON.stringify(agenda));
+    function renderAgendaComFiltros() {
         DB.forceClearCache('agenda');
+        var agendaKey = DB.getFullKey('agenda');
+        var agenda = JSON.parse(localStorage.getItem(agendaKey) || '[]');
+        var container = document.getElementById('agendaList');
+        if (!container) return;
+
+        var temFiltroAtivo = filtrosAgenda.dataInicio || filtrosAgenda.dataFim ||
+            filtrosAgenda.clienteId || filtrosAgenda.status;
+
+        if (!temFiltroAtivo) {
+            var hoje = new Date().toLocaleDateString('pt-BR');
+            agenda = agenda.filter(function (a) {
+                return a.data === hoje;
+            });
+        }
+
+        var servicos = DB.getAll('servicos');
+        var agendaAtualizada = false;
+
+        agenda = agenda.map(function (a) {
+            if (a.servicoId) {
+                var servico = servicos.find(function (s) { return s.id === a.servicoId; });
+                if (servico) {
+                    if (a.statusServico !== servico.status) {
+                        a.statusServico = servico.status;
+                        a.descricao = atualizarDescricaoAgendamento(a, servico);
+                        a.atualizadoEm = new Date().toISOString();
+                        agendaAtualizada = true;
+                    }
+                    var cliente = getCliente(servico.clienteId);
+                    a.clienteNome = cliente ? cliente.nome : 'Cliente #' + servico.clienteId;
+                    a.clienteId = servico.clienteId;
+                    a.data = servico.data;
+                    a.tipoServico = servico.tipo;
+                    a.horario = servico.horario || a.horario || '09:00';
+                }
+            } else if (a.clienteId) {
+                var cliente = getCliente(a.clienteId);
+                a.clienteNome = cliente ? cliente.nome : 'Cliente #' + a.clienteId;
+            } else {
+                a.clienteNome = 'Cliente não definido';
+            }
+            return a;
+        });
+
+        if (agendaAtualizada) {
+            localStorage.setItem(agendaKey, JSON.stringify(agenda));
+            DB.forceClearCache('agenda');
+        }
+
+        var filtrados = agenda.filter(function (a) {
+            if (filtrosAgenda.dataInicio) {
+                var partes = a.data.split('/');
+                var dataAgenda = new Date(parseInt(partes[2]), parseInt(partes[1]) - 1, parseInt(partes[0]));
+                var dataInicio = new Date(filtrosAgenda.dataInicio);
+                if (dataAgenda < dataInicio) return false;
+            }
+            if (filtrosAgenda.dataFim) {
+                var partes = a.data.split('/');
+                var dataAgenda = new Date(parseInt(partes[2]), parseInt(partes[1]) - 1, parseInt(partes[0]));
+                var dataFim = new Date(filtrosAgenda.dataFim);
+                dataFim.setHours(23, 59, 59);
+                if (dataAgenda > dataFim) return false;
+            }
+            if (filtrosAgenda.clienteId) {
+                if (String(a.clienteId) !== String(filtrosAgenda.clienteId)) return false;
+            }
+            if (filtrosAgenda.status) {
+                if (a.statusServico !== filtrosAgenda.status) return false;
+            }
+            return true;
+        });
+
+        var resultados = temFiltroAtivo ? filtrados : agenda;
+
+        resultados.sort(function (a, b) {
+            var dataA = a.data.split('/').reverse().join('');
+            var dataB = b.data.split('/').reverse().join('');
+            if (dataA !== dataB) return dataA.localeCompare(dataB);
+            return (a.horario || '00:00').localeCompare(b.horario || '00:00');
+        });
+
+        if (resultados.length === 0) {
+            container.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#999;padding:30px;">' +
+                (temFiltroAtivo ? 'Nenhum agendamento encontrado com os filtros aplicados' : 'Nenhum agendamento para hoje') +
+                '</div>';
+            return;
+        }
+
+        container.innerHTML = resultados.map(function (a) {
+            var clienteNome = a.clienteNome || 'Cliente não definido';
+            var isServico = a.servicoId ? true : false;
+            var icone = isServico ? '🔧' : '📌';
+            var classeExtra = isServico ? ' agenda-servico' : '';
+
+            var statusBadge = '';
+            if (a.statusServico) {
+                var statusMap = {
+                    'Concluído': 'success',
+                    'Concluida': 'success',
+                    'Concluída': 'success',
+                    'Em andamento': 'warning',
+                    'Pendente': 'danger',
+                    'Agendado': 'info',
+                    'Agendada': 'info',
+                    'Cancelado': 'danger',
+                    'Cancelada': 'danger'
+                };
+                var classe = statusMap[a.statusServico] || 'info';
+                statusBadge = '<span class="badge ' + classe + '" style="font-size:0.65rem;margin-left:6px;">' + a.statusServico + '</span>';
+            }
+
+            var tipoBadge = '';
+            if (a.tipoServico) {
+                var tipoCores = {
+                    'Desratização': '#e67e22',
+                    'Desinsetização': '#1d7a6b',
+                    'Descupinização': '#8e44ad'
+                };
+                var cor = tipoCores[a.tipoServico] || '#2c5c6b';
+                var shortName = a.tipoServico.substring(0, 3);
+                tipoBadge = '<span style="display:inline-block;padding:0 8px;border-radius:10px;font-size:0.6rem;font-weight:600;background:' + cor + ';color:white;margin-left:4px;">' + shortName + '</span>';
+            }
+
+            var atualizadoInfo = '';
+            if (a.atualizadoEm) {
+                try {
+                    var dataAtualizacao = new Date(a.atualizadoEm);
+                    var diffMs = Date.now() - dataAtualizacao.getTime();
+                    var diffMin = Math.floor(diffMs / 60000);
+                    var diffStr = diffMin < 1 ? 'agora' : diffMin + 'min';
+                    atualizadoInfo = ' <span style="font-size:0.5rem;color:#999;font-weight:300;">(atualizado ' + diffStr + ')</span>';
+                } catch (e) { }
+            }
+
+            return '<div class="agenda-item' + classeExtra + '" style="' + (isServico ? 'border-left-color: #0b2a3b;' : '') + '">' +
+                '<div style="flex:1;min-width:0;">' +
+                '<div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px;">' +
+                '<i class="fas fa-clock" style="color:#1d7a6b;font-size:1rem;"></i>' +
+                '<strong style="font-size:0.95rem;">' + (a.horario || '09:00') + '</strong>' +
+                '<span style="color:#4d687a;font-size:0.85rem;">- ' + a.data + '</span>' +
+                tipoBadge +
+                statusBadge +
+                atualizadoInfo +
+                '</div>' +
+                '<div style="font-weight:400;font-size:0.9rem;margin-top:2px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">' +
+                '<span>' + icone + '</span>' +
+                '<span>' + a.descricao + '</span>' +
+                (isServico ? '<span style="font-size:0.6rem;color:#1d7a6b;background:#d1f0e5;padding:0 8px;border-radius:10px;">Auto</span>' : '') +
+                '</div>' +
+                '<div style="font-size:0.8rem;color:#4d687a;margin-top:2px;">' +
+                '<i class="fas fa-user" style="font-size:0.7rem;"></i> ' + clienteNome +
+                '</div>' +
+                '</div>' +
+                '</div>';
+        }).join('');
+
+        console.log('📋 Agenda filtrada com ' + resultados.length + ' itens' + (temFiltroAtivo ? ' (filtros ativos)' : ' (apenas hoje)'));
     }
-
-    var filtrados = agenda.filter(function (a) {
-        if (filtrosAgenda.dataInicio) {
-            var partes = a.data.split('/');
-            var dataAgenda = new Date(parseInt(partes[2]), parseInt(partes[1]) - 1, parseInt(partes[0]));
-            var dataInicio = new Date(filtrosAgenda.dataInicio);
-            if (dataAgenda < dataInicio) return false;
-        }
-        if (filtrosAgenda.dataFim) {
-            var partes = a.data.split('/');
-            var dataAgenda = new Date(parseInt(partes[2]), parseInt(partes[1]) - 1, parseInt(partes[0]));
-            var dataFim = new Date(filtrosAgenda.dataFim);
-            dataFim.setHours(23, 59, 59);
-            if (dataAgenda > dataFim) return false;
-        }
-        if (filtrosAgenda.clienteId) {
-            if (String(a.clienteId) !== String(filtrosAgenda.clienteId)) return false;
-        }
-        if (filtrosAgenda.status) {
-            if (a.statusServico !== filtrosAgenda.status) return false;
-        }
-        return true;
-    });
-
-    var resultados = temFiltroAtivo ? filtrados : agenda;
-
-    resultados.sort(function (a, b) {
-        var dataA = a.data.split('/').reverse().join('');
-        var dataB = b.data.split('/').reverse().join('');
-        if (dataA !== dataB) return dataA.localeCompare(dataB);
-        return (a.horario || '00:00').localeCompare(b.horario || '00:00');
-    });
-
-    if (resultados.length === 0) {
-        container.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#999;padding:30px;">' +
-            (temFiltroAtivo ? 'Nenhum agendamento encontrado com os filtros aplicados' : 'Nenhum agendamento para hoje') +
-            '</div>';
-        return;
-    }
-
-    // ===== VERSÃO CORRIGIDA SEM BOTÕES DE AÇÃO =====
-    container.innerHTML = resultados.map(function (a) {
-        var clienteNome = a.clienteNome || 'Cliente não definido';
-        var isServico = a.servicoId ? true : false;
-        var icone = isServico ? '🔧' : '📌';
-        var classeExtra = isServico ? ' agenda-servico' : '';
-
-        var statusBadge = '';
-        if (a.statusServico) {
-            var statusMap = {
-                'Concluído': 'success',
-                'Concluida': 'success',
-                'Concluída': 'success',
-                'Em andamento': 'warning',
-                'Pendente': 'danger',
-                'Agendado': 'info',
-                'Agendada': 'info',
-                'Cancelado': 'danger',
-                'Cancelada': 'danger'
-            };
-            var classe = statusMap[a.statusServico] || 'info';
-            statusBadge = '<span class="badge ' + classe + '" style="font-size:0.65rem;margin-left:6px;">' + a.statusServico + '</span>';
-        }
-
-        var tipoBadge = '';
-        if (a.tipoServico) {
-            var tipoCores = {
-                'Desratização': '#e67e22',
-                'Desinsetização': '#1d7a6b',
-                'Descupinização': '#8e44ad'
-            };
-            var cor = tipoCores[a.tipoServico] || '#2c5c6b';
-            var shortName = a.tipoServico.substring(0, 3);
-            tipoBadge = '<span style="display:inline-block;padding:0 8px;border-radius:10px;font-size:0.6rem;font-weight:600;background:' + cor + ';color:white;margin-left:4px;">' + shortName + '</span>';
-        }
-
-        var atualizadoInfo = '';
-        if (a.atualizadoEm) {
-            try {
-                var dataAtualizacao = new Date(a.atualizadoEm);
-                var diffMs = Date.now() - dataAtualizacao.getTime();
-                var diffMin = Math.floor(diffMs / 60000);
-                var diffStr = diffMin < 1 ? 'agora' : diffMin + 'min';
-                atualizadoInfo = ' <span style="font-size:0.5rem;color:#999;font-weight:300;">(atualizado ' + diffStr + ')</span>';
-            } catch (e) { }
-        }
-
-        // ===== REMOVIDOS OS BOTÕES DE EDIÇÃO E EXCLUSÃO =====
-        return '<div class="agenda-item' + classeExtra + '" style="' + (isServico ? 'border-left-color: #0b2a3b;' : '') + '">' +
-            '<div style="flex:1;min-width:0;">' +
-            '<div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px;">' +
-            '<i class="fas fa-clock" style="color:#1d7a6b;font-size:1rem;"></i>' +
-            '<strong style="font-size:0.95rem;">' + (a.horario || '09:00') + '</strong>' +
-            '<span style="color:#4d687a;font-size:0.85rem;">- ' + a.data + '</span>' +
-            tipoBadge +
-            statusBadge +
-            atualizadoInfo +
-            '</div>' +
-            '<div style="font-weight:400;font-size:0.9rem;margin-top:2px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">' +
-            '<span>' + icone + '</span>' +
-            '<span>' + a.descricao + '</span>' +
-            (isServico ? '<span style="font-size:0.6rem;color:#1d7a6b;background:#d1f0e5;padding:0 8px;border-radius:10px;">Auto</span>' : '') +
-            '</div>' +
-            '<div style="font-size:0.8rem;color:#4d687a;margin-top:2px;">' +
-            '<i class="fas fa-user" style="font-size:0.7rem;"></i> ' + clienteNome +
-            '</div>' +
-            '</div>' +
-            // ===== BOTÕES DE AÇÃO REMOVIDOS =====
-            '</div>';
-    }).join('');
-
-    console.log('📋 Agenda filtrada com ' + resultados.length + ' itens' + (temFiltroAtivo ? ' (filtros ativos)' : ' (apenas hoje)'));
-}
 
     // ==========================================
-    // ===== FUNÇÕES DE CLIENTES (CORRIGIDAS) =====
+    // ===== FUNÇÕES DE CLIENTES (CORRIGIDAS COM CNPJ) =====
     // ==========================================
 
     function aplicarMascaraDocumento(input) {
@@ -4803,24 +4851,56 @@ function renderAgendaComFiltros() {
         }
     }
 
+    // ===== CRIAR NOVO CLIENTE COM RAZÃO SOCIAL E NOME FANTASIA =====
     window.criarNovoCliente = function () {
-        var nome = document.getElementById('modalNome')?.value || '';
         var tipoCliente = document.getElementById('modalTipoCliente')?.value || 'cpf';
+        var nome = document.getElementById('modalNome')?.value || '';
         var documento = document.getElementById('modalDocumento')?.value || '';
         var telefone = document.getElementById('modalTelefone')?.value || '';
         var endereco = document.getElementById('modalEndereco')?.value || '';
+        
+        var razaoSocial = '';
+        var nomeFantasia = '';
 
-        if (!nome) { alert('Nome é obrigatório'); return; }
-        if (!documento) { alert('Documento é obrigatório'); return; }
+        if (tipoCliente === 'cnpj') {
+            razaoSocial = document.getElementById('modalRazaoSocial')?.value || '';
+            nomeFantasia = document.getElementById('modalNomeFantasia')?.value || '';
+            
+            if (!razaoSocial) {
+                alert('Razão Social é obrigatória para Pessoa Jurídica!');
+                return;
+            }
+            if (!nome) {
+                alert('Nome Fantasia é obrigatório para Pessoa Jurídica!');
+                return;
+            }
+        }
 
-        DB.add('clientes', {
+        if (!nome) { 
+            alert(tipoCliente === 'cnpj' ? 'Nome Fantasia é obrigatório' : 'Nome é obrigatório'); 
+            return; 
+        }
+        if (!documento) { 
+            alert(tipoCliente === 'cnpj' ? 'CNPJ é obrigatório' : 'CPF é obrigatório'); 
+            return; 
+        }
+
+        var clienteData = {
             nome: nome,
             tipoCliente: tipoCliente,
             documento: documento,
             telefone: telefone,
             endereco: endereco,
             ultimoServico: 'N/A'
-        });
+        };
+
+        // Adiciona campos específicos para CNPJ
+        if (tipoCliente === 'cnpj') {
+            clienteData.razaoSocial = razaoSocial;
+            clienteData.nomeFantasia = nomeFantasia;
+        }
+
+        DB.add('clientes', clienteData);
         
         // FORÇA LIMPEZA DO CACHE DE CLIENTES
         DB.forceClearCache('clientes');
@@ -4838,26 +4918,42 @@ function renderAgendaComFiltros() {
         alert('Cliente adicionado com sucesso!');
     };
 
+    // ===== EDITAR CLIENTE COM RAZÃO SOCIAL E NOME FANTASIA =====
     window.editarCliente = function (id) {
         var c = DB.getById('clientes', id);
         if (!c) return;
 
+        var isCnpj = c.tipoCliente === 'cnpj';
+        var razaoSocial = c.razaoSocial || '';
+        var nomeFantasia = c.nomeFantasia || '';
+
         abrirModal('Editar Cliente', `
             <div class="form-group">
-                <label>Nome *</label>
-                <input type="text" id="modalNome" value="${c.nome}" />
+                <label id="labelNome">${isCnpj ? 'Nome Fantasia *' : 'Nome *'}</label>
+                <input type="text" id="modalNome" value="${c.nome}" placeholder="${isCnpj ? 'Nome Fantasia da empresa' : 'Nome completo'}" />
             </div>
             <div class="form-row">
                 <div class="form-group">
                     <label>Tipo de Cliente *</label>
-                    <select id="modalTipoCliente" onchange="toggleDocumentoCliente()">
-                        <option value="cpf" ${c.tipoCliente === 'cpf' ? 'selected' : ''}>Pessoa Física (CPF)</option>
-                        <option value="cnpj" ${c.tipoCliente === 'cnpj' ? 'selected' : ''}>Pessoa Jurídica (CNPJ)</option>
+                    <select id="modalTipoCliente" onchange="toggleDocumentoCliente(); toggleCamposCnpj();">
+                        <option value="cpf" ${!isCnpj ? 'selected' : ''}>Pessoa Física (CPF)</option>
+                        <option value="cnpj" ${isCnpj ? 'selected' : ''}>Pessoa Jurídica (CNPJ)</option>
                     </select>
                 </div>
                 <div class="form-group">
-                    <label id="labelDocumento">${c.tipoCliente === 'cnpj' ? 'CNPJ' : 'CPF'} *</label>
-                    <input type="text" id="modalDocumento" value="${c.documento || ''}" placeholder="${c.tipoCliente === 'cnpj' ? '00.000.000/0001-00' : '000.000.000-00'}" maxlength="${c.tipoCliente === 'cnpj' ? 18 : 14}" />
+                    <label id="labelDocumento">${isCnpj ? 'CNPJ *' : 'CPF *'}</label>
+                    <input type="text" id="modalDocumento" value="${c.documento || ''}" placeholder="${isCnpj ? '00.000.000/0001-00' : '000.000.000-00'}" maxlength="${isCnpj ? 18 : 14}" />
+                </div>
+            </div>
+            <!-- Campos adicionais para CNPJ -->
+            <div id="camposCnpj" style="${isCnpj ? 'display:block;' : 'display:none;'}">
+                <div class="form-group">
+                    <label>Razão Social *</label>
+                    <input type="text" id="modalRazaoSocial" value="${razaoSocial}" placeholder="Razão Social da empresa" />
+                </div>
+                <div class="form-group">
+                    <label>Nome Fantasia</label>
+                    <input type="text" id="modalNomeFantasia" value="${nomeFantasia}" placeholder="Nome Fantasia da empresa" />
                 </div>
             </div>
             <div class="form-group">
@@ -4884,23 +4980,58 @@ function renderAgendaComFiltros() {
         }, 100);
     };
 
+    // ===== SALVAR EDIÇÃO CLIENTE COM CNPJ =====
     window.salvarEdicaoCliente = function (id) {
-        var nome = document.getElementById('modalNome')?.value || '';
         var tipoCliente = document.getElementById('modalTipoCliente')?.value || 'cpf';
+        var nome = document.getElementById('modalNome')?.value || '';
         var documento = document.getElementById('modalDocumento')?.value || '';
         var telefone = document.getElementById('modalTelefone')?.value || '';
         var endereco = document.getElementById('modalEndereco')?.value || '';
+        
+        var razaoSocial = '';
+        var nomeFantasia = '';
 
-        if (!nome) { alert('Nome é obrigatório'); return; }
-        if (!documento) { alert('Documento é obrigatório'); return; }
+        if (tipoCliente === 'cnpj') {
+            razaoSocial = document.getElementById('modalRazaoSocial')?.value || '';
+            nomeFantasia = document.getElementById('modalNomeFantasia')?.value || '';
+            
+            if (!razaoSocial) {
+                alert('Razão Social é obrigatória para Pessoa Jurídica!');
+                return;
+            }
+            if (!nome) {
+                alert('Nome Fantasia é obrigatório para Pessoa Jurídica!');
+                return;
+            }
+        }
 
-        DB.update('clientes', id, { 
-            nome: nome, 
-            tipoCliente: tipoCliente, 
-            documento: documento, 
-            telefone: telefone, 
-            endereco: endereco 
-        });
+        if (!nome) { 
+            alert(tipoCliente === 'cnpj' ? 'Nome Fantasia é obrigatório' : 'Nome é obrigatório'); 
+            return; 
+        }
+        if (!documento) { 
+            alert(tipoCliente === 'cnpj' ? 'CNPJ é obrigatório' : 'CPF é obrigatório'); 
+            return; 
+        }
+
+        var updateData = {
+            nome: nome,
+            tipoCliente: tipoCliente,
+            documento: documento,
+            telefone: telefone,
+            endereco: endereco
+        };
+
+        if (tipoCliente === 'cnpj') {
+            updateData.razaoSocial = razaoSocial;
+            updateData.nomeFantasia = nomeFantasia;
+        } else {
+            // Remove campos CNPJ se mudou para PF
+            updateData.razaoSocial = null;
+            updateData.nomeFantasia = null;
+        }
+
+        DB.update('clientes', id, updateData);
         
         // FORÇA LIMPEZA DO CACHE DE CLIENTES
         DB.forceClearCache('clientes');
