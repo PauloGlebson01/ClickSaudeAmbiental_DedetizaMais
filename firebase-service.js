@@ -362,7 +362,7 @@ const AuthService = {
             console.log('🔍 Verificando admin no Firestore...');
             const snapshot = await db.collection('usuarios')
                 .where('perfil', 'in', ['admin', 'superadmin'])
-                .limit(2)
+                .limit(3)
                 .get();
             
             const exists = !snapshot.empty;
