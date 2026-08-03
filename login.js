@@ -1,5 +1,5 @@
-// login.js - Sistema de Login Multi-Empresa (APENAS 1 ADMIN)
-// CORRIGIDO - Reset de senha e funções de navegação
+// login.js - Sistema de Login Multi-Empresa (MÚLTIPLOS ADMINS COMPARTILHADOS)
+// CORRIGIDO - Permite cadastro de múltiplos administradores
 
 document.addEventListener('DOMContentLoaded', function() {
     
@@ -86,7 +86,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         el.textContent = '🏢 ' + empresaInfo.nome;
                         el.style.display = 'block';
                     } else {
-                        el.textContent = '🏢 Nova empresa - Crie sua conta';
+                        el.textContent = '🏢 Sistema - Crie sua conta';
                         el.style.display = 'block';
                         el.style.color = '#1d7a6b';
                     }
@@ -97,7 +97,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // ===== VERIFICA SE JÁ EXISTE UM ADMIN =====
+    // ===== VERIFICA SE JÁ EXISTE UM ADMIN (APENAS PARA AVISO) =====
+    // 🔥 CORREÇÃO: NÃO BLOQUEIA MAIS O CADASTRO
     async function verificarAdminExistente() {
         try {
             if (typeof AuthService === 'undefined') return;
@@ -113,44 +114,10 @@ document.addEventListener('DOMContentLoaded', function() {
             const formDesc = document.querySelector('#cadastroForm .form-desc');
             
             if (hasAdmin) {
-                console.log('✅ Admin existente. Cadastro bloqueado.');
+                console.log('ℹ️ Admin existente. Cadastro PERMITIDO para múltiplos admins.');
                 
-                // Desabilita o cadastro
-                if (cadastroBtn) {
-                    cadastroBtn.disabled = true;
-                    cadastroBtn.innerHTML = '<i class="fas fa-lock"></i> Cadastro Bloqueado';
-                    cadastroBtn.style.opacity = '0.6';
-                    cadastroBtn.style.cursor = 'not-allowed';
-                }
-                
-                cadastroInputs.forEach(input => {
-                    input.disabled = true;
-                    input.style.opacity = '0.6';
-                    input.style.cursor = 'not-allowed';
-                });
-                
-                if (formDesc) {
-                    formDesc.innerHTML = '🔒 <strong>Cadastro bloqueado.</strong> Já existe um administrador cadastrado.';
-                    formDesc.style.color = '#b13e3a';
-                    formDesc.style.padding = '12px 16px';
-                    formDesc.style.background = '#fde2e0';
-                    formDesc.style.borderRadius = '8px';
-                    formDesc.style.borderLeft = '4px solid #b13e3a';
-                }
-                
-                const termosCheckbox = document.getElementById('cadastroTermos');
-                if (termosCheckbox) {
-                    termosCheckbox.disabled = true;
-                }
-                
-                if (cadastroLink) {
-                    cadastroLink.style.pointerEvents = 'none';
-                    cadastroLink.style.opacity = '0.5';
-                }
-            } else {
-                console.log('ℹ️ Nenhum admin encontrado. Cadastro liberado!');
-                
-                // Habilita o cadastro
+                // 🔥 CORREÇÃO: NÃO BLOQUEIA MAIS O CADASTRO
+                // Apenas mostra um aviso informativo
                 if (cadastroBtn) {
                     cadastroBtn.disabled = false;
                     cadastroBtn.innerHTML = '<i class="fas fa-user-plus"></i> Criar Conta';
@@ -165,11 +132,47 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
                 
                 if (formDesc) {
-                    formDesc.innerHTML = 'Crie sua conta de administrador para acessar o sistema.';
-                    formDesc.style.color = '';
-                    formDesc.style.padding = '';
-                    formDesc.style.background = '';
-                    formDesc.style.borderLeft = '';
+                    formDesc.innerHTML = '🔓 Crie sua conta de administrador. Você terá acesso à mesma empresa que os demais administradores.';
+                    formDesc.style.color = '#006b4f';
+                    formDesc.style.padding = '12px 16px';
+                    formDesc.style.background = '#d1f0e5';
+                    formDesc.style.borderRadius = '8px';
+                    formDesc.style.borderLeft = '4px solid #006b4f';
+                }
+                
+                const termosCheckbox = document.getElementById('cadastroTermos');
+                if (termosCheckbox) {
+                    termosCheckbox.disabled = false;
+                }
+                
+                if (cadastroLink) {
+                    cadastroLink.style.pointerEvents = 'auto';
+                    cadastroLink.style.opacity = '1';
+                }
+            } else {
+                console.log('ℹ️ Nenhum admin encontrado. Cadastro do primeiro admin liberado!');
+                
+                // Habilita o cadastro (primeiro admin)
+                if (cadastroBtn) {
+                    cadastroBtn.disabled = false;
+                    cadastroBtn.innerHTML = '<i class="fas fa-user-plus"></i> Criar Conta';
+                    cadastroBtn.style.opacity = '1';
+                    cadastroBtn.style.cursor = 'pointer';
+                }
+                
+                cadastroInputs.forEach(input => {
+                    input.disabled = false;
+                    input.style.opacity = '1';
+                    input.style.cursor = '';
+                });
+                
+                if (formDesc) {
+                    formDesc.innerHTML = '🌟 Crie sua conta de administrador. Você será o primeiro administrador do sistema.';
+                    formDesc.style.color = '#1a5276';
+                    formDesc.style.padding = '12px 16px';
+                    formDesc.style.background = '#d6eaf8';
+                    formDesc.style.borderRadius = '8px';
+                    formDesc.style.borderLeft = '4px solid #1a5276';
                 }
                 
                 const termosCheckbox = document.getElementById('cadastroTermos');
@@ -184,7 +187,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         } catch (e) {
             console.warn('Erro ao verificar admin:', e);
-            // Em caso de erro, libera o cadastro para não bloquear o usuário
+            // Em caso de erro, libera o cadastro
             liberarCadastro();
         }
     }
@@ -270,34 +273,12 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     };
 
-    // ===== FORÇAR PRIMEIRO CADASTRO (BYPASS) =====
+    // ===== FORÇAR PRIMEIRO CADASTRO =====
     window.forcarPrimeiroCadastro = function() {
         console.log('🔄 Forçando primeiro cadastro...');
-        // Reseta o cache e verifica novamente
-        if (typeof AuthService !== 'undefined') {
-            AuthService.resetAdminCache();
-            // Limpa qualquer admin falso do localStorage
-            try {
-                const users = JSON.parse(localStorage.getItem('dedetiza_users') || '[]');
-                const admins = users.filter(u => u.perfil === 'admin' || u.perfil === 'superadmin');
-                if (admins.length === 0) {
-                    console.log('✅ Nenhum admin real encontrado. Cadastro liberado!');
-                    liberarCadastro();
-                    mostrarCadastro();
-                } else {
-                    console.log('⚠️ Admin encontrado no localStorage. Verificando se é válido...');
-                    // Verifica se o admin é válido
-                    verificarAdminExistente();
-                }
-            } catch (e) {
-                console.warn('Erro ao limpar cache:', e);
-                liberarCadastro();
-                mostrarCadastro();
-            }
-        } else {
-            liberarCadastro();
-            mostrarCadastro();
-        }
+        liberarCadastro();
+        mostrarCadastro();
+        alert('✅ Cadastro liberado! Preencha os dados para criar um administrador.');
     };
 
     // ===== FUNÇÃO DE LOGIN =====
@@ -391,7 +372,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     };
 
-    // ===== FUNÇÃO DE CADASTRO =====
+    // ===== FUNÇÃO DE CADASTRO - CORRIGIDA =====
     window.fazerCadastro = async function() {
         var nome = document.getElementById('cadastroNome').value.trim();
         var usuario = document.getElementById('cadastroUser').value.trim();
@@ -413,20 +394,8 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        // Verifica se já existe admin
-        try {
-            AuthService.resetAdminCache();
-            const hasAdmin = await AuthService._hasAdmin();
-            if (hasAdmin) {
-                errorEl.textContent = '❌ Já existe um administrador cadastrado no sistema.';
-                errorEl.classList.add('show');
-                verificarAdminExistente();
-                return;
-            }
-        } catch (e) {
-            console.warn('Erro ao verificar admin:', e);
-            // Se erro, continua para não bloquear
-        }
+        // 🔥 CORREÇÃO: NÃO BLOQUEIA MAIS O CADASTRO SE JÁ EXISTE ADMIN
+        // Apenas verifica para mostrar mensagem, mas permite o cadastro
 
         if (!nome || !usuario || !email || !senha || !confirm) {
             errorEl.textContent = 'Preencha todos os campos.';
@@ -510,7 +479,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     };
 
-    // ===== RECUPERAR SENHA - CORRIGIDO =====
+    // ===== RECUPERAR SENHA =====
     window.recuperarSenha = async function() {
         var email = document.getElementById('recuperarEmail').value.trim();
         var errorEl = document.getElementById('recuperarError');
@@ -582,7 +551,6 @@ document.addEventListener('DOMContentLoaded', function() {
         if (loginBtn) {
             loginBtn.addEventListener('click', function(e) {
                 e.preventDefault();
-                // Verifica se está na tela de login ou recuperação
                 if (document.getElementById('loginForm').classList.contains('active')) {
                     window.fazerLogin();
                 } else if (document.getElementById('recuperarForm').classList.contains('active')) {
@@ -592,8 +560,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         console.log('🔐 Sistema de Login Multi-Empresa carregado!');
-        console.log('📌 Empresa na URL:', new URLSearchParams(window.location.search).get('empresa') || 'nenhuma');
-        console.log('📌 Modo: Apenas 1 Admin permitido');
+        console.log('📌 MODO: Múltiplos administradores compartilham a mesma empresa');
         console.log('📌 Para forçar primeiro cadastro, use: forcarPrimeiroCadastro()');
     }
 
@@ -610,7 +577,7 @@ document.addEventListener('DOMContentLoaded', function() {
         mostrarEmpresaAtual();
         iniciarEventListeners();
         
-        // Verifica se já existe admin
+        // Verifica se já existe admin (apenas para aviso)
         setTimeout(function() {
             verificarAdminExistente();
         }, 500);
@@ -643,14 +610,12 @@ document.addEventListener('DOMContentLoaded', function() {
 // ===== FUNÇÕES DE RESET E FORÇA =====
 window.resetarCadastro = function() {
     try {
-        // Remove todos os usuários do localStorage
         localStorage.removeItem('dedetiza_users');
         localStorage.removeItem('dedetiza_sessoes');
         localStorage.removeItem('dedetiza_session_atual');
         localStorage.removeItem('dedetiza_session');
         localStorage.removeItem('dedetiza_ultima_empresa');
         
-        // Reseta o cache do AuthService
         if (typeof AuthService !== 'undefined' && AuthService._adminCache !== undefined) {
             AuthService._adminCache = null;
             AuthService._adminCacheTime = 0;
@@ -668,7 +633,6 @@ window.resetarCadastro = function() {
 window.forcarPrimeiroCadastro = function() {
     console.log('🔄 Forçando primeiro cadastro...');
     
-    // Remove apenas os usuários
     try {
         localStorage.removeItem('dedetiza_users');
         if (typeof AuthService !== 'undefined' && AuthService._adminCache !== undefined) {
@@ -680,48 +644,10 @@ window.forcarPrimeiroCadastro = function() {
         console.warn('Erro ao resetar cache:', e);
     }
     
-    // Tenta liberar o cadastro
     try {
-        const cadastroBtn = document.querySelector('.btn-cadastro');
-        const cadastroInputs = document.querySelectorAll('#cadastroForm input');
-        const formDesc = document.querySelector('#cadastroForm .form-desc');
-        const cadastroLink = document.querySelector('.login-footer a[onclick*="mostrarCadastro"]');
-        const termosCheckbox = document.getElementById('cadastroTermos');
-        
-        if (cadastroBtn) {
-            cadastroBtn.disabled = false;
-            cadastroBtn.innerHTML = '<i class="fas fa-user-plus"></i> Criar Conta';
-            cadastroBtn.style.opacity = '1';
-            cadastroBtn.style.cursor = 'pointer';
-        }
-        
-        cadastroInputs.forEach(input => {
-            input.disabled = false;
-            input.style.opacity = '1';
-            input.style.cursor = '';
-        });
-        
-        if (formDesc) {
-            formDesc.innerHTML = 'Crie sua conta de administrador para acessar o sistema.';
-            formDesc.style.color = '';
-            formDesc.style.padding = '';
-            formDesc.style.background = '';
-            formDesc.style.borderLeft = '';
-        }
-        
-        if (termosCheckbox) {
-            termosCheckbox.disabled = false;
-        }
-        
-        if (cadastroLink) {
-            cadastroLink.style.pointerEvents = 'auto';
-            cadastroLink.style.opacity = '1';
-        }
-        
-        // Mostra a tela de cadastro
+        liberarCadastro();
         mostrarCadastro();
-        
-        alert('✅ Cadastro liberado! Preencha os dados para criar o primeiro administrador.');
+        alert('✅ Cadastro liberado! Preencha os dados para criar um administrador.');
     } catch (e) {
         console.error('Erro ao liberar cadastro:', e);
         alert('Erro ao liberar cadastro. Tente recarregar a página e usar o botão "Resetar cadastro".');

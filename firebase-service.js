@@ -1,5 +1,5 @@
-// firebase-service.js - Serviços Firebase para o sistema
-// CORRIGIDO - Sincronização com preservação de dados locais
+// firebase-service.js - Serviços Firebase com dados COMPARTILHADOS entre admins
+// CORRIGIDO: BUSCA EMPRESA NO FIRESTORE PRIMEIRO
 
 // ============================================
 // VERIFICA SE O FIREBASE FOI CARREGADO
@@ -50,13 +50,15 @@ const AuthGuard = {
 };
 
 // ============================================
-// SISTEMA MULTI-EMPRESA COM SESSÕES SEPARADAS
+// EMPRESA ÚNICA - BUSCA NO FIRESTORE PRIMEIRO
 // ============================================
 
 const EmpresaManager = {
     _empresaAtual: null,
     _empresas: {},
     _initialized: false,
+    _empresaUnicaId: null,
+    _loadingFromFirestore: false,
     
     _getSessionKey() {
         return 'dedetiza_sessoes';
@@ -133,15 +135,7 @@ const EmpresaManager = {
             return this._empresaAtual;
         }
         
-        try {
-            const urlParams = new URLSearchParams(window.location.search);
-            const empresa = urlParams.get('empresa') || urlParams.get('e');
-            if (empresa) {
-                this._empresaAtual = empresa;
-                return empresa;
-            }
-        } catch (e) {}
-        
+        // Tenta carregar do localStorage
         try {
             const ultima = localStorage.getItem('dedetiza_ultima_empresa');
             if (ultima) {
@@ -150,7 +144,170 @@ const EmpresaManager = {
             }
         } catch (e) {}
         
-        return 'default';
+        // Busca empresa do Firestore ou localStorage
+        const empresa = this._obterEmpresaExistente();
+        if (empresa) {
+            this._empresaAtual = empresa.id;
+            return empresa.id;
+        }
+        
+        // Último recurso: cria empresa única
+        const novaEmpresa = this._criarEmpresaUnica();
+        this._empresaAtual = novaEmpresa.id;
+        return novaEmpresa.id;
+    },
+    
+    // 🔥 CORREÇÃO: Busca empresa do Firestore primeiro
+    async _obterEmpresaDoFirestore() {
+        if (this._loadingFromFirestore) {
+            return null;
+        }
+        
+        this._loadingFromFirestore = true;
+        
+        try {
+            if (typeof firebase === 'undefined' || !firebase.firestore) {
+                this._loadingFromFirestore = false;
+                return null;
+            }
+            
+            // Busca todos os usuários para encontrar a empresaId
+            const snapshot = await db.collection('usuarios').limit(10).get();
+            
+            if (snapshot.empty) {
+                this._loadingFromFirestore = false;
+                return null;
+            }
+            
+            let empresaId = null;
+            let empresaNome = null;
+            
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                if (data.empresaId) {
+                    empresaId = data.empresaId;
+                    empresaNome = data.nome || 'Dedetiza+';
+                    console.log('📌 Empresa encontrada no Firestore:', empresaId, '-', empresaNome);
+                }
+            });
+            
+            this._loadingFromFirestore = false;
+            
+            if (empresaId) {
+                // Salva a empresa no localStorage
+                this._carregarEmpresas();
+                if (!this._empresas[empresaId]) {
+                    this._empresas[empresaId] = {
+                        id: empresaId,
+                        nome: empresaNome || 'Dedetiza+ - Sistema de Gestão',
+                        dominio: empresaId,
+                        criadoEm: new Date().toISOString(),
+                        ativo: true,
+                        admins: [],
+                        config: {
+                            empresa: {
+                                nome: empresaNome || 'Dedetiza+ - Sistema de Gestão',
+                                cnpj: '',
+                                telefone: '',
+                                endereco: '',
+                                email: '',
+                                logo: null
+                            },
+                            relatorio: {
+                                titulo: 'Relatório Técnico',
+                                subtitulo: 'Controle de Pragas',
+                                cor: '#0b2a3b',
+                                rodape: 'Este relatório é de propriedade da empresa.',
+                                garantia: 'Garantia do serviço: 90 dias a partir da data do primeiro serviço\nOBS: Reentrada no local só será permitida após 06 horas da aplicação líquida, mediante o ambiente arejado, e todo objeto encontrado no chão que não puder ser descartado deverá ser higienizado antes do uso.'
+                            }
+                        }
+                    };
+                    this._salvarEmpresas();
+                }
+                this._empresaUnicaId = empresaId;
+                return this._empresas[empresaId];
+            }
+            
+            return null;
+        } catch (error) {
+            console.warn('Erro ao buscar empresa do Firestore:', error);
+            this._loadingFromFirestore = false;
+            return null;
+        }
+    },
+    
+    _obterEmpresaExistente() {
+        // 1. Primeiro tenta carregar do localStorage
+        this._carregarEmpresas();
+        const empresas = Object.values(this._empresas);
+        
+        if (empresas.length > 0) {
+            const empresa = empresas[0];
+            this._empresaUnicaId = empresa.id;
+            console.log('📌 Usando empresa do localStorage:', empresa.id);
+            return empresa;
+        }
+        
+        // 2. Se não tem no localStorage, tenta buscar do Firestore (síncrono)
+        // Nota: isso é chamado de forma síncrona, então usamos uma abordagem diferente
+        // A busca assíncrona é feita no método getEmpresaAtualAsync
+        
+        return null;
+    },
+    
+    // 🔥 Método assíncrono para obter a empresa
+    async getEmpresaAtualAsync() {
+        // Tenta do localStorage primeiro
+        const localEmpresa = this._obterEmpresaExistente();
+        if (localEmpresa) {
+            this._empresaAtual = localEmpresa.id;
+            return localEmpresa.id;
+        }
+        
+        // Busca do Firestore
+        const firestoreEmpresa = await this._obterEmpresaDoFirestore();
+        if (firestoreEmpresa) {
+            this._empresaAtual = firestoreEmpresa.id;
+            return firestoreEmpresa.id;
+        }
+        
+        // Cria nova empresa (apenas se não existir nenhuma)
+        const novaEmpresa = this._criarEmpresaUnica();
+        this._empresaAtual = novaEmpresa.id;
+        return novaEmpresa.id;
+    },
+    
+    _criarEmpresaUnica() {
+        const id = 'emp_unica_' + Date.now();
+        this._empresas[id] = {
+            id: id,
+            nome: 'Dedetiza+ - Sistema de Gestão',
+            dominio: id,
+            criadoEm: new Date().toISOString(),
+            ativo: true,
+            admins: [],
+            config: {
+                empresa: {
+                    nome: 'Dedetiza+ - Sistema de Gestão',
+                    cnpj: '',
+                    telefone: '',
+                    endereco: '',
+                    email: '',
+                    logo: null
+                },
+                relatorio: {
+                    titulo: 'Relatório Técnico',
+                    subtitulo: 'Controle de Pragas',
+                    cor: '#0b2a3b',
+                    rodape: 'Este relatório é de propriedade da empresa.',
+                    garantia: 'Garantia do serviço: 90 dias a partir da data do primeiro serviço\nOBS: Reentrada no local só será permitida após 06 horas da aplicação líquida, mediante o ambiente arejado, e todo objeto encontrado no chão que não puder ser descartado deverá ser higienizado antes do uso.'
+                }
+            }
+        };
+        this._salvarEmpresas();
+        this._empresaUnicaId = id;
+        console.log('✅ Empresa única criada:', id);
+        return this._empresas[id];
     },
     
     getUsuarioAtual() {
@@ -193,6 +350,13 @@ const EmpresaManager = {
     
     getEmpresa(empresaId) {
         this._carregarEmpresas();
+        if (!this._empresas[empresaId]) {
+            const empresas = Object.values(this._empresas);
+            if (empresas.length > 0) {
+                return empresas[0];
+            }
+            return null;
+        }
         return this._empresas[empresaId] || null;
     },
     
@@ -217,58 +381,53 @@ const EmpresaManager = {
     },
     
     criarEmpresa(nome, dominio = null) {
-        this._carregarEmpresas();
-        const id = 'emp_' + Date.now();
-        this._empresas[id] = {
-            id: id,
-            nome: nome,
-            dominio: dominio || id,
-            criadoEm: new Date().toISOString(),
-            ativo: true,
-            admins: [],
-            config: {
-                empresa: {
-                    nome: nome,
-                    cnpj: '',
-                    telefone: '',
-                    endereco: '',
-                    email: '',
-                    logo: null
-                },
-                relatorio: {
-                    titulo: 'Relatório Técnico',
-                    subtitulo: 'Controle de Pragas',
-                    cor: '#0b2a3b',
-                    rodape: 'Este relatório é de propriedade da empresa.',
-                    garantia: 'Garantia do serviço: 90 dias a partir da data do primeiro serviço\nOBS: Reentrada no local só será permitida após 06 horas da aplicação líquida, mediante o ambiente arejado, e todo objeto encontrado no chão que não puder ser descartado deverá ser higienizado antes do uso.'
-                }
-            }
-        };
-        this._salvarEmpresas();
-        return this._empresas[id];
+        console.warn('⚠️ criarEmpresa() chamado - usando empresa existente');
+        const empresa = this._obterEmpresaExistente();
+        if (empresa) {
+            return empresa;
+        }
+        return this._criarEmpresaUnica();
     },
     
     listarEmpresas() {
         this._carregarEmpresas();
-        return Object.values(this._empresas).filter(e => e.ativo !== false);
+        const empresas = Object.values(this._empresas).filter(e => e.ativo !== false);
+        return empresas.length > 0 ? [empresas[0]] : [];
     },
     
     adicionarAdmin(empresaId, usuarioId, email, nome) {
         this._carregarEmpresas();
+        
         if (!this._empresas[empresaId]) {
+            console.warn('⚠️ Empresa não encontrada, buscando existente...');
+            const empresa = this._obterEmpresaExistente();
+            if (empresa) {
+                empresaId = empresa.id;
+            } else {
+                const novaEmpresa = this._criarEmpresaUnica();
+                empresaId = novaEmpresa.id;
+            }
+        }
+        
+        const empresa = this._empresas[empresaId];
+        if (!empresa) {
+            console.error('❌ Empresa ainda não disponível');
             return false;
         }
-        const exists = this._empresas[empresaId].admins.some(a => a.usuarioId === usuarioId);
+        
+        const exists = empresa.admins.some(a => a.usuarioId === usuarioId);
         if (!exists) {
-            this._empresas[empresaId].admins.push({
+            empresa.admins.push({
                 usuarioId: usuarioId,
                 email: email,
                 nome: nome,
                 adicionadoEm: new Date().toISOString()
             });
             this._salvarEmpresas();
+            console.log('✅ Admin adicionado à empresa:', empresaId, '-', nome);
             return true;
         }
+        console.log('ℹ️ Admin já existe na empresa:', usuarioId);
         return false;
     },
     
@@ -324,7 +483,7 @@ const EmpresaManager = {
 };
 
 // ============================================
-// SERVIÇO DE AUTENTICAÇÃO - APENAS 1 ADMIN
+// SERVIÇO DE AUTENTICAÇÃO - CORRIGIDO
 // ============================================
 
 const AuthService = {
@@ -347,7 +506,6 @@ const AuthService = {
     async _hasAdmin() {
         const now = Date.now();
         if (this._adminCache !== null && (now - this._adminCacheTime) < this._adminCacheTTL) {
-            console.log('🔍 Admin existe (cache):', this._adminCache);
             return this._adminCache;
         }
         
@@ -359,15 +517,12 @@ const AuthService = {
         }
         
         try {
-            console.log('🔍 Verificando admin no Firestore...');
             const snapshot = await db.collection('usuarios')
                 .where('perfil', 'in', ['admin', 'superadmin'])
                 .limit(3)
                 .get();
             
             const exists = !snapshot.empty;
-            console.log('🔍 Admin no Firestore:', exists);
-            
             this._adminCache = exists;
             this._adminCacheTime = now;
             
@@ -410,16 +565,7 @@ const AuthService = {
     },
     
     async cadastrar(email, senha, nome, usuario, empresaId = null) {
-        const hasAdmin = await this._hasAdmin();
-        if (hasAdmin) {
-            console.warn('⛔ Admin já existe');
-            return { 
-                success: false, 
-                message: '❌ Já existe um administrador cadastrado no sistema.' 
-            };
-        }
-        
-        console.log('✅ Nenhum admin encontrado. Cadastro liberado!');
+        console.log('📝 Cadastrando novo admin:', email);
         
         try {
             if (!firebase || !firebase.auth) {
@@ -438,13 +584,93 @@ const AuthService = {
             const userCredential = await auth.createUserWithEmailAndPassword(email, senha);
             const user = userCredential.user;
             
-            let empresaFinal = empresaId;
+            // 🔥 CORREÇÃO: Busca empresa existente
+            let empresaFinal = null;
+            
+            // 1. Tenta usar empresaId fornecida
+            if (empresaId) {
+                const empresa = EmpresaManager.getEmpresa(empresaId);
+                if (empresa) {
+                    empresaFinal = empresaId;
+                    console.log('📌 Usando empresa fornecida:', empresaFinal);
+                }
+            }
+            
+            // 2. Busca empresa do localStorage
             if (!empresaFinal) {
-                const novaEmpresa = EmpresaManager.criarEmpresa(nome + ' - ' + email.split('@')[0]);
+                const empresas = EmpresaManager.listarEmpresas();
+                if (empresas.length > 0) {
+                    empresaFinal = empresas[0].id;
+                    console.log('📌 Usando empresa do localStorage:', empresaFinal);
+                }
+            }
+            
+            // 3. Busca empresa do Firestore (ASYNC)
+            if (!empresaFinal) {
+                try {
+                    const snapshot = await db.collection('usuarios').limit(5).get();
+                    let foundEmpresaId = null;
+                    snapshot.forEach(doc => {
+                        const data = doc.data();
+                        if (data.empresaId) {
+                            foundEmpresaId = data.empresaId;
+                        }
+                    });
+                    if (foundEmpresaId) {
+                        empresaFinal = foundEmpresaId;
+                        console.log('📌 Usando empresa do Firestore:', empresaFinal);
+                    }
+                } catch (e) {
+                    console.warn('Erro ao buscar empresa do Firestore:', e);
+                }
+            }
+            
+            // 4. Se ainda não tem empresa, cria uma nova (apenas se NENHUMA existir)
+            if (!empresaFinal) {
+                console.log('📌 Nenhuma empresa encontrada, criando empresa única...');
+                const novaEmpresa = EmpresaManager.criarEmpresa('Dedetiza+ - Sistema de Gestão');
                 empresaFinal = novaEmpresa.id;
                 EmpresaManager.setEmpresaAtual(empresaFinal);
             }
             
+            // Garante que a empresa existe no EmpresaManager
+            let empresa = EmpresaManager.getEmpresa(empresaFinal);
+            if (!empresa) {
+                // Recria a empresa se necessário
+                EmpresaManager._carregarEmpresas();
+                if (!EmpresaManager._empresas[empresaFinal]) {
+                    EmpresaManager._empresas[empresaFinal] = {
+                        id: empresaFinal,
+                        nome: 'Dedetiza+ - Sistema de Gestão',
+                        dominio: empresaFinal,
+                        criadoEm: new Date().toISOString(),
+                        ativo: true,
+                        admins: [],
+                        config: {
+                            empresa: {
+                                nome: 'Dedetiza+ - Sistema de Gestão',
+                                cnpj: '',
+                                telefone: '',
+                                endereco: '',
+                                email: '',
+                                logo: null
+                            },
+                            relatorio: {
+                                titulo: 'Relatório Técnico',
+                                subtitulo: 'Controle de Pragas',
+                                cor: '#0b2a3b',
+                                rodape: 'Este relatório é de propriedade da empresa.',
+                                garantia: 'Garantia do serviço: 90 dias a partir da data do primeiro serviço\nOBS: Reentrada no local só será permitida após 06 horas da aplicação líquida, mediante o ambiente arejado, e todo objeto encontrado no chão que não puder ser descartado deverá ser higienizado antes do uso.'
+                            }
+                        }
+                    };
+                    EmpresaManager._salvarEmpresas();
+                }
+                empresa = EmpresaManager._empresas[empresaFinal];
+                console.log('📌 Empresa recriada no localStorage:', empresaFinal);
+            }
+            
+            // Adiciona o admin à empresa
             EmpresaManager.adicionarAdmin(empresaFinal, user.uid, email, nome);
             
             try {
@@ -457,10 +683,9 @@ const AuthService = {
                     perfil: 'admin',
                     criadoEm: firebase.firestore.FieldValue.serverTimestamp(),
                     ultimoAcesso: new Date().toISOString(),
-                    ativo: true,
-                    primeiroAdmin: true
+                    ativo: true
                 });
-                console.log('✅ Admin salvo no Firestore');
+                console.log('✅ Admin salvo no Firestore com empresaId:', empresaFinal);
             } catch (firestoreError) {
                 console.warn('Erro ao salvar no Firestore:', firestoreError);
             }
@@ -473,17 +698,20 @@ const AuthService = {
             
             try {
                 const users = JSON.parse(localStorage.getItem('dedetiza_users') || '[]');
-                users.push({
-                    uid: user.uid,
-                    nome: nome,
-                    usuario: usuario || nome,
-                    email: email,
-                    perfil: 'admin',
-                    empresaId: empresaFinal,
-                    criadoEm: new Date().toISOString(),
-                    senha: senha
-                });
-                localStorage.setItem('dedetiza_users', JSON.stringify(users));
+                const existing = users.find(u => u.uid === user.uid);
+                if (!existing) {
+                    users.push({
+                        uid: user.uid,
+                        nome: nome,
+                        usuario: usuario || nome,
+                        email: email,
+                        perfil: 'admin',
+                        empresaId: empresaFinal,
+                        criadoEm: new Date().toISOString(),
+                        senha: senha
+                    });
+                    localStorage.setItem('dedetiza_users', JSON.stringify(users));
+                }
                 this.resetAdminCache();
             } catch (e) {}
             
@@ -497,7 +725,12 @@ const AuthService = {
             
             await FirestoreService.inicializarDadosEmpresa(empresaFinal);
             
-            return { success: true, message: '✅ Cadastro realizado com sucesso! Você é o primeiro administrador.', user: user, empresaId: empresaFinal };
+            return { 
+                success: true, 
+                message: '✅ Cadastro realizado com sucesso!', 
+                user: user, 
+                empresaId: empresaFinal 
+            };
         } catch (error) {
             console.error('Erro no cadastro:', error);
             return this._cadastrarFallback(email, senha, nome, usuario, empresaId);
@@ -505,9 +738,7 @@ const AuthService = {
     },
 
     _cadastrarFallback(email, senha, nome, usuario, empresaId) {
-        if (this._adminExists()) {
-            return { success: false, message: '❌ Já existe um administrador cadastrado no sistema.' };
-        }
+        console.log('📝 Cadastrando fallback para:', email);
         
         try {
             const users = JSON.parse(localStorage.getItem('dedetiza_users') || '[]');
@@ -515,9 +746,25 @@ const AuthService = {
                 return { success: false, message: 'Este e-mail já está cadastrado.' };
             }
             
-            let empresaFinal = empresaId;
+            // Busca empresa existente
+            let empresaFinal = null;
+            
+            if (empresaId) {
+                const empresas = EmpresaManager.listarEmpresas();
+                if (empresas.some(e => e.id === empresaId)) {
+                    empresaFinal = empresaId;
+                }
+            }
+            
             if (!empresaFinal) {
-                const novaEmpresa = EmpresaManager.criarEmpresa(nome + ' - ' + email.split('@')[0]);
+                const empresas = EmpresaManager.listarEmpresas();
+                if (empresas.length > 0) {
+                    empresaFinal = empresas[0].id;
+                }
+            }
+            
+            if (!empresaFinal) {
+                const novaEmpresa = EmpresaManager.criarEmpresa('Dedetiza+ - Sistema de Gestão');
                 empresaFinal = novaEmpresa.id;
                 EmpresaManager.setEmpresaAtual(empresaFinal);
             }
@@ -533,8 +780,7 @@ const AuthService = {
                 perfil: 'admin',
                 criadoEm: new Date().toISOString(),
                 ultimoAcesso: new Date().toISOString(),
-                ativo: true,
-                primeiroAdmin: true
+                ativo: true
             };
             
             users.push(newUser);
@@ -549,7 +795,12 @@ const AuthService = {
             };
             EmpresaManager.salvarSessao(empresaFinal, userData);
             
-            return { success: true, message: '✅ Cadastro realizado com sucesso! (modo offline)', user: newUser, empresaId: empresaFinal };
+            return { 
+                success: true, 
+                message: '✅ Cadastro realizado com sucesso! (modo offline)', 
+                user: newUser, 
+                empresaId: empresaFinal 
+            };
         } catch (e) {
             return { success: false, message: 'Erro ao cadastrar: ' + e.message };
         }
@@ -574,7 +825,46 @@ const AuthService = {
             const userCredential = await auth.signInWithEmailAndPassword(email, senha);
             const user = userCredential.user;
             
-            let empresaFinal = empresaId || EmpresaManager.getEmpresaAtual();
+            // Busca empresa existente
+            let empresaFinal = null;
+            
+            // 1. Tenta empresaId fornecida
+            if (empresaId) {
+                const empresa = EmpresaManager.getEmpresa(empresaId);
+                if (empresa) {
+                    empresaFinal = empresaId;
+                }
+            }
+            
+            // 2. Busca do localStorage
+            if (!empresaFinal) {
+                const empresas = EmpresaManager.listarEmpresas();
+                if (empresas.length > 0) {
+                    empresaFinal = empresas[0].id;
+                }
+            }
+            
+            // 3. Busca do Firestore
+            if (!empresaFinal) {
+                try {
+                    const doc = await db.collection('usuarios').doc(user.uid).get();
+                    if (doc.exists) {
+                        const data = doc.data();
+                        if (data.empresaId) {
+                            empresaFinal = data.empresaId;
+                        }
+                    }
+                } catch (e) {
+                    console.warn('Erro ao buscar empresa do Firestore:', e);
+                }
+            }
+            
+            // 4. Cria nova empresa se necessário
+            if (!empresaFinal) {
+                const novaEmpresa = EmpresaManager.criarEmpresa('Dedetiza+ - Sistema de Gestão');
+                empresaFinal = novaEmpresa.id;
+            }
+            
             let nomeUsuario = user.displayName || email.split('@')[0];
             let usuarioLogin = email.split('@')[0];
             let perfilUsuario = 'usuario';
@@ -605,15 +895,9 @@ const AuthService = {
                 };
             }
             
-            if (!empresaFinal || empresaFinal === 'default') {
-                const empresas = EmpresaManager.getEmpresasDoUsuario(user.uid);
-                if (empresas.length > 0) {
-                    empresaFinal = empresas[0].id;
-                } else {
-                    const novaEmpresa = EmpresaManager.criarEmpresa(nomeUsuario + ' - Empresa');
-                    empresaFinal = novaEmpresa.id;
-                    EmpresaManager.adicionarAdmin(empresaFinal, user.uid, email, nomeUsuario);
-                }
+            const isAdmin = EmpresaManager.isAdmin(empresaFinal, user.uid);
+            if (!isAdmin) {
+                EmpresaManager.adicionarAdmin(empresaFinal, user.uid, email, nomeUsuario);
             }
             
             const userData = {
@@ -637,7 +921,13 @@ const AuthService = {
             await FirestoreService.sincronizarDadosEmpresa(empresaFinal);
             
             this._loginInProgress = false;
-            return { success: true, message: 'Login realizado com sucesso!', user: user, empresaId: empresaFinal, perfil: perfilUsuario };
+            return { 
+                success: true, 
+                message: 'Login realizado com sucesso!', 
+                user: user, 
+                empresaId: empresaFinal, 
+                perfil: perfilUsuario 
+            };
         } catch (error) {
             console.error('Erro no login:', error);
             this._loginInProgress = false;
@@ -662,7 +952,14 @@ const AuthService = {
                 return { success: false, message: '🔒 Acesso negado! Apenas administradores têm permissão.' };
             }
             
-            const empresaFinal = empresaId || user.empresaId || EmpresaManager.getEmpresaAtual() || 'default';
+            let empresaFinal = empresaId || user.empresaId;
+            const empresas = EmpresaManager.listarEmpresas();
+            if (empresas.length > 0) {
+                empresaFinal = empresas[0].id;
+            } else if (!empresaFinal) {
+                const novaEmpresa = EmpresaManager.criarEmpresa('Dedetiza+ - Sistema de Gestão');
+                empresaFinal = novaEmpresa.id;
+            }
             
             const userData = { 
                 uid: user.uid, 
@@ -673,7 +970,12 @@ const AuthService = {
             };
             EmpresaManager.salvarSessao(empresaFinal, userData);
             
-            return { success: true, message: 'Login realizado com sucesso! (modo offline)', user: user, empresaId: empresaFinal };
+            return { 
+                success: true, 
+                message: 'Login realizado com sucesso! (modo offline)', 
+                user: user, 
+                empresaId: empresaFinal 
+            };
         } catch (e) {
             return { success: false, message: 'Erro ao fazer login: ' + e.message };
         }
@@ -693,19 +995,10 @@ const AuthService = {
             localStorage.removeItem('dedetiza_session_atual');
             localStorage.removeItem('dedetiza_session');
             
-            const sessoes = EmpresaManager._carregarSessoes();
-            if (Object.keys(sessoes).length === 0) {
-                localStorage.removeItem('dedetiza_ultima_empresa');
-                if (firebase && firebase.auth) {
-                    await auth.signOut();
-                }
-                window.location.href = 'login.html';
-            } else {
-                if (firebase && firebase.auth) {
-                    await auth.signOut();
-                }
-                window.location.href = 'login.html';
+            if (firebase && firebase.auth) {
+                await auth.signOut();
             }
+            window.location.href = 'login.html';
             
             return { success: true, message: 'Logout realizado!' };
         } catch (error) {
@@ -838,7 +1131,7 @@ const AuthService = {
 };
 
 // ============================================
-// SERVIÇO DE BANCO DE DADOS - CORRIGIDO
+// SERVIÇO DE BANCO DE DADOS
 // ============================================
 
 const FirestoreService = {
@@ -920,10 +1213,7 @@ const FirestoreService = {
 
             const localData = this._getLocalData(collection);
             
-            // Só atualiza se os dados do Firestore forem diferentes dos locais
-            // E NUNCA sobrescreve dados locais com array vazio
             if (items.length > 0 && JSON.stringify(localData) !== JSON.stringify(items)) {
-                // Mescla dados preservando os locais
                 const mergedData = this._mergeData(localData, items);
                 this._setLocalData(collection, mergedData);
                 this._clearLocalCache(collection);
@@ -932,9 +1222,8 @@ const FirestoreService = {
                     onUpdate(mergedData);
                 }
 
-                console.log(`🔄 Coleção '${collection}' atualizada em tempo real: ${mergedData.length} itens (${localData.length} local + ${items.length} firestore)`);
+                console.log(`🔄 Coleção '${collection}' atualizada em tempo real: ${mergedData.length} itens`);
             } else if (items.length === 0 && localData.length > 0) {
-                // Firestore vazio, mantém dados locais
                 console.log(`ℹ️ Firestore vazio para '${collection}', mantendo ${localData.length} itens locais`);
             }
         }, (error) => {
@@ -982,20 +1271,9 @@ const FirestoreService = {
         }
     },
 
-    _handleReconnect: function() {
-        console.log('🔄 Reconectando ao Firestore...');
-        this.iniciarObservadores(() => {
-            if (typeof window.renderAll === 'function') {
-                window.renderAll();
-            }
-        });
-    },
-
-    // ===== MERGE DATA - PRESERVA DADOS LOCAIS =====
     _mergeData: function(localData, firestoreData) {
         const merged = {};
         
-        // Primeiro adiciona TODOS os dados locais (prioridade máxima)
         localData.forEach(item => {
             const id = String(item.id);
             if (!merged[id]) {
@@ -1003,7 +1281,6 @@ const FirestoreService = {
             }
         });
         
-        // Depois sobrescreve apenas os itens que existem no Firestore
         firestoreData.forEach(item => {
             const id = String(item.id);
             merged[id] = { ...item, _source: 'firestore' };
@@ -1012,27 +1289,21 @@ const FirestoreService = {
         return Object.values(merged);
     },
 
-    // ===== getAll CORRIGIDO - PRIORIZA DADOS LOCAIS =====
     async getAll(collection, forceRefresh = false) {
         const empresaId = EmpresaManager.getEmpresaAtual();
         
-        // 1. SEMPRE pega do localStorage primeiro (fonte da verdade local)
         const localData = this._getLocalData(collection);
         
-        // 2. Se não forçar refresh, retorna os dados locais imediatamente
         if (!forceRefresh && localData && localData.length > 0) {
             return localData;
         }
         
-        // 3. Se o Firestore não estiver disponível, retorna o que temos
         if (!this._isFirestoreAvailable()) {
             return localData;
         }
         
-        // 4. Tenta buscar do Firestore (apenas se forçar ou não tiver dados locais)
         try {
             if (this._syncInProgress && !forceRefresh) {
-                console.log(`⏳ Sincronização de ${collection} em andamento, retornando dados locais`);
                 return localData;
             }
             
@@ -1052,16 +1323,14 @@ const FirestoreService = {
                 });
             });
             
-            // 5. Mescla dados: PRESERVA os dados locais
             if (items.length > 0) {
                 const mergedData = this._mergeData(localData, items);
                 this._setLocalData(collection, mergedData);
                 this._clearLocalCache(collection);
-                console.log(`✅ Sincronizado ${collection}: ${mergedData.length} itens (${localData.length} local + ${items.length} firestore)`);
+                console.log(`✅ Sincronizado ${collection}: ${mergedData.length} itens`);
                 this._syncInProgress = false;
                 return mergedData;
             } else {
-                // Firestore vazio, mantém dados locais
                 console.log(`ℹ️ Firestore vazio para ${collection}, mantendo ${localData.length} itens locais`);
                 this._syncInProgress = false;
                 return localData;
@@ -1091,7 +1360,6 @@ const FirestoreService = {
             atualizadoEm: new Date().toISOString()
         };
         
-        // Salva localmente primeiro (otimista)
         const items = this._getLocalData(collection);
         const existing = items.find(item => String(item.id) === String(id));
         if (existing) {
@@ -1103,7 +1371,6 @@ const FirestoreService = {
         this._setLocalData(collection, items);
         this._clearLocalCache(collection);
         
-        // Sincroniza com Firestore em background (não bloqueia)
         if (this._isFirestoreAvailable()) {
             try {
                 await db.collection(collection).doc(id).set(docData);
@@ -1125,7 +1392,6 @@ const FirestoreService = {
             atualizadoEm: new Date().toISOString()
         };
         
-        // Atualiza localmente
         const items = this._getLocalData(collection);
         const index = items.findIndex(item => String(item.id) === idStr);
         if (index !== -1) {
@@ -1144,7 +1410,6 @@ const FirestoreService = {
             this._clearLocalCache(collection);
         }
         
-        // Sincroniza com Firestore em background
         if (this._isFirestoreAvailable()) {
             try {
                 await db.collection(collection).doc(idStr).update(docData);
@@ -1215,7 +1480,7 @@ const FirestoreService = {
                     const mergedData = this._mergeData(localData, items);
                     this._setLocalData(collection, mergedData);
                     totalItens += mergedData.length;
-                    console.log(`✅ Sincronizado ${collection}: ${mergedData.length} itens (${localData.length} local + ${items.length} firestore)`);
+                    console.log(`✅ Sincronizado ${collection}: ${mergedData.length} itens`);
                 } else {
                     console.log(`ℹ️ Firestore vazio para ${collection}, mantendo ${localData.length} itens locais`);
                     totalItens += localData.length;
@@ -1276,7 +1541,7 @@ const FirestoreService = {
                     {
                         id: 'modelo_descupinizacao',
                         nome: 'Modelo Técnico - Descupinização',
-                        categoria: 'descupinizacao',
+                        categoria: 'descupsinizacao',
                         campos: [
                             { label: 'Data da Vistoria', tipo: 'texto', valor: '' },
                             { label: 'Estrutura Inspecionada', tipo: 'texto', valor: '' },
@@ -1368,7 +1633,7 @@ window.FirestoreService = FirestoreService;
 window.EmpresaManager = EmpresaManager;
 window.AuthGuard = AuthGuard;
 
-console.log('✅ Firebase Services Multi-Empresa carregados!');
-console.log('📌 Empresa Atual:', EmpresaManager.getEmpresaAtual());
-console.log('📌 Modo: Apenas 1 Admin permitido');
-console.log('📌 Dados locais SEMPRE preservados durante sincronização');
+console.log('✅ Firebase Services - MODO COMPARTILHADO carregados!');
+console.log('📌 TODOS os administradores compartilham a MESMA empresa');
+console.log('📌 Busca empresa no Firestore PRIMEIRO');
+console.log('📌 NUNCA cria nova empresa se já existir uma');
