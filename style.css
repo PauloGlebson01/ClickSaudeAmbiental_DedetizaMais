@@ -1976,3 +1976,105 @@ td i:hover { background: #e8eff5; }
     color: #1a5276;
     font-weight: 600;
 }
+
+/* ===== CERTIFICADOS ===== */
+.certificados-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+    margin-top: 8px;
+}
+
+.certificado-card {
+    background: white;
+    border-radius: 16px;
+    padding: 20px 24px;
+    border: 1px solid #e8eff5;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: 0.3s;
+}
+
+.certificado-card:hover {
+    box-shadow: 0 6px 20px rgba(0,0,0,0.06);
+}
+
+.certificado-card .cert-info {
+    flex: 1;
+}
+
+.certificado-card .cert-info .cert-titulo {
+    font-weight: 600;
+    color: #0b2a3b;
+    font-size: 1.05rem;
+}
+
+.certificado-card .cert-info .cert-detalhes {
+    font-size: 0.85rem;
+    color: #4d687a;
+    margin-top: 4px;
+}
+
+.certificado-card .cert-info .cert-detalhes span {
+    margin-right: 16px;
+}
+
+.certificado-card .cert-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.certificado-card .cert-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.certificado-card .cert-actions i {
+    padding: 8px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: 0.2s;
+    color: #2c5c6b;
+}
+
+.certificado-card .cert-actions i:hover {
+    background: #e8eff5;
+}
+
+.certificado-card .cert-actions .fa-eye { color: #1d7a6b; }
+.certificado-card .cert-actions .fa-print { color: #2c5c6b; }
+.certificado-card .cert-actions .fa-file-pdf { color: #c0392b; }
+.certificado-card .cert-actions .fa-trash { color: #b13e3a; }
+
+.cert-status-badge {
+    padding: 4px 14px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.cert-status-badge.ativo {
+    background: #d1f0e5;
+    color: #006b4f;
+}
+
+.cert-status-badge.expirado {
+    background: #fde2e0;
+    color: #b13e3a;
+}
+
+@media (max-width: 640px) {
+    .certificado-card {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+    
+    .certificado-card .cert-status {
+        width: 100%;
+        justify-content: flex-start;
+    }
+}

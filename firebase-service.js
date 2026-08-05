@@ -186,7 +186,7 @@ const EmpresaManager = {
                 const data = doc.data();
                 if (data.empresaId) {
                     empresaId = data.empresaId;
-                    empresaNome = data.nome || 'Dedetiza+';
+                    empresaNome = data.nome || 'Dedetize+';
                     console.log('📌 Empresa encontrada no Firestore:', empresaId, '-', empresaNome);
                 }
             });
@@ -199,14 +199,14 @@ const EmpresaManager = {
                 if (!this._empresas[empresaId]) {
                     this._empresas[empresaId] = {
                         id: empresaId,
-                        nome: empresaNome || 'Dedetiza+ - Sistema de Gestão',
+                        nome: empresaNome || 'Dedetize+ - Sistema de Gestão',
                         dominio: empresaId,
                         criadoEm: new Date().toISOString(),
                         ativo: true,
                         admins: [],
                         config: {
                             empresa: {
-                                nome: empresaNome || 'Dedetiza+ - Sistema de Gestão',
+                                nome: empresaNome || 'Dedetize+ - Sistema de Gestão',
                                 cnpj: '',
                                 telefone: '',
                                 endereco: '',
@@ -281,14 +281,14 @@ const EmpresaManager = {
         const id = 'emp_unica_' + Date.now();
         this._empresas[id] = {
             id: id,
-            nome: 'Dedetiza+ - Sistema de Gestão',
+            nome: 'Dedetize+ - Sistema de Gestão',
             dominio: id,
             criadoEm: new Date().toISOString(),
             ativo: true,
             admins: [],
             config: {
                 empresa: {
-                    nome: 'Dedetiza+ - Sistema de Gestão',
+                    nome: 'Dedetize+ - Sistema de Gestão',
                     cnpj: '',
                     telefone: '',
                     endereco: '',
@@ -628,7 +628,7 @@ const AuthService = {
             // 4. Se ainda não tem empresa, cria uma nova (apenas se NENHUMA existir)
             if (!empresaFinal) {
                 console.log('📌 Nenhuma empresa encontrada, criando empresa única...');
-                const novaEmpresa = EmpresaManager.criarEmpresa('Dedetiza+ - Sistema de Gestão');
+                const novaEmpresa = EmpresaManager.criarEmpresa('Dedetize+ - Sistema de Gestão');
                 empresaFinal = novaEmpresa.id;
                 EmpresaManager.setEmpresaAtual(empresaFinal);
             }
@@ -641,14 +641,14 @@ const AuthService = {
                 if (!EmpresaManager._empresas[empresaFinal]) {
                     EmpresaManager._empresas[empresaFinal] = {
                         id: empresaFinal,
-                        nome: 'Dedetiza+ - Sistema de Gestão',
+                        nome: 'Dedetize+ - Sistema de Gestão',
                         dominio: empresaFinal,
                         criadoEm: new Date().toISOString(),
                         ativo: true,
                         admins: [],
                         config: {
                             empresa: {
-                                nome: 'Dedetiza+ - Sistema de Gestão',
+                                nome: 'Dedetize+ - Sistema de Gestão',
                                 cnpj: '',
                                 telefone: '',
                                 endereco: '',
@@ -764,7 +764,7 @@ const AuthService = {
             }
             
             if (!empresaFinal) {
-                const novaEmpresa = EmpresaManager.criarEmpresa('Dedetiza+ - Sistema de Gestão');
+                const novaEmpresa = EmpresaManager.criarEmpresa('Dedetize+ - Sistema de Gestão');
                 empresaFinal = novaEmpresa.id;
                 EmpresaManager.setEmpresaAtual(empresaFinal);
             }
@@ -861,7 +861,7 @@ const AuthService = {
             
             // 4. Cria nova empresa se necessário
             if (!empresaFinal) {
-                const novaEmpresa = EmpresaManager.criarEmpresa('Dedetiza+ - Sistema de Gestão');
+                const novaEmpresa = EmpresaManager.criarEmpresa('Dedetize+ - Sistema de Gestão');
                 empresaFinal = novaEmpresa.id;
             }
             
@@ -957,7 +957,7 @@ const AuthService = {
             if (empresas.length > 0) {
                 empresaFinal = empresas[0].id;
             } else if (!empresaFinal) {
-                const novaEmpresa = EmpresaManager.criarEmpresa('Dedetiza+ - Sistema de Gestão');
+                const novaEmpresa = EmpresaManager.criarEmpresa('Dedetize+ - Sistema de Gestão');
                 empresaFinal = novaEmpresa.id;
             }
             

@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Dedetiza+ - Sistema de Gestão de Serviços</title>
+    <title>Dedetize+ - Sistema de Gestão de Serviços</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
     <link rel="shortcut icon" href="assets/dedetiza+_icon.png">
     <link rel="stylesheet" href="style.css" />
@@ -26,6 +26,9 @@
     <!-- Serviços Firebase (depende do firebase-config) -->
     <script src="firebase-service.js"></script>
     
+    <!-- Serviço de Certificados -->
+    <script src="certificado.js"></script>
+    
     <!-- Script principal (depende dos serviços) -->
     <script src="script.js"></script>
 </head>
@@ -33,33 +36,33 @@
     <!-- SIDEBAR -->
     <aside class="sidebar" id="sidebar">
         <div class="brand">
-    <div class="brand-logo-small">
-        <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="50" cy="50" r="45" fill="url(#circleGrad2)" stroke="#1d7a6b" stroke-width="1.5"/>
-            <path d="M50 10 L82 22 L82 44 C82 63 66 77 50 83 C34 77 18 63 18 44 L18 22 L50 10Z" 
-                  fill="url(#shieldGrad2)" stroke="#7bc6a4" stroke-width="1"/>
-            <ellipse cx="50" cy="44" rx="10" ry="14" fill="#f5f5f5" stroke="#0b2a3b" stroke-width="1.2"/>
-            <circle cx="50" cy="33" r="7" fill="#f5f5f5" stroke="#0b2a3b" stroke-width="1.2"/>
-            <circle cx="47" cy="31" r="2.5" fill="#0b2a3b"/>
-            <circle cx="53" cy="31" r="2.5" fill="#0b2a3b"/>
-            <path d="M45 27 L38 19" stroke="#0b2a3b" stroke-width="1.2" stroke-linecap="round"/>
-            <path d="M55 27 L62 19" stroke="#0b2a3b" stroke-width="1.2" stroke-linecap="round"/>
-            <path d="M38 40 C26 33 22 46 30 52" stroke="#7bc6a4" stroke-width="1.5" stroke-linecap="round"/>
-            <path d="M62 40 C74 33 78 46 70 52" stroke="#7bc6a4" stroke-width="1.5" stroke-linecap="round"/>
-            <defs>
-                <linearGradient id="circleGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stop-color="#f0f8f5"/>
-                    <stop offset="100%" stop-color="#e8eff5"/>
-                </linearGradient>
-                <linearGradient id="shieldGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stop-color="#0b2a3b"/>
-                    <stop offset="100%" stop-color="#1d7a6b"/>
-                </linearGradient>
-            </defs>
-        </svg>
-    </div>
-    <span>Dedetiza+</span>
-</div>
+            <div class="brand-logo-small">
+                <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="50" cy="50" r="45" fill="url(#circleGrad2)" stroke="#1d7a6b" stroke-width="1.5"/>
+                    <path d="M50 10 L82 22 L82 44 C82 63 66 77 50 83 C34 77 18 63 18 44 L18 22 L50 10Z" 
+                          fill="url(#shieldGrad2)" stroke="#7bc6a4" stroke-width="1"/>
+                    <ellipse cx="50" cy="44" rx="10" ry="14" fill="#f5f5f5" stroke="#0b2a3b" stroke-width="1.2"/>
+                    <circle cx="50" cy="33" r="7" fill="#f5f5f5" stroke="#0b2a3b" stroke-width="1.2"/>
+                    <circle cx="47" cy="31" r="2.5" fill="#0b2a3b"/>
+                    <circle cx="53" cy="31" r="2.5" fill="#0b2a3b"/>
+                    <path d="M45 27 L38 19" stroke="#0b2a3b" stroke-width="1.2" stroke-linecap="round"/>
+                    <path d="M55 27 L62 19" stroke="#0b2a3b" stroke-width="1.2" stroke-linecap="round"/>
+                    <path d="M38 40 C26 33 22 46 30 52" stroke="#7bc6a4" stroke-width="1.5" stroke-linecap="round"/>
+                    <path d="M62 40 C74 33 78 46 70 52" stroke="#7bc6a4" stroke-width="1.5" stroke-linecap="round"/>
+                    <defs>
+                        <linearGradient id="circleGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stop-color="#f0f8f5"/>
+                            <stop offset="100%" stop-color="#e8eff5"/>
+                        </linearGradient>
+                        <linearGradient id="shieldGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stop-color="#0b2a3b"/>
+                            <stop offset="100%" stop-color="#1d7a6b"/>
+                        </linearGradient>
+                    </defs>
+                </svg>
+            </div>
+            <span>Dedetize+</span>
+        </div>
 
         <nav class="nav-menu">
             <ul>
@@ -74,6 +77,7 @@
                 <li data-page="relatorios"><i class="fas fa-file-alt"></i> <span>Relatórios</span></li>
                 <li data-page="estoque"><i class="fas fa-boxes"></i> <span>Estoque</span></li>
                 <li data-page="financeiro"><i class="fas fa-chart-line"></i> <span>Financeiro</span></li>
+                <li data-page="certificados"><i class="fas fa-certificate"></i> <span>Certificados</span></li>
                 <li data-page="configuracoes"><i class="fas fa-cog"></i> <span>Configurações</span></li>
             </ul>
         </nav>
@@ -346,7 +350,7 @@
                 </div>
             </div>
 
-            <!-- PROPOSTA COMERCIAL (NOVO MÓDULO) -->
+            <!-- PROPOSTA COMERCIAL -->
             <div id="page-orcamentos" class="page">
                 <h1><i class="fas fa-file-invoice-dollar"></i> Proposta Comercial</h1>
                 
@@ -753,6 +757,61 @@
                         <tbody id="tabelaFinanceiro"></tbody>
                     </table>
                 </div>
+            </div>
+
+            <!-- CERTIFICADOS TÉCNICOS -->
+            <div id="page-certificados" class="page">
+                <h1><i class="fas fa-certificate"></i> Certificados Técnicos</h1>
+                
+                <div class="filtros-container">
+                    <div class="filtros-row">
+                        <div class="filtro-group">
+                            <label><i class="fas fa-user"></i> Cliente</label>
+                            <select id="filtroCertCliente">
+                                <option value="">Todos os Clientes</option>
+                            </select>
+                        </div>
+                        <div class="filtro-group">
+                            <label><i class="fas fa-tag"></i> Tipo</label>
+                            <select id="filtroCertTipo">
+                                <option value="">Todos os Tipos</option>
+                                <option value="Desinsetização">Desinsetização</option>
+                                <option value="Desratização">Desratização</option>
+                                <option value="Descupinização">Descupinização</option>
+                            </select>
+                        </div>
+                        <div class="filtro-group">
+                            <label><i class="fas fa-circle"></i> Status</label>
+                            <select id="filtroCertStatus">
+                                <option value="">Todos os Status</option>
+                                <option value="ativo">Ativo</option>
+                                <option value="expirado">Expirado</option>
+                            </select>
+                        </div>
+                        <div class="filtro-actions">
+                            <button class="btn-primary btn-sm" onclick="aplicarFiltrosCertificados()">
+                                <i class="fas fa-filter"></i> Filtrar
+                            </button>
+                            <button class="btn-secondary btn-sm" onclick="limparFiltrosCertificados()">
+                                <i class="fas fa-undo"></i> Limpar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="toolbar">
+                    <button class="btn-primary" id="btnNovoCertificado">
+                        <i class="fas fa-plus"></i> Novo Certificado
+                    </button>
+                    <button class="btn-success btn-sm" onclick="exportarCertificadosExcel()">
+                        <i class="fas fa-file-excel"></i> Excel
+                    </button>
+                    <button class="btn-danger btn-sm" onclick="exportarCertificadosPDF()">
+                        <i class="fas fa-file-pdf"></i> PDF
+                    </button>
+                </div>
+
+                <div id="certificadosGrid" class="certificados-grid"></div>
             </div>
 
             <!-- CONFIGURAÇÕES -->
