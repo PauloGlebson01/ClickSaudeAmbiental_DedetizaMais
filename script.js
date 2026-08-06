@@ -3,7 +3,10 @@
 // CORRIGIDO - Atualização imediata da lista de clientes
 // CORRIGIDO - Renderização imediata da equipe
 // CORRIGIDO - Cadastro de clientes com Razão Social e Nome Fantasia para CNPJ
-// ADICIONADO - Módulo de Certificados Técnicos
+// ADICIONADO - Módulo de Certificados Técnicos com responsáveis selecionáveis e assinaturas
+// CORRIGIDO - Estoque com atualização automática após cadastro
+// CORRIGIDO - Certificado: responsáveis movidos para local das assinaturas
+// CORRIGIDO - Certificado: campo de observação com scroll e quebra de texto
 
 // =============================================
 // ===== PREVENÇÃO DE ERROS DE REFERÊNCIA =====
@@ -453,6 +456,11 @@
                     delete self._cacheTime[key];
                 }
             });
+            if (this._cache[collection]) {
+                delete this._cache[collection];
+                delete this._cacheTime[collection];
+            }
+            console.log('🧹 Cache limpo para: ' + collection);
         },
 
         _clearAllCaches: function () {
@@ -558,6 +566,21 @@
                 }
 
                 this._isSaving = false;
+                
+                if (collection === 'estoque') {
+                    var event = new CustomEvent('estoqueAtualizado', { 
+                        detail: { item: newItem, action: 'add' } 
+                    });
+                    document.dispatchEvent(event);
+                }
+                
+                if (collection === 'movimentacoes') {
+                    var movEvent = new CustomEvent('movimentacaoAtualizada', { 
+                        detail: { item: newItem, action: 'add' } 
+                    });
+                    document.dispatchEvent(movEvent);
+                }
+                
                 return newItem;
             } catch (e) {
                 this._isSaving = false;
@@ -771,6 +794,26 @@
         }
     };
 
+    // ===== LISTENER PARA ATUALIZAÇÃO AUTOMÁTICA DO ESTOQUE =====
+    document.addEventListener('estoqueAtualizado', function(e) {
+        console.log('🔄 Estoque atualizado automaticamente:', e.detail);
+        if (e.detail.action === 'add') {
+            var produtos = DB.getAll('estoque', true);
+            renderizarTabelaEstoque(produtos);
+            atualizarDashboardEstoque();
+            atualizarGraficosEstoque();
+        }
+    });
+
+    document.addEventListener('movimentacaoAtualizada', function(e) {
+        console.log('🔄 Movimentação registrada automaticamente:', e.detail);
+        var movTab = document.getElementById('tab-movimentacoes');
+        if (movTab && movTab.classList.contains('active')) {
+            renderMovimentacoes();
+        }
+        renderHistorico();
+    });
+
     // =============================================
     // ===== SERVIÇO DE CERTIFICADOS =====
     // =============================================
@@ -801,14 +844,16 @@
 
             const responsaveis = {
                 tecnico: {
-                    nome: 'Weverton Jonatha dos Santos da Silva',
-                    registro: 'CRF/AL 3536',
-                    atuacao: 'Farmacêutico'
+                    id: null,
+                    nome: 'Selecione...',
+                    registro: '',
+                    atuacao: ''
                 },
                 operacional: {
-                    nome: 'Gleidson A. S. dos Santos',
-                    registro: '-',
-                    atuacao: 'Resp. Operacional'
+                    id: null,
+                    nome: 'Selecione...',
+                    registro: '',
+                    atuacao: ''
                 }
             };
 
@@ -839,6 +884,8 @@
                 observacoes: observacoesPadrao,
                 telefoneEmergencia: '0800 148110',
                 status: 'ativo',
+                assinaturaTecnico: null,
+                assinaturaOperacional: null,
                 criadoEm: new Date().toISOString()
             };
 
@@ -972,11 +1019,17 @@
                 </tr>
             `).join('');
 
-            const clienteNome = c.cliente.tipo === 'cnpj' ? 
-                (c.cliente.nome || c.cliente.razaoSocial) : 
-                c.cliente.nome;
+            const clienteInfo = c.cliente;
+            const clienteNome = clienteInfo.tipo === 'cnpj' ? 
+                (clienteInfo.nome || clienteInfo.razaoSocial) : 
+                clienteInfo.nome;
 
-            const tipoLabel = this._getTipoLabel(c.tipo);
+            const equipe = DB.getAll('equipe');
+            const tecnicos = equipe.filter(m => m.cargo && (m.cargo.includes('Técnico') || m.cargo.includes('Farmacêutico') || m.cargo.includes('Responsável')));
+            const operacionais = equipe.filter(m => m.cargo && (m.cargo.includes('Operacional') || m.cargo.includes('Coordenador') || m.cargo.includes('Suporte')));
+
+            const tecnicoSelecionado = c.responsaveis?.tecnico || { id: null, nome: 'Selecione...', registro: '', atuacao: '' };
+            const operacionalSelecionado = c.responsaveis?.operacional || { id: null, nome: 'Selecione...', registro: '', atuacao: '' };
 
             return `
                 <div style="font-family:Arial,sans-serif;font-size:10px;max-width:800px;margin:0 auto;padding:20px;background:white;border:1px solid #ddd;border-radius:8px;">
@@ -1021,11 +1074,11 @@
 
                     <div style="font-size:10px;line-height:1.5;">
                         <p style="margin:6px 0;">
-                            Certificamos que foi prestado o serviço de <strong>${tipoLabel}</strong> em 
+                            Certificamos que foi prestado o serviço de <strong>${this._getTipoLabel(c.tipo)}</strong> em 
                             <strong>${c.dataServico}</strong>, à empresa: <strong>${clienteNome}</strong>
-                            ${c.cliente.razaoSocial ? `(${c.cliente.razaoSocial})` : ''},
-                            inscrita no ${c.cliente.tipo === 'cnpj' ? 'CNPJ' : 'CPF'} n° ${c.cliente.cnpjCpf},
-                            situada à ${c.cliente.endereco}, pela ${c.prestadora.nome}, utilizando produtos 
+                            ${clienteInfo.razaoSocial ? `(${clienteInfo.razaoSocial})` : ''},
+                            inscrita no ${clienteInfo.tipo === 'cnpj' ? 'CNPJ' : 'CPF'} n° ${clienteInfo.cnpjCpf},
+                            situada à ${clienteInfo.endereco}, pela ${c.prestadora.nome}, utilizando produtos 
                             domissanitários em conformidade com a legislação em vigor.
                         </p>
 
@@ -1048,12 +1101,18 @@
                             </table>
                         </div>
 
-                        ${c.observacoes ? `
-                            <div style="margin:10px 0;padding:8px 12px;background:#f8fbfd;border-left:3px solid #0b2a3b;border-radius:4px;">
-                                <div style="font-weight:700;font-size:10px;">OBSERVAÇÕES:</div>
-                                <div style="font-size:8px;white-space:pre-line;color:#1f3a4b;">${c.observacoes}</div>
+                        <!-- OBSERVAÇÕES - CORRIGIDO COM SCROLL E QUEBRA DE TEXTO -->
+                        <div style="margin:10px 0;padding:8px 12px;background:#f8fbfd;border-left:3px solid #0b2a3b;border-radius:4px;">
+                            <div style="font-weight:700;font-size:10px;display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                                <span>OBSERVAÇÕES:</span>
+                                <button onclick="editarObservacaoCertificado('${c.id}')" style="background:#0b2a3b;color:white;border:none;border-radius:4px;padding:2px 12px;font-size:8px;cursor:pointer;">
+                                    <i class="fas fa-edit"></i> Editar
+                                </button>
                             </div>
-                        ` : ''}
+                            <div id="certObservacao_${c.id}" style="font-size:8px;white-space:pre-wrap;word-wrap:break-word;color:#1f3a4b;min-height:40px;max-height:200px;overflow-y:auto;padding:8px 10px;border:1px solid #dce4ec;border-radius:4px;background:white;line-height:1.6;">
+                                ${c.observacoes || 'Clique em "Editar" para adicionar observações...'}
+                            </div>
+                        </div>
 
                         <div style="margin:10px 0;">
                             <div style="font-weight:700;font-size:11px;">Métodos Empregados:</div>
@@ -1066,18 +1125,55 @@
                             </div>
                         </div>
 
-                        <div style="margin:10px 0;display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-                            <div style="padding:6px 10px;background:#f8fbfd;border-radius:4px;text-align:center;">
-                                <div style="font-weight:700;font-size:10px;">${c.responsaveis.tecnico.nome}</div>
-                                <div style="font-size:8px;color:#4d687a;">${c.responsaveis.tecnico.registro}</div>
-                                <div style="font-size:8px;color:#4d687a;">${c.responsaveis.tecnico.atuacao}</div>
-                                <div style="font-size:7px;font-weight:600;margin-top:4px;">Resp. Técnico</div>
-                            </div>
-                            <div style="padding:6px 10px;background:#f8fbfd;border-radius:4px;text-align:center;">
-                                <div style="font-weight:700;font-size:10px;">${c.responsaveis.operacional.nome}</div>
-                                <div style="font-size:8px;color:#4d687a;">${c.responsaveis.operacional.registro}</div>
-                                <div style="font-size:8px;color:#4d687a;">${c.responsaveis.operacional.atuacao}</div>
-                                <div style="font-size:7px;font-weight:600;margin-top:4px;">Resp. Operacional</div>
+                        <!-- RESPONSÁVEIS COM ASSINATURAS E SELETORES INTEGRADOS -->
+                        <div style="margin:10px 0;">
+                            <div style="font-weight:700;font-size:11px;margin-bottom:6px;">Responsáveis Técnicos:</div>
+                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+                                <!-- RESPONSÁVEL TÉCNICO -->
+                                <div style="padding:10px 12px;background:#f8fbfd;border-radius:6px;border:1px solid #e8eff5;">
+                                    <div style="font-weight:600;font-size:9px;color:#0b2a3b;margin-bottom:4px;">RESPONSÁVEL TÉCNICO</div>
+                                    <select id="certTecnicoSelect_${c.id}" style="width:100%;padding:4px 8px;border:1px solid #dce4ec;border-radius:4px;font-size:8px;background:white;margin-bottom:4px;" 
+                                            onchange="atualizarResponsavelCertificado('${c.id}', 'tecnico', this.value)">
+                                        <option value="">Selecione...</option>
+                                        ${tecnicos.map(m => `<option value="${m.id}" ${m.id === tecnicoSelecionado.id ? 'selected' : ''}>${m.nome} - ${m.cargo}</option>`).join('')}
+                                    </select>
+                                    <div style="font-size:7px;color:#4d687a;margin-bottom:4px;">
+                                        ${tecnicoSelecionado.nome && tecnicoSelecionado.nome !== 'Selecione...' ? 
+                                            `${tecnicoSelecionado.nome} - ${tecnicoSelecionado.registro || 'Sem registro'}` : 
+                                            'Nenhum técnico selecionado'}
+                                    </div>
+                                    <!-- Assinatura -->
+                                    <div style="margin:4px auto 0;width:100%;min-height:50px;border:1px solid #ccc;border-radius:4px;background:white;display:flex;align-items:center;justify-content:center;cursor:pointer;" 
+                                         onclick="abrirAssinaturaCertificado('${c.id}', 'tecnico')">
+                                        ${c.assinaturaTecnico ? 
+                                            `<img src="${c.assinaturaTecnico}" style="max-height:45px;max-width:100%;" />` : 
+                                            '<span style="font-size:7px;color:#999;">Clique para assinar</span>'}
+                                    </div>
+                                    <div style="font-size:6px;text-align:center;color:#999;margin-top:2px;">Assinatura Digital</div>
+                                </div>
+
+                                <!-- RESPONSÁVEL OPERACIONAL -->
+                                <div style="padding:10px 12px;background:#f8fbfd;border-radius:6px;border:1px solid #e8eff5;">
+                                    <div style="font-weight:600;font-size:9px;color:#0b2a3b;margin-bottom:4px;">RESPONSÁVEL OPERACIONAL</div>
+                                    <select id="certOperacionalSelect_${c.id}" style="width:100%;padding:4px 8px;border:1px solid #dce4ec;border-radius:4px;font-size:8px;background:white;margin-bottom:4px;"
+                                            onchange="atualizarResponsavelCertificado('${c.id}', 'operacional', this.value)">
+                                        <option value="">Selecione...</option>
+                                        ${operacionais.map(m => `<option value="${m.id}" ${m.id === operacionalSelecionado.id ? 'selected' : ''}>${m.nome} - ${m.cargo}</option>`).join('')}
+                                    </select>
+                                    <div style="font-size:7px;color:#4d687a;margin-bottom:4px;">
+                                        ${operacionalSelecionado.nome && operacionalSelecionado.nome !== 'Selecione...' ? 
+                                            `${operacionalSelecionado.nome} - ${operacionalSelecionado.registro || 'Sem registro'}` : 
+                                            'Nenhum operacional selecionado'}
+                                    </div>
+                                    <!-- Assinatura -->
+                                    <div style="margin:4px auto 0;width:100%;min-height:50px;border:1px solid #ccc;border-radius:4px;background:white;display:flex;align-items:center;justify-content:center;cursor:pointer;"
+                                         onclick="abrirAssinaturaCertificado('${c.id}', 'operacional')">
+                                        ${c.assinaturaOperacional ? 
+                                            `<img src="${c.assinaturaOperacional}" style="max-height:45px;max-width:100%;" />` : 
+                                            '<span style="font-size:7px;color:#999;">Clique para assinar</span>'}
+                                    </div>
+                                    <div style="font-size:6px;text-align:center;color:#999;margin-top:2px;">Assinatura Digital</div>
+                                </div>
                             </div>
                         </div>
 
@@ -1162,7 +1258,205 @@
     };
 
     window.CertificadoService = CertificadoService;
-    console.log('✅ CertificadoService carregado com sucesso!');
+
+    // =============================================
+    // ===== FUNÇÕES AUXILIARES DO CERTIFICADO =====
+    // =============================================
+
+    window.atualizarResponsavelCertificado = function(certId, tipo, membroId) {
+        if (!membroId) return;
+        
+        const membro = DB.getById('equipe', parseInt(membroId));
+        if (!membro) return;
+        
+        const certificado = CertificadoService.getCertificado(certId);
+        if (!certificado) return;
+        
+        const updateData = {};
+        const campo = tipo === 'tecnico' ? 'tecnico' : 'operacional';
+        
+        const responsavelData = {
+            id: membro.id,
+            nome: membro.nome,
+            registro: membro.registro || '',
+            atuacao: membro.cargo || ''
+        };
+        
+        updateData[`responsaveis.${campo}`] = responsavelData;
+        
+        DB.update('certificados', certId, updateData);
+        
+        setTimeout(function() {
+            visualizarCertificado(certId);
+        }, 100);
+    };
+
+    window.editarObservacaoCertificado = function(certId) {
+        const certificado = CertificadoService.getCertificado(certId);
+        if (!certificado) return;
+        
+        const novaObs = prompt('Edite as observações do certificado:', certificado.observacoes || '');
+        if (novaObs !== null) {
+            DB.update('certificados', certId, { observacoes: novaObs });
+            setTimeout(function() {
+                visualizarCertificado(certId);
+            }, 100);
+        }
+    };
+
+    window.abrirAssinaturaCertificado = function(certId, tipo) {
+        const certificado = CertificadoService.getCertificado(certId);
+        if (!certificado) return;
+        
+        abrirModal('Assinatura Digital - ' + (tipo === 'tecnico' ? 'Responsável Técnico' : 'Responsável Operacional'), `
+            <div style="text-align:center;margin-bottom:12px;">
+                <p style="font-size:0.9rem;color:#4d687a;">Desenhe sua assinatura abaixo</p>
+            </div>
+            <div style="border:2px solid #dce4ec;border-radius:8px;overflow:hidden;background:white;margin:0 auto;max-width:400px;">
+                <canvas id="sigCanvasCert" width="400" height="160" style="width:100%;height:auto;cursor:crosshair;touch-action:none;"></canvas>
+            </div>
+            <div style="display:flex;gap:8px;justify-content:center;margin-top:12px;">
+                <button class="btn-secondary btn-sm" onclick="limparAssinaturaCert()"><i class="fas fa-eraser"></i> Limpar</button>
+                <button class="btn-primary btn-sm" onclick="confirmarAssinaturaCert('${certId}', '${tipo}')"><i class="fas fa-check"></i> Confirmar</button>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="fecharModal()">Cancelar</button>
+            </div>
+        `);
+        
+        setTimeout(function() {
+            const targetCanvas = document.getElementById('sigCanvasCert');
+            if (targetCanvas) {
+                const targetCtx = targetCanvas.getContext('2d');
+                targetCtx.fillStyle = 'white';
+                targetCtx.fillRect(0, 0, targetCanvas.width, targetCanvas.height);
+                targetCtx.strokeStyle = '#ccc';
+                targetCtx.lineWidth = 1;
+                targetCtx.setLineDash([5, 5]);
+                targetCtx.moveTo(40, 80);
+                targetCtx.lineTo(targetCanvas.width - 40, 80);
+                targetCtx.stroke();
+                targetCtx.setLineDash([]);
+                
+                let drawing = false;
+                let lastX = 0, lastY = 0;
+                
+                targetCanvas.addEventListener('mousedown', function(e) {
+                    drawing = true;
+                    const rect = targetCanvas.getBoundingClientRect();
+                    lastX = (e.clientX - rect.left) * (targetCanvas.width / rect.width);
+                    lastY = (e.clientY - rect.top) * (targetCanvas.height / rect.height);
+                });
+                
+                targetCanvas.addEventListener('mousemove', function(e) {
+                    if (!drawing) return;
+                    const rect = targetCanvas.getBoundingClientRect();
+                    const x = (e.clientX - rect.left) * (targetCanvas.width / rect.width);
+                    const y = (e.clientY - rect.top) * (targetCanvas.height / rect.height);
+                    targetCtx.beginPath();
+                    targetCtx.moveTo(lastX, lastY);
+                    targetCtx.lineTo(x, y);
+                    targetCtx.strokeStyle = '#0b2a3b';
+                    targetCtx.lineWidth = 2;
+                    targetCtx.stroke();
+                    lastX = x;
+                    lastY = y;
+                });
+                
+                targetCanvas.addEventListener('mouseup', function() { drawing = false; });
+                targetCanvas.addEventListener('mouseleave', function() { drawing = false; });
+                
+                targetCanvas.addEventListener('touchstart', function(e) {
+                    e.preventDefault();
+                    const touch = e.touches[0];
+                    const rect = targetCanvas.getBoundingClientRect();
+                    lastX = (touch.clientX - rect.left) * (targetCanvas.width / rect.width);
+                    lastY = (touch.clientY - rect.top) * (targetCanvas.height / rect.height);
+                    drawing = true;
+                });
+                
+                targetCanvas.addEventListener('touchmove', function(e) {
+                    e.preventDefault();
+                    if (!drawing) return;
+                    const touch = e.touches[0];
+                    const rect = targetCanvas.getBoundingClientRect();
+                    const x = (touch.clientX - rect.left) * (targetCanvas.width / rect.width);
+                    const y = (touch.clientY - rect.top) * (targetCanvas.height / rect.height);
+                    targetCtx.beginPath();
+                    targetCtx.moveTo(lastX, lastY);
+                    targetCtx.lineTo(x, y);
+                    targetCtx.strokeStyle = '#0b2a3b';
+                    targetCtx.lineWidth = 2;
+                    targetCtx.stroke();
+                    lastX = x;
+                    lastY = y;
+                });
+                
+                targetCanvas.addEventListener('touchend', function(e) {
+                    e.preventDefault();
+                    drawing = false;
+                });
+            }
+        }, 100);
+    };
+
+    window.limparAssinaturaCert = function() {
+        const canvas = document.getElementById('sigCanvasCert');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = 'white';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.strokeStyle = '#ccc';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([5, 5]);
+        ctx.moveTo(40, 80);
+        ctx.lineTo(canvas.width - 40, 80);
+        ctx.stroke();
+        ctx.setLineDash([]);
+    };
+
+    window.confirmarAssinaturaCert = function(certId, tipo) {
+        const canvas = document.getElementById('sigCanvasCert');
+        if (!canvas) return;
+        
+        const imageData = canvas.toDataURL('image/png');
+        const img = new Image();
+        img.onload = function() {
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = canvas.width;
+            tempCanvas.height = canvas.height;
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCtx.drawImage(img, 0, 0);
+            
+            const pixelData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height).data;
+            let hasDrawing = false;
+            for (let i = 0; i < pixelData.length; i += 4) {
+                const r = pixelData[i];
+                const g = pixelData[i + 1];
+                const b = pixelData[i + 2];
+                if (r < 240 || g < 240 || b < 240) {
+                    hasDrawing = true;
+                    break;
+                }
+            }
+            
+            if (!hasDrawing) {
+                alert('Por favor, desenhe a assinatura antes de confirmar!');
+                return;
+            }
+            
+            const campo = tipo === 'tecnico' ? 'assinaturaTecnico' : 'assinaturaOperacional';
+            DB.update('certificados', certId, { [campo]: imageData });
+            
+            fecharModal();
+            setTimeout(function() {
+                visualizarCertificado(certId);
+            }, 100);
+            alert('Assinatura salva com sucesso!');
+        };
+        img.src = imageData;
+    };
 
     // =============================================
     // ===== CONTROLE DE RENDERIZAÇÃO =====
@@ -1170,7 +1464,6 @@
     var _renderTimeout = null;
     var _isRendering = false;
 
-    // ===== RENDER ALL COM CONTROLE DE DUPLICAÇÃO =====
     function renderAll() {
         if (_isRendering) {
             console.log('⏳ Renderização já em andamento, agendando...');
@@ -1217,7 +1510,6 @@
         }
     }
 
-    // ===== FUNÇÃO DE RESET MANUAL =====
     window.resetarDados = function () {
         if (confirm('ATENÇÃO: Isso irá apagar TODOS os dados do sistema (clientes, serviços, OS, estoque, etc.)!\n\nTem certeza?')) {
             if (confirm('Última confirmação: Esta ação é IRREVERSÍVEL.')) {
@@ -1256,7 +1548,6 @@
         }
     };
 
-    // ===== FUNÇÕES DE SINCRONIZAÇÃO GLOBAIS =====
     window.forcarSincronizacao = function() {
         if (typeof DB !== 'undefined' && DB.forcarSincronizacao) {
             DB.forcarSincronizacao().then(function(total) {
@@ -1294,7 +1585,9 @@
         }
     };
 
+    // =============================================
     // ===== HELPER FUNCTIONS =====
+    // =============================================
     function getClienteNome(id) {
         if (!id) return 'Cliente não definido';
         var clientes = DB.getAll('clientes');
@@ -1512,7 +1805,9 @@
         }).join('');
     }
 
+    // =============================================
     // ===== FILTROS DO DASHBOARD =====
+    // =============================================
     var filtroTipoServico = 'todos';
     var filtroStatusOS = 'todos';
     var filtroMesDashboard = '';
@@ -1571,7 +1866,9 @@
         }
     }
 
+    // =============================================
     // ===== FUNÇÃO PARA MAPEAR STATUS DO SERVIÇO PARA OS =====
+    // =============================================
     function mapearStatusServicoParaOS(statusServico) {
         var map = {
             'Concluído': 'Concluída',
@@ -1587,7 +1884,9 @@
         return map[statusServico] || 'Pendente';
     }
 
+    // =============================================
     // ===== SINCRONIZAÇÃO SERVIÇO ↔ ORDEM DE SERVIÇO =====
+    // =============================================
     function sincronizarServicoComOS(servico, acao) {
         if (!servico) return;
 
@@ -1672,7 +1971,9 @@
         }
     }
 
+    // =============================================
     // ===== SINCRONIZAÇÃO SERVIÇO ↔ AGENDA =====
+    // =============================================
     function sincronizarServicoComAgenda(servico, acao, servicoAntigo) {
         if (!servico) return;
 
@@ -1779,7 +2080,9 @@
         }
     }
 
+    // =============================================
     // ===== FUNÇÃO DE SINCRONIZAÇÃO COMPLETA =====
+    // =============================================
     function sincronizarServicoCompleto(servico, acao, servicoAntigo) {
         console.log('🔄 Sincronizando serviço #' + servico.id + ' (' + acao + ') - Status: ' + servico.status);
         sincronizarServicoComAgenda(servico, acao, servicoAntigo);
@@ -1795,7 +2098,6 @@
             }
         }
 
-        // Verifica se deve gerar certificado automaticamente
         if (servico.status === 'Concluído' || servico.status === 'Concluida' || servico.status === 'Concluída') {
             verificarCertificadoAutomatico(servico);
         }
@@ -1804,7 +2106,9 @@
         console.log('✅ Sincronização concluída para serviço #' + servico.id);
     }
 
+    // =============================================
     // ===== VERIFICA CERTIFICADO AUTOMÁTICO =====
+    // =============================================
     function verificarCertificadoAutomatico(servico) {
         if (!servico) return;
         
@@ -1829,7 +2133,9 @@
     // ===== FUNÇÕES DE RENDERIZAÇÃO =====
     // =============================================
     
+    // =============================================
     // ===== RENDER DASHBOARD =====
+    // =============================================
     function renderDashboard() {
         var clientes = DB.getAll('clientes');
         var servicos = DB.getAll('servicos');
@@ -1894,7 +2200,9 @@
         renderResumoMensal();
     }
 
+    // =============================================
     // ===== RESUMO MENSAL =====
+    // =============================================
     function renderResumoMensal() {
         var servicos = DB.getAll('servicos');
         var ordens = DB.getAll('ordens');
@@ -2026,7 +2334,9 @@
         if (elResumo) elResumo.innerHTML = html;
     }
 
+    // =============================================
     // ===== EXPORTAÇÃO EXCEL =====
+    // =============================================
     window.exportarDashboardExcel = function () {
         var servicos = DB.getAll('servicos');
         var ordens = DB.getAll('ordens');
@@ -2117,7 +2427,9 @@
         XLSX.writeFile(wb, 'dashboard_' + new Date().toISOString().split('T')[0] + '.xlsx');
     };
 
+    // =============================================
     // ===== EXPORTAÇÃO PDF =====
+    // =============================================
     window.exportarDashboardPDF = function () {
         var doc = new window.jspdf.jsPDF('p', 'mm', 'a4');
 
@@ -2225,7 +2537,9 @@
         doc.save('dashboard_' + new Date().toISOString().split('T')[0] + '.pdf');
     };
 
+    // =============================================
     // ===== CONFIGURAÇÕES =====
+    // =============================================
     function carregarConfiguracoes() {
         var config = DB.getConfig();
         
@@ -2761,7 +3075,9 @@
         doc.save('certificados_' + new Date().toISOString().split('T')[0] + '.pdf');
     };
 
+    // =============================================
     // ===== FUNÇÃO TOGGLE PARA CAMPOS DE CNPJ =====
+    // =============================================
     window.toggleCamposCnpj = function() {
         var tipo = document.getElementById('modalTipoCliente')?.value || 'cpf';
         var camposCnpj = document.getElementById('camposCnpj');
@@ -2802,7 +3118,9 @@
         toggleCamposCnpj();
     };
 
+    // =============================================
     // ===== FUNÇÕES DE ASSINATURA DIGITAL =====
+    // =============================================
     var signatureOSId = null;
 
     window.abrirAssinaturaOS = function (osId) {
@@ -3111,11 +3429,9 @@
         renderAll();
     };
 
-    // ==========================================
-    // ===== FIM FUNÇÕES DE ASSINATURA DIGITAL =
-    // ==========================================
-
+    // =============================================
     // ===== FUNÇÃO PARA INICIALIZAR EVENT LISTENERS =====
+    // =============================================
     function inicializarEventListeners() {
         // Botão Novo Relatório
         var btnNovoRelatorio = document.getElementById('btnNovoRelatorio');
@@ -3717,7 +4033,7 @@
             });
         }
 
-        // Botão Novo Produto
+        // Botão Novo Produto - CORRIGIDO COM ATUALIZAÇÃO AUTOMÁTICA
         var btnNovoProduto = document.getElementById('btnNovoProduto');
         if (btnNovoProduto) {
             btnNovoProduto.addEventListener('click', function () {
@@ -3915,121 +4231,135 @@
         }
     }
 
-    function renderMapaIscasFiltrado(pontos) {
-        var container = document.getElementById('mapaGrid');
-        if (!container) return;
+    // =============================================
+    // ===== FUNÇÃO RENDERIZAR TABELA ESTOQUE =====
+    // =============================================
+    function renderizarTabelaEstoque(produtos) {
+        var tbody = document.getElementById('tabelaEstoque');
+        if (!tbody) return;
 
-        if (pontos.length === 0) {
-            container.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#999;padding:40px;">Nenhum ponto encontrado</div>';
+        if (!produtos) {
+            produtos = DB.getAll('estoque', true);
+        }
+
+        if (produtos.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#999;padding:30px;">Nenhum produto cadastrado</td></tr>';
             return;
         }
-        container.innerHTML = pontos.map(function (p) {
-            var cliente = getCliente(p.clienteId);
-            var statusClass = p.status === 'ativo' ? 'ativo' : p.status === 'inativo' ? 'inativo' : 'manutencao';
-            return '<div class="mapa-card">' +
-                '<div class="card-header">' +
-                '<div class="info">' +
-                '<div class="tipo-icon">' +
-                getTipoIcon(p.tipo) +
-                '<span style="font-size:0.8rem;color:#4d687a;margin-left:4px;">' + (p.tipo === 'porta-isca' ? 'Porta Isca' : 'Túnel') + '</span>' +
-                '</div>' +
-                '<h3>' + p.nome + '</h3>' +
-                '<div class="endereco"><i class="fas fa-map-pin" style="color:#1d7a6b;"></i> ' + p.endereco + '</div>' +
-                '<div style="font-size:0.85rem;color:#4d687a;margin-top:4px;">' +
-                '<i class="fas fa-user"></i> ' + (cliente ? cliente.nome : 'N/A') +
-                '</div>' +
-                '</div>' +
-                '<div class="status-badge">' +
-                '<span class="' + statusClass + '">' + (p.status === 'ativo' ? '✅ Ativo' : p.status === 'inativo' ? '❌ Inativo' : '🔧 Manutenção') + '</span>' +
-                '</div>' +
-                '</div>' +
-                '<div class="card-body">' +
-                '<div class="detalhe"><i class="fas fa-arrows-alt"></i> ' + p.posicao + '</div>' +
-                '<div class="detalhe"><i class="fas fa-calendar-plus"></i> Inst: ' + p.dataInstalacao + '</div>' +
-                '<div class="detalhe"><i class="fas fa-tools"></i> Manut: ' + p.ultimaManutencao + '</div>' +
-                '</div>' +
-                (p.observacoes ? '<div style="margin-top:8px;font-size:0.85rem;color:#4d687a;background:#f8fbfd;padding:8px 12px;border-radius:8px;"><i class="fas fa-comment"></i> ' + p.observacoes + '</div>' : '') +
-                '<div class="card-actions">' +
-                '<i class="fas fa-edit" onclick="editarPontoIsca(' + p.id + ')" title="Editar"></i>' +
-                '<i class="fas fa-trash" onclick="excluirPontoIsca(' + p.id + ')" title="Excluir"></i>' +
-                '<i class="fas fa-check-circle" onclick="alternarStatusPonto(' + p.id + ')" title="Alternar Status" style="color:#1d7a6b;"></i>' +
-                '</div>' +
-                '</div>';
+
+        tbody.innerHTML = produtos.map(function (p) {
+            var statusClass = p.quantidade <= 0 ? 'critico' :
+                p.quantidade <= p.minimo ? 'baixo' :
+                    p.quantidade >= p.minimo * 3 ? 'alto' : 'normal';
+            var statusText = p.quantidade <= 0 ? '⚠️ Esgotado' :
+                p.quantidade <= p.minimo ? '⚠️ Baixo' :
+                    p.quantidade >= p.minimo * 3 ? '✅ Alto' : '✅ Normal';
+
+            return '<tr>' +
+                '<td><strong>' + p.codigo + '</strong></td>' +
+                '<td>' + p.nome + '</td>' +
+                '<td>' + p.categoria + '</td>' +
+                '<td><strong>' + p.quantidade + '</strong> ' + p.unidade + '</td>' +
+                '<td>' + p.minimo + '</td>' +
+                '<td><span class="status-badge ' + statusClass + '">' + statusText + '</span></td>' +
+                '<td>' + (p.localizacao || 'N/A') + '</td>' +
+                '<td>' +
+                '<i class="fas fa-eye" onclick="verDetalhesProduto(' + p.id + ')" title="Detalhes" style="color:#1d7a6b;"></i>' +
+                '<i class="fas fa-edit" onclick="editarProduto(' + p.id + ')" title="Editar"></i>' +
+                '<i class="fas fa-arrow-down" onclick="movimentarEstoque(' + p.id + ', \'entrada\')" title="Entrada" style="color:#1d7a6b;"></i>' +
+                '<i class="fas fa-arrow-up" onclick="movimentarEstoque(' + p.id + ', \'saida\')" title="Saída" style="color:#b13e3a;"></i>' +
+                '<i class="fas fa-trash" onclick="excluirProduto(' + p.id + ')" title="Excluir" style="color:#b13e3a;"></i>' +
+                '</td>' +
+                '</tr>';
         }).join('');
+
+        atualizarDashboardEstoque();
     }
-
-    // ===== TOGGLE SIDEBAR =====
-    var sidebar = document.getElementById('sidebar');
-    var sidebarOverlay = document.getElementById('sidebarOverlay');
-    var sidebarOpen = window.innerWidth > 820;
-
-    function toggleSidebar() {
-        if (!sidebar) return;
-
-        if (window.innerWidth <= 820) {
-            sidebar.classList.toggle('open');
-            if (sidebarOverlay) sidebarOverlay.classList.toggle('active');
-            sidebarOpen = sidebar.classList.contains('open');
-        } else {
-            if (sidebar.style.width === '80px' || sidebar.style.width === '') {
-                sidebar.style.width = '260px';
-                sidebarOpen = true;
-                document.querySelectorAll('.brand span, .nav-menu ul li span, .sidebar-footer span').forEach(function (s) {
-                    if (s) s.style.display = 'inline';
-                });
-            } else {
-                sidebar.style.width = '80px';
-                sidebarOpen = false;
-                document.querySelectorAll('.brand span, .nav-menu ul li span, .sidebar-footer span').forEach(function (s) {
-                    if (s) s.style.display = 'none';
-                });
-            }
-        }
-    }
-
-    if (sidebarOverlay) {
-        sidebarOverlay.addEventListener('click', function () {
-            if (window.innerWidth <= 820 && sidebar) {
-                sidebar.classList.remove('open');
-                sidebarOverlay.classList.remove('active');
-                sidebarOpen = false;
-            }
-        });
-    }
-
-    document.querySelectorAll('.nav-menu ul li').forEach(function (li) {
-        li.addEventListener('click', function () {
-            if (window.innerWidth <= 820 && sidebar) {
-                sidebar.classList.remove('open');
-                if (sidebarOverlay) sidebarOverlay.classList.remove('active');
-                sidebarOpen = false;
-            }
-        });
-    });
-
-    window.addEventListener('resize', function () {
-        if (!sidebar) return;
-
-        if (window.innerWidth > 820) {
-            sidebar.classList.remove('open');
-            if (sidebarOverlay) sidebarOverlay.classList.remove('active');
-            sidebar.style.width = '260px';
-            sidebarOpen = true;
-            document.querySelectorAll('.brand span, .nav-menu ul li span, .sidebar-footer span').forEach(function (s) {
-                if (s) s.style.display = 'inline';
-            });
-        } else {
-            sidebar.style.width = '';
-            if (!sidebarOpen) {
-                sidebar.classList.remove('open');
-                if (sidebarOverlay) sidebarOverlay.classList.remove('active');
-            }
-        }
-    });
 
     // =============================================
-    // ===== FUNÇÕES DE PONTOS DE ISCA =====
+    // ===== RENDER ESTOQUE =====
     // =============================================
+    function renderEstoque() {
+        var produtos = DB.getAll('estoque', true);
+        renderizarTabelaEstoque(produtos);
+    }
+
+    // =============================================
+    // ===== FUNÇÕES DE ESTOQUE =====
+    // =============================================
+
+    window.criarProduto = function () {
+        var codigo = document.getElementById('modalProdutoCodigo')?.value || '';
+        var nome = document.getElementById('modalProdutoNome')?.value || '';
+        var categoria = document.getElementById('modalProdutoCategoria')?.value || 'Outros';
+        var unidade = document.getElementById('modalProdutoUnidade')?.value || 'un';
+        var quantidade = parseInt(document.getElementById('modalProdutoQtd')?.value) || 0;
+        var minimo = parseInt(document.getElementById('modalProdutoMinimo')?.value) || 0;
+        var valorCusto = parseFloat(document.getElementById('modalProdutoCusto')?.value) || 0;
+        var valorVenda = parseFloat(document.getElementById('modalProdutoVenda')?.value) || 0;
+        var localizacao = document.getElementById('modalProdutoLocalizacao')?.value || '';
+        var fornecedor = document.getElementById('modalProdutoFornecedor')?.value || '';
+
+        if (!nome) {
+            alert('Nome do produto é obrigatório!');
+            return;
+        }
+
+        var hoje = new Date().toLocaleDateString('pt-BR');
+
+        var produto = {
+            codigo: codigo,
+            nome: nome,
+            categoria: categoria,
+            unidade: unidade,
+            quantidade: quantidade,
+            minimo: minimo,
+            valorCusto: valorCusto,
+            valorVenda: valorVenda,
+            localizacao: localizacao,
+            fornecedor: fornecedor,
+            dataCadastro: hoje,
+            ultimaMovimentacao: hoje
+        };
+
+        var newProduto = DB.add('estoque', produto);
+
+        if (quantidade > 0) {
+            var mov = {
+                produtoId: newProduto.id,
+                tipo: 'entrada',
+                quantidade: quantidade,
+                data: new Date().toLocaleString('pt-BR'),
+                motivo: 'Cadastro inicial',
+                observacao: 'Produto cadastrado no sistema',
+                usuario: 'Admin',
+                estoqueAnterior: 0,
+                estoqueAtual: quantidade
+            };
+            DB.add('movimentacoes', mov);
+        }
+
+        DB.forceClearCache('estoque');
+        DB.forceClearCache('movimentacoes');
+
+        fecharModal();
+
+        var produtosAtualizados = DB.getAll('estoque', true);
+        renderizarTabelaEstoque(produtosAtualizados);
+        atualizarDashboardEstoque();
+        atualizarGraficosEstoque();
+
+        setTimeout(function() {
+            renderAll();
+        }, 50);
+
+        alert('✅ Produto "' + nome + '" criado com sucesso!');
+    };
+
+    // =============================================
+    // ===== FUNÇÕES DE MAPA DE ISCAS =====
+    // =============================================
+
     window.criarNovoPonto = function () {
         var tipo = document.getElementById('modalPontoTipo')?.value || 'porta-isca';
         var nome = document.getElementById('modalPontoNome')?.value || '';
@@ -4147,9 +4477,9 @@
         renderAll();
     };
 
-    // ==========================================
+    // =============================================
     // ===== FILTROS PARA MAPA DE ISCAS =====
-    // ==========================================
+    // =============================================
 
     var filtrosMapa = {
         clienteId: '',
@@ -4283,9 +4613,80 @@
         }).join('');
     }
 
-    // ==========================================
+    // =============================================
+    // ===== TOGGLE SIDEBAR =====
+    // =============================================
+    var sidebar = document.getElementById('sidebar');
+    var sidebarOverlay = document.getElementById('sidebarOverlay');
+    var sidebarOpen = window.innerWidth > 820;
+
+    function toggleSidebar() {
+        if (!sidebar) return;
+
+        if (window.innerWidth <= 820) {
+            sidebar.classList.toggle('open');
+            if (sidebarOverlay) sidebarOverlay.classList.toggle('active');
+            sidebarOpen = sidebar.classList.contains('open');
+        } else {
+            if (sidebar.style.width === '80px' || sidebar.style.width === '') {
+                sidebar.style.width = '260px';
+                sidebarOpen = true;
+                document.querySelectorAll('.brand span, .nav-menu ul li span, .sidebar-footer span').forEach(function (s) {
+                    if (s) s.style.display = 'inline';
+                });
+            } else {
+                sidebar.style.width = '80px';
+                sidebarOpen = false;
+                document.querySelectorAll('.brand span, .nav-menu ul li span, .sidebar-footer span').forEach(function (s) {
+                    if (s) s.style.display = 'none';
+                });
+            }
+        }
+    }
+
+    if (sidebarOverlay) {
+        sidebarOverlay.addEventListener('click', function () {
+            if (window.innerWidth <= 820 && sidebar) {
+                sidebar.classList.remove('open');
+                sidebarOverlay.classList.remove('active');
+                sidebarOpen = false;
+            }
+        });
+    }
+
+    document.querySelectorAll('.nav-menu ul li').forEach(function (li) {
+        li.addEventListener('click', function () {
+            if (window.innerWidth <= 820 && sidebar) {
+                sidebar.classList.remove('open');
+                if (sidebarOverlay) sidebarOverlay.classList.remove('active');
+                sidebarOpen = false;
+            }
+        });
+    });
+
+    window.addEventListener('resize', function () {
+        if (!sidebar) return;
+
+        if (window.innerWidth > 820) {
+            sidebar.classList.remove('open');
+            if (sidebarOverlay) sidebarOverlay.classList.remove('active');
+            sidebar.style.width = '260px';
+            sidebarOpen = true;
+            document.querySelectorAll('.brand span, .nav-menu ul li span, .sidebar-footer span').forEach(function (s) {
+                if (s) s.style.display = 'inline';
+            });
+        } else {
+            sidebar.style.width = '';
+            if (!sidebarOpen) {
+                sidebar.classList.remove('open');
+                if (sidebarOverlay) sidebarOverlay.classList.remove('active');
+            }
+        }
+    });
+
+    // =============================================
     // ===== FILTROS PARA SERVIÇOS =====
-    // ==========================================
+    // =============================================
 
     var filtrosServicos = {
         dataInicio: '',
@@ -4439,9 +4840,9 @@
         }).join('');
     }
 
-    // ==========================================
+    // =============================================
     // ===== FILTROS PARA PROPOSTAS =====
-    // ==========================================
+    // =============================================
 
     var filtrosOrcamentos = {
         clienteId: '',
@@ -4556,9 +4957,9 @@
         }).join('');
     }
 
-    // ==========================================
+    // =============================================
     // ===== FUNÇÕES DE PROPOSTAS =====
-    // ==========================================
+    // =============================================
 
     window.adicionarItemOrcamento = function () {
         var container = document.getElementById('orcItensContainer');
@@ -5213,9 +5614,9 @@
         doc.save('orcamentos_' + new Date().toISOString().split('T')[0] + '.pdf');
     };
 
-    // ==========================================
+    // =============================================
     // ===== FILTROS PARA ORDENS DE SERVIÇO =====
-    // ==========================================
+    // =============================================
 
     var filtrosOS = {
         dataInicio: '',
@@ -5305,9 +5706,9 @@
         }).join('');
     }
 
-    // ==========================================
+    // =============================================
     // ===== FILTROS PARA AGENDA =====
-    // ==========================================
+    // =============================================
 
     var filtrosAgenda = {
         dataInicio: '',
@@ -5505,9 +5906,9 @@
         console.log('📋 Agenda filtrada com ' + resultados.length + ' itens' + (temFiltroAtivo ? ' (filtros ativos)' : ' (apenas hoje)'));
     }
 
-    // ==========================================
+    // =============================================
     // ===== FUNÇÕES DE CLIENTES (CORRIGIDAS COM CNPJ) =====
-    // ==========================================
+    // =============================================
 
     function aplicarMascaraDocumento(input) {
         var tipo = document.getElementById('modalTipoCliente')?.value || 'cpf';
@@ -5731,9 +6132,9 @@
         }
     };
 
-    // ==========================================
+    // =============================================
     // ===== EXPORTAÇÕES COM FILTROS =====
-    // ==========================================
+    // =============================================
 
     window.exportarMapaExcel = function () {
         var pontos = DB.getAll('pontosIscas');
@@ -5987,9 +6388,9 @@
         XLSX.writeFile(wb, 'agenda_filtrada_' + new Date().toISOString().split('T')[0] + '.xlsx');
     };
 
-    // ==========================================
+    // =============================================
     // ===== FUNÇÕES DE EXPORTAÇÃO PDF SIMPLES =====
-    // ==========================================
+    // =============================================
 
     window.exportarServicosPDF = function () {
         var doc = new window.jspdf.jsPDF('p', 'mm', 'a4');
@@ -6152,9 +6553,9 @@
         doc.save('agenda_filtrada_' + new Date().toISOString().split('T')[0] + '.pdf');
     };
 
-    // ==========================================
+    // =============================================
     // ===== RELATÓRIO FINANCEIRO =====
-    // ==========================================
+    // =============================================
 
     var filtrosFinanceiro = {
         dataInicio: '',
@@ -6605,7 +7006,9 @@
         URL.revokeObjectURL(url);
     };
 
+    // =============================================
     // ===== FUNÇÕES DE ORDEM DE SERVIÇO =====
+    // =============================================
 
     window.visualizarOS = function (id) {
         var os = DB.getById('ordens', id);
@@ -6755,7 +7158,9 @@
         });
     }
 
+    // =============================================
     // ===== ADICIONAR INSETICIDA =====
+    // =============================================
     window.adicionarInseticida = function () {
         var container = document.getElementById('inseticidasContainer');
         if (!container) return;
@@ -6815,7 +7220,9 @@
         }
     };
 
+    // =============================================
     // ===== CRIAR NOVA OS =====
+    // =============================================
     window.criarNovaOS = function () {
         var clienteId = parseInt(document.getElementById('modalOSCliente')?.value || '0');
         var data = document.getElementById('modalOSData')?.value?.split('-').reverse().join('/') || '';
@@ -6940,7 +7347,9 @@
         alert('OS ' + numero + ' criada com sucesso! ' + movimentacoesRegistradas.length + ' produto(s) baixado(s) do estoque.');
     };
 
+    // =============================================
     // ===== FUNÇÃO CRIAR NOVO SERVIÇO =====
+    // =============================================
     window.criarNovoServico = function () {
         var clienteId = parseInt(document.getElementById('modalClienteId')?.value || '0');
         var tipo = document.getElementById('modalTipo')?.value || 'Desratização';
@@ -7016,7 +7425,6 @@
 
         sincronizarServicoComOS(servico, 'add');
         
-        // Verifica se deve gerar certificado automaticamente
         if (status === 'Concluído' || status === 'Concluida' || status === 'Concluída') {
             verificarCertificadoAutomatico(servico);
         }
@@ -7035,7 +7443,9 @@
         alert('✅ Serviço #' + String(servico.id).padStart(3, '0') + ' criado com status: ' + status);
     };
 
+    // =============================================
     // ===== FUNÇÃO SALVAR EDIÇÃO DO SERVIÇO =====
+    // =============================================
     window.salvarEdicaoServico = function (id) {
         var clienteId = parseInt(document.getElementById('modalClienteId')?.value || '0');
         var tipo = document.getElementById('modalTipo')?.value || 'Desratização';
@@ -7114,7 +7524,6 @@
 
         sincronizarServicoComOS(servicoAtualizado, 'update');
         
-        // Verifica se deve gerar certificado automaticamente
         if (status === 'Concluído' || status === 'Concluida' || status === 'Concluída') {
             verificarCertificadoAutomatico(servicoAtualizado);
         }
@@ -7235,7 +7644,9 @@
         `);
     };
 
+    // =============================================
     // ===== FUNÇÃO DE DIAGNÓSTICO =====
+    // =============================================
     window.diagnosticarAgenda = function () {
         console.log('🔍 DIAGNÓSTICO DA AGENDA');
         console.log('========================');
@@ -7320,163 +7731,9 @@
         alert('✅ Agenda recriada com sucesso! ' + agendaItems.length + ' agendamentos gerados.');
     };
 
-    // ===== AGENDA ITEM ACTIONS =====
-    window.editarAgenda = function (id) {
-        var a = DB.getById('agenda', id);
-        if (!a) {
-            alert('Agendamento não encontrado!');
-            return;
-        }
-
-        if (a.servicoId) {
-            var servico = DB.getById('servicos', a.servicoId);
-            if (servico) {
-                if (confirm('Este agendamento está vinculado ao Serviço #' + String(servico.id).padStart(3, '0') + 
-                           '. Deseja editar o serviço em vez do agendamento?')) {
-                    fecharModalAgenda();
-                    editarServico(servico.id);
-                    return;
-                }
-            }
-        }
-
-        var clientes = DB.getAll('clientes');
-        var clienteNome = a.clienteNome || getClienteNome(a.clienteId);
-        
-        abrirModal('Editar Agendamento', `
-            <div class="form-group">
-                <label>Cliente</label>
-                <select id="modalAgendaCliente">
-                    <option value="">Selecione um cliente</option>
-                    ${clientes.map(c => 
-                        `<option value="${c.id}" ${c.id === a.clienteId ? 'selected' : ''}>${c.nome} (${c.documento || 'N/A'})</option>`
-                    ).join('')}
-                </select>
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label>Data</label>
-                    <input type="date" id="modalAgendaData" value="${a.data ? a.data.split('/').reverse().join('-') : ''}" />
-                </div>
-                <div class="form-group">
-                    <label>Horário</label>
-                    <input type="time" id="modalAgendaHorario" value="${a.horario || '09:00'}" />
-                </div>
-            </div>
-            <div class="form-group">
-                <label>Descrição</label>
-                <textarea id="modalAgendaDescricao" rows="3">${a.descricao || ''}</textarea>
-            </div>
-            ${a.servicoId ? `
-                <div style="background:#f0f7fc;padding:8px 14px;border-radius:8px;margin-bottom:12px;border-left:3px solid #1d7a6b;">
-                    <small>🔗 Vinculado ao Serviço #${String(a.servicoId).padStart(3, '0')}</small>
-                </div>
-            ` : ''}
-            <div class="modal-footer">
-                <button class="btn-secondary" onclick="fecharModal()">Cancelar</button>
-                <button class="btn-primary" onclick="salvarEdicaoAgenda(${id})">Salvar</button>
-            </div>
-        `);
-    };
-
-    window.salvarEdicaoAgenda = function (id) {
-        var clienteId = parseInt(document.getElementById('modalAgendaCliente')?.value || '0');
-        var data = document.getElementById('modalAgendaData')?.value?.split('-').reverse().join('/') || '';
-        var horario = document.getElementById('modalAgendaHorario')?.value || '09:00';
-        var descricao = document.getElementById('modalAgendaDescricao')?.value || '';
-
-        if (!clienteId || !data) {
-            alert('Cliente e data são obrigatórios!');
-            return;
-        }
-
-        DB.update('agenda', id, {
-            clienteId: clienteId,
-            data: data,
-            horario: horario,
-            descricao: descricao,
-            clienteNome: getClienteNome(clienteId),
-            atualizadoEm: new Date().toISOString()
-        });
-
-        fecharModal();
-        renderAll();
-        alert('Agendamento atualizado com sucesso!');
-    };
-
-    window.excluirAgenda = function (id) {
-        var a = DB.getById('agenda', id);
-        if (!a) return;
-
-        if (a.servicoId) {
-            if (!confirm('Este agendamento está vinculado ao Serviço #' + String(a.servicoId).padStart(3, '0') + 
-                        '. Deseja excluir o agendamento e desvincular do serviço?')) {
-                return;
-            }
-        } else {
-            if (!confirm('Tem certeza que deseja excluir este agendamento?')) {
-                return;
-            }
-        }
-
-        DB.remove('agenda', id);
-        DB.forceClearCache('agenda');
-        renderAll();
-        alert('Agendamento excluído com sucesso!');
-    };
-
-    window.fecharModalAgenda = function () {
-        fecharModal();
-    };
-
-    // ===== FUNÇÕES DE ESTOQUE =====
-    window.criarProduto = function () {
-        var codigo = document.getElementById('modalProdutoCodigo')?.value || '';
-        var nome = document.getElementById('modalProdutoNome')?.value || '';
-        var categoria = document.getElementById('modalProdutoCategoria')?.value || 'Outros';
-        var unidade = document.getElementById('modalProdutoUnidade')?.value || 'un';
-        var quantidade = parseInt(document.getElementById('modalProdutoQtd')?.value) || 0;
-        var minimo = parseInt(document.getElementById('modalProdutoMinimo')?.value) || 0;
-        var valorCusto = parseFloat(document.getElementById('modalProdutoCusto')?.value) || 0;
-        var valorVenda = parseFloat(document.getElementById('modalProdutoVenda')?.value) || 0;
-        var localizacao = document.getElementById('modalProdutoLocalizacao')?.value || '';
-        var fornecedor = document.getElementById('modalProdutoFornecedor')?.value || '';
-
-        if (!nome) {
-            alert('Nome do produto é obrigatório!');
-            return;
-        }
-
-        var hoje = new Date().toLocaleDateString('pt-BR');
-
-        var produto = {
-            codigo: codigo, nome: nome, categoria: categoria, unidade: unidade, quantidade: quantidade, minimo: minimo,
-            valorCusto: valorCusto, valorVenda: valorVenda, localizacao: localizacao, fornecedor: fornecedor,
-            dataCadastro: hoje,
-            ultimaMovimentacao: hoje
-        };
-
-        var newProduto = DB.add('estoque', produto);
-
-        if (quantidade > 0) {
-            var mov = {
-                produtoId: newProduto.id,
-                tipo: 'entrada',
-                quantidade: quantidade,
-                data: new Date().toLocaleString('pt-BR'),
-                motivo: 'Cadastro inicial',
-                observacao: 'Produto cadastrado no sistema',
-                usuario: 'Admin',
-                estoqueAnterior: 0,
-                estoqueAtual: quantidade
-            };
-            DB.add('movimentacoes', mov);
-        }
-
-        fecharModal();
-        renderAll();
-        alert('Produto criado com sucesso!');
-    };
+    // =============================================
+    // ===== FUNÇÕES DE ESTOQUE (continuação) =====
+    // =============================================
 
     window.editarProduto = function (id) {
         var p = DB.getById('estoque', id);
@@ -7845,7 +8102,9 @@
         `);
     };
 
+    // =============================================
     // ===== FUNÇÕES DE RELATÓRIOS =====
+    // =============================================
     window.excluirRelatorio = function (id) {
         var r = DB.getById('relatorios', id);
         if (!r) return;
@@ -8457,7 +8716,9 @@
         alert('Relatório baixado com sucesso!');
     };
 
+    // =============================================
     // ===== FUNÇÕES DE ORDEM DE SERVIÇO (continuação) =====
+    // =============================================
     window.excluirOS = function (id) {
         if (confirm('Tem certeza que deseja excluir esta Ordem de Serviço?')) {
             var os = DB.getById('ordens', id);
@@ -9108,7 +9369,8 @@
         }
     };
 
-    // ===== EXCLUIR MEMBRO =====
+    // =============================================    // ===== EXCLUIR MEMBRO =====
+    // =============================================
     window.excluirMembro = function (id) {
         if (confirm('Remover este membro da equipe?')) {
             DB.remove('equipe', id);
@@ -9117,7 +9379,9 @@
         }
     };
 
+    // =============================================
     // ===== CRIAR NOVO MEMBRO =====
+    // =============================================
     window.criarNovoMembro = function () {
         var nome = document.getElementById('modalNomeMembro')?.value || '';
         var cargo = document.getElementById('modalCargoMembro')?.value || 'Técnico';
@@ -9139,46 +9403,10 @@
         alert('Membro adicionado!');
     };
 
+    // =============================================
     // ===== FUNÇÕES DE ESTOQUE (continuação) =====
-    function renderEstoque() {
-        var produtos = DB.getAll('estoque');
-        var tbody = document.getElementById('tabelaEstoque');
-        if (!tbody) return;
-
-        if (produtos.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#999;padding:30px;">Nenhum produto cadastrado</td></tr>';
-            return;
-        }
-
-        tbody.innerHTML = produtos.map(function (p) {
-            var statusClass = p.quantidade <= 0 ? 'critico' :
-                p.quantidade <= p.minimo ? 'baixo' :
-                    p.quantidade >= p.minimo * 3 ? 'alto' : 'normal';
-            var statusText = p.quantidade <= 0 ? '⚠️ Esgotado' :
-                p.quantidade <= p.minimo ? '⚠️ Baixo' :
-                    p.quantidade >= p.minimo * 3 ? '✅ Alto' : '✅ Normal';
-
-            return '<tr>' +
-                '<td><strong>' + p.codigo + '</strong></td>' +
-                '<td>' + p.nome + '</td>' +
-                '<td>' + p.categoria + '</td>' +
-                '<td><strong>' + p.quantidade + '</strong> ' + p.unidade + '</td>' +
-                '<td>' + p.minimo + '</td>' +
-                '<td><span class="status-badge ' + statusClass + '">' + statusText + '</span></td>' +
-                '<td>' + (p.localizacao || 'N/A') + '</td>' +
-                '<td>' +
-                '<i class="fas fa-eye" onclick="verDetalhesProduto(' + p.id + ')" title="Detalhes" style="color:#1d7a6b;"></i>' +
-                '<i class="fas fa-edit" onclick="editarProduto(' + p.id + ')" title="Editar"></i>' +
-                '<i class="fas fa-arrow-down" onclick="movimentarEstoque(' + p.id + ', \'entrada\')" title="Entrada" style="color:#1d7a6b;"></i>' +
-                '<i class="fas fa-arrow-up" onclick="movimentarEstoque(' + p.id + ', \'saida\')" title="Saída" style="color:#b13e3a;"></i>' +
-                '<i class="fas fa-trash" onclick="excluirProduto(' + p.id + ')" title="Excluir" style="color:#b13e3a;"></i>' +
-                '</td>' +
-                '</tr>';
-        }).join('');
-
-        atualizarDashboardEstoque();
-    }
-
+    // =============================================
+    
     function atualizarDashboardEstoque() {
         var produtos = DB.getAll('estoque');
         var movimentacoes = DB.getAll('movimentacoes');
@@ -9316,7 +9544,9 @@
         if (elListaBaixo) elListaBaixo.innerHTML = baixoHtml;
     }
 
+    // =============================================
     // ===== FUNÇÕES DE FILTROS =====
+    // =============================================
     var filtroMovimentacao = document.getElementById('filtroMovimentacao');
     if (filtroMovimentacao) {
         filtroMovimentacao.addEventListener('change', function () {
@@ -9414,7 +9644,9 @@
         URL.revokeObjectURL(url);
     };
 
+    // =============================================
     // ===== TABS =====
+    // =============================================
     document.querySelectorAll('.tab-btn').forEach(function (btn) {
         btn.addEventListener('click', function () {
             document.querySelectorAll('.tab-btn').forEach(function (b) { b.classList.remove('active'); });
@@ -9433,7 +9665,9 @@
         });
     });
 
+    // =============================================
     // ===== MODAL GERAL =====
+    // =============================================
     function abrirModal(titulo, conteudo) {
         var titleEl = document.getElementById('modalTitle');
         var bodyEl = document.getElementById('modalBody');
@@ -9459,7 +9693,9 @@
         });
     }
 
+    // =============================================
     // ===== NAVEGAÇÃO =====
+    // =============================================
     function setActivePage(pageId) {
         document.querySelectorAll('.page').forEach(function (p) { p.classList.remove('active'); });
         var target = document.getElementById('page-' + pageId);
@@ -9479,7 +9715,9 @@
         });
     });
 
+    // =============================================
     // ===== INICIALIZAÇÃO =====
+    // =============================================
     resetarSessaoAtual();
     verificarZeramentoMensal();
     DB.init();
@@ -9487,7 +9725,6 @@
     inicializarEventListeners();
     renderAll();
 
-    // Inicia os observadores em tempo real se já estiver logado
     if (typeof FirestoreService !== 'undefined' && Object.keys(FirestoreService._unsubscribers).length === 0) {
         console.log('🔄 Iniciando observadores em tempo real a partir da página principal.');
         FirestoreService.iniciarObservadores(() => {
