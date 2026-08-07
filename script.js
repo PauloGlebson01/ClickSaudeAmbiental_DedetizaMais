@@ -7,6 +7,8 @@
 // CORRIGIDO - Estoque com atualização automática após cadastro
 // CORRIGIDO - Certificado: responsáveis movidos para local das assinaturas
 // CORRIGIDO - Certificado: campo de observação com scroll e quebra de texto
+// CORRIGIDO - Certificado: filtro de técnicos mais abrangente
+// CORRIGIDO - Certificado: exibição correta do responsável selecionado
 
 // =============================================
 // ===== PREVENÇÃO DE ERROS DE REFERÊNCIA =====
@@ -1008,6 +1010,50 @@
             if (!certificado) return '<p>Certificado não encontrado</p>';
 
             const c = certificado;
+            
+            // Busca equipe com filtro CORRIGIDO para técnicos
+            const equipe = DB.getAll('equipe');
+            
+            // CORREÇÃO 2: Filtro mais abrangente para técnicos
+            const tecnicos = equipe.filter(m => {
+                const cargo = (m.cargo || '').toLowerCase();
+                return cargo.includes('técnico') || 
+                       cargo.includes('farmacêutico') || 
+                       cargo.includes('responsável') ||
+                       cargo.includes('tecnico') ||
+                       cargo.includes('especialista');
+            });
+            
+            const operacionais = equipe.filter(m => {
+                const cargo = (m.cargo || '').toLowerCase();
+                return cargo.includes('operacional') || 
+                       cargo.includes('coordenador') || 
+                       cargo.includes('suporte') ||
+                       cargo.includes('campo');
+            });
+
+            // Se não houver técnicos, adiciona uma opção padrão
+            if (tecnicos.length === 0) {
+                tecnicos.push({ 
+                    id: 'default_tecnico', 
+                    nome: 'Nenhum técnico cadastrado', 
+                    cargo: 'Cadastre um técnico na equipe',
+                    registro: ''
+                });
+            }
+
+            if (operacionais.length === 0) {
+                operacionais.push({ 
+                    id: 'default_operacional', 
+                    nome: 'Nenhum operacional cadastrado', 
+                    cargo: 'Cadastre um operacional na equipe',
+                    registro: ''
+                });
+            }
+
+            const tecnicoAtual = c.responsaveis?.tecnico || { id: null, nome: 'Selecione...', registro: '', atuacao: '' };
+            const operacionalAtual = c.responsaveis?.operacional || { id: null, nome: 'Selecione...', registro: '', atuacao: '' };
+
             const produtosHtml = c.produtos.map(p => `
                 <tr>
                     <td style="padding:4px 8px;border:1px solid #ccc;text-align:center;font-size:9px;">${p.nome || '-'}</td>
@@ -1023,13 +1069,6 @@
             const clienteNome = clienteInfo.tipo === 'cnpj' ? 
                 (clienteInfo.nome || clienteInfo.razaoSocial) : 
                 clienteInfo.nome;
-
-            const equipe = DB.getAll('equipe');
-            const tecnicos = equipe.filter(m => m.cargo && (m.cargo.includes('Técnico') || m.cargo.includes('Farmacêutico') || m.cargo.includes('Responsável')));
-            const operacionais = equipe.filter(m => m.cargo && (m.cargo.includes('Operacional') || m.cargo.includes('Coordenador') || m.cargo.includes('Suporte')));
-
-            const tecnicoSelecionado = c.responsaveis?.tecnico || { id: null, nome: 'Selecione...', registro: '', atuacao: '' };
-            const operacionalSelecionado = c.responsaveis?.operacional || { id: null, nome: 'Selecione...', registro: '', atuacao: '' };
 
             return `
                 <div style="font-family:Arial,sans-serif;font-size:10px;max-width:800px;margin:0 auto;padding:20px;background:white;border:1px solid #ddd;border-radius:8px;">
@@ -1101,7 +1140,7 @@
                             </table>
                         </div>
 
-                        <!-- OBSERVAÇÕES - CORRIGIDO COM SCROLL E QUEBRA DE TEXTO -->
+                        <!-- CORREÇÃO 1: OBSERVAÇÃO COM SCROLL E QUEBRA DE LINHA -->
                         <div style="margin:10px 0;padding:8px 12px;background:#f8fbfd;border-left:3px solid #0b2a3b;border-radius:4px;">
                             <div style="font-weight:700;font-size:10px;display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
                                 <span>OBSERVAÇÕES:</span>
@@ -1109,9 +1148,14 @@
                                     <i class="fas fa-edit"></i> Editar
                                 </button>
                             </div>
-                            <div id="certObservacao_${c.id}" style="font-size:8px;white-space:pre-wrap;word-wrap:break-word;color:#1f3a4b;min-height:40px;max-height:200px;overflow-y:auto;padding:8px 10px;border:1px solid #dce4ec;border-radius:4px;background:white;line-height:1.6;">
-                                ${c.observacoes || 'Clique em "Editar" para adicionar observações...'}
+                            <div id="certObservacao_${c.id}" 
+                                 style="font-size:8px;white-space:pre-wrap;word-wrap:break-word;color:#1f3a4b;min-height:40px;max-height:200px;overflow-y:auto;padding:8px 10px;border:1px solid #dce4ec;border-radius:4px;background:white;line-height:1.6;font-family:inherit;"
+                                 contenteditable="true"
+                                 onkeydown="handleObservacaoEnter(event, '${c.id}')"
+                                 onblur="salvarObservacaoCertificado('${c.id}', this.innerHTML)">
+                                ${c.observacoes || 'Clique aqui para adicionar observações... Pressione Enter para quebrar linha.'}
                             </div>
+                            <div style="font-size:7px;color:#999;margin-top:4px;">💡 Pressione Enter para quebrar linha</div>
                         </div>
 
                         <div style="margin:10px 0;">
@@ -1125,24 +1169,27 @@
                             </div>
                         </div>
 
-                        <!-- RESPONSÁVEIS COM ASSINATURAS E SELETORES INTEGRADOS -->
+                        <!-- CORREÇÃO 2 e 3: RESPONSÁVEIS COM SELEÇÃO CORRIGIDA -->
                         <div style="margin:10px 0;">
                             <div style="font-weight:700;font-size:11px;margin-bottom:6px;">Responsáveis Técnicos:</div>
                             <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
                                 <!-- RESPONSÁVEL TÉCNICO -->
                                 <div style="padding:10px 12px;background:#f8fbfd;border-radius:6px;border:1px solid #e8eff5;">
                                     <div style="font-weight:600;font-size:9px;color:#0b2a3b;margin-bottom:4px;">RESPONSÁVEL TÉCNICO</div>
-                                    <select id="certTecnicoSelect_${c.id}" style="width:100%;padding:4px 8px;border:1px solid #dce4ec;border-radius:4px;font-size:8px;background:white;margin-bottom:4px;" 
+                                    <select id="certTecnicoSelect_${c.id}" 
+                                            style="width:100%;padding:4px 8px;border:1px solid #dce4ec;border-radius:4px;font-size:8px;background:white;margin-bottom:4px;" 
                                             onchange="atualizarResponsavelCertificado('${c.id}', 'tecnico', this.value)">
                                         <option value="">Selecione...</option>
-                                        ${tecnicos.map(m => `<option value="${m.id}" ${m.id === tecnicoSelecionado.id ? 'selected' : ''}>${m.nome} - ${m.cargo}</option>`).join('')}
+                                        ${tecnicos.map(m => {
+                                            const isSelected = String(m.id) === String(tecnicoAtual.id);
+                                            return `<option value="${m.id}" ${isSelected ? 'selected' : ''}>${m.nome} - ${m.cargo}</option>`;
+                                        }).join('')}
                                     </select>
-                                    <div style="font-size:7px;color:#4d687a;margin-bottom:4px;">
-                                        ${tecnicoSelecionado.nome && tecnicoSelecionado.nome !== 'Selecione...' ? 
-                                            `${tecnicoSelecionado.nome} - ${tecnicoSelecionado.registro || 'Sem registro'}` : 
+                                    <div style="font-size:7px;color:#4d687a;margin-bottom:4px;" id="certTecnicoInfo_${c.id}">
+                                        ${tecnicoAtual.nome && tecnicoAtual.nome !== 'Selecione...' ? 
+                                            `${tecnicoAtual.nome} - ${tecnicoAtual.registro || 'Sem registro'}` : 
                                             'Nenhum técnico selecionado'}
                                     </div>
-                                    <!-- Assinatura -->
                                     <div style="margin:4px auto 0;width:100%;min-height:50px;border:1px solid #ccc;border-radius:4px;background:white;display:flex;align-items:center;justify-content:center;cursor:pointer;" 
                                          onclick="abrirAssinaturaCertificado('${c.id}', 'tecnico')">
                                         ${c.assinaturaTecnico ? 
@@ -1155,17 +1202,20 @@
                                 <!-- RESPONSÁVEL OPERACIONAL -->
                                 <div style="padding:10px 12px;background:#f8fbfd;border-radius:6px;border:1px solid #e8eff5;">
                                     <div style="font-weight:600;font-size:9px;color:#0b2a3b;margin-bottom:4px;">RESPONSÁVEL OPERACIONAL</div>
-                                    <select id="certOperacionalSelect_${c.id}" style="width:100%;padding:4px 8px;border:1px solid #dce4ec;border-radius:4px;font-size:8px;background:white;margin-bottom:4px;"
+                                    <select id="certOperacionalSelect_${c.id}" 
+                                            style="width:100%;padding:4px 8px;border:1px solid #dce4ec;border-radius:4px;font-size:8px;background:white;margin-bottom:4px;"
                                             onchange="atualizarResponsavelCertificado('${c.id}', 'operacional', this.value)">
                                         <option value="">Selecione...</option>
-                                        ${operacionais.map(m => `<option value="${m.id}" ${m.id === operacionalSelecionado.id ? 'selected' : ''}>${m.nome} - ${m.cargo}</option>`).join('')}
+                                        ${operacionais.map(m => {
+                                            const isSelected = String(m.id) === String(operacionalAtual.id);
+                                            return `<option value="${m.id}" ${isSelected ? 'selected' : ''}>${m.nome} - ${m.cargo}</option>`;
+                                        }).join('')}
                                     </select>
-                                    <div style="font-size:7px;color:#4d687a;margin-bottom:4px;">
-                                        ${operacionalSelecionado.nome && operacionalSelecionado.nome !== 'Selecione...' ? 
-                                            `${operacionalSelecionado.nome} - ${operacionalSelecionado.registro || 'Sem registro'}` : 
+                                    <div style="font-size:7px;color:#4d687a;margin-bottom:4px;" id="certOperacionalInfo_${c.id}">
+                                        ${operacionalAtual.nome && operacionalAtual.nome !== 'Selecione...' ? 
+                                            `${operacionalAtual.nome} - ${operacionalAtual.registro || 'Sem registro'}` : 
                                             'Nenhum operacional selecionado'}
                                     </div>
-                                    <!-- Assinatura -->
                                     <div style="margin:4px auto 0;width:100%;min-height:50px;border:1px solid #ccc;border-radius:4px;background:white;display:flex;align-items:center;justify-content:center;cursor:pointer;"
                                          onclick="abrirAssinaturaCertificado('${c.id}', 'operacional')">
                                         ${c.assinaturaOperacional ? 
@@ -1263,14 +1313,52 @@
     // ===== FUNÇÕES AUXILIARES DO CERTIFICADO =====
     // =============================================
 
+    // CORREÇÃO 1: Função para tratar Enter no campo de observação
+    window.handleObservacaoEnter = function(event, certId) {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            document.execCommand('insertLineBreak');
+        }
+    };
+
+    // CORREÇÃO 1: Função para salvar observação quando o campo perde o foco
+    window.salvarObservacaoCertificado = function(certId, conteudo) {
+        // Remove tags HTML desnecessárias e converte quebras de linha
+        const texto = conteudo
+            .replace(/<br\s*\/?>/gi, '\n')
+            .replace(/<div>/gi, '\n')
+            .replace(/<\/div>/gi, '')
+            .replace(/<p>/gi, '')
+            .replace(/<\/p>/gi, '\n')
+            .replace(/&nbsp;/g, ' ')
+            .trim();
+        
+        if (texto !== '') {
+            DB.update('certificados', certId, { observacoes: texto });
+        }
+    };
+
     window.atualizarResponsavelCertificado = function(certId, tipo, membroId) {
-        if (!membroId) return;
+        console.log('🔄 Atualizando responsável:', { certId, tipo, membroId });
+        
+        if (!membroId) {
+            console.warn('⚠️ Nenhum membro selecionado');
+            return;
+        }
         
         const membro = DB.getById('equipe', parseInt(membroId));
-        if (!membro) return;
+        if (!membro) {
+            console.warn('⚠️ Membro não encontrado:', membroId);
+            return;
+        }
+        
+        console.log('📌 Membro encontrado:', membro);
         
         const certificado = CertificadoService.getCertificado(certId);
-        if (!certificado) return;
+        if (!certificado) {
+            console.warn('⚠️ Certificado não encontrado:', certId);
+            return;
+        }
         
         const updateData = {};
         const campo = tipo === 'tecnico' ? 'tecnico' : 'operacional';
@@ -1283,6 +1371,8 @@
         };
         
         updateData[`responsaveis.${campo}`] = responsavelData;
+        
+        console.log('📝 Atualizando dados:', updateData);
         
         DB.update('certificados', certId, updateData);
         
