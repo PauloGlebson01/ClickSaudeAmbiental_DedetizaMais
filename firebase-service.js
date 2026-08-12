@@ -1,568 +1,12 @@
-// firebase-service.js - Serviços Firebase com dados COMPARTILHADOS entre admins
-// CORRIGIDO: BUSCA EMPRESA NO FIRESTORE PRIMEIRO
+// firebase-service.js - SINCRONIZAÇÃO TOTALMENTE AUTOMÁTICA E MULTI-DISPOSITIVO
 
 // ============================================
-// VERIFICA SE O FIREBASE FOI CARREGADO
-// ============================================
-if (typeof firebase === 'undefined') {
-    console.warn('⚠️ Firebase não disponível, usando fallback localStorage');
-}
-
-// ============================================
-// CONTROLE DE LOOP DE AUTENTICAÇÃO
-// ============================================
-const AuthGuard = {
-    _redirecting: false,
-    _lastRedirect: 0,
-    _redirectTimeout: null,
-    
-    isRedirecting() {
-        return this._redirecting;
-    },
-    
-    startRedirect() {
-        const now = Date.now();
-        if (now - this._lastRedirect < 5000) {
-            console.warn('⛔ Redirecionamento bloqueado - muito rápido');
-            return false;
-        }
-        this._redirecting = true;
-        this._lastRedirect = now;
-        
-        if (this._redirectTimeout) {
-            clearTimeout(this._redirectTimeout);
-        }
-        
-        this._redirectTimeout = setTimeout(() => {
-            this._redirecting = false;
-        }, 3000);
-        
-        return true;
-    },
-    
-    reset() {
-        this._redirecting = false;
-        if (this._redirectTimeout) {
-            clearTimeout(this._redirectTimeout);
-            this._redirectTimeout = null;
-        }
-    }
-};
-
-// ============================================
-// EMPRESA ÚNICA - BUSCA NO FIRESTORE PRIMEIRO
-// ============================================
-
-const EmpresaManager = {
-    _empresaAtual: null,
-    _empresas: {},
-    _initialized: false,
-    _empresaUnicaId: null,
-    _loadingFromFirestore: false,
-    
-    _getSessionKey() {
-        return 'dedetiza_sessoes';
-    },
-    
-    _carregarSessoes() {
-        try {
-            const data = localStorage.getItem(this._getSessionKey());
-            return data ? JSON.parse(data) : {};
-        } catch (e) {
-            return {};
-        }
-    },
-    
-    _salvarSessoes(sessoes) {
-        try {
-            localStorage.setItem(this._getSessionKey(), JSON.stringify(sessoes));
-        } catch (e) {
-            console.warn('Erro ao salvar sessões:', e);
-        }
-    },
-    
-    getSessao(empresaId, usuarioId) {
-        const sessoes = this._carregarSessoes();
-        const key = empresaId + '_' + usuarioId;
-        return sessoes[key] || null;
-    },
-    
-    salvarSessao(empresaId, userData) {
-        const sessoes = this._carregarSessoes();
-        const key = empresaId + '_' + userData.uid;
-        sessoes[key] = {
-            ...userData,
-            empresa: empresaId,
-            ultimoAcesso: new Date().toISOString()
-        };
-        this._salvarSessoes(sessoes);
-        this._empresaAtual = empresaId;
-        localStorage.setItem('dedetiza_session_atual', JSON.stringify({
-            uid: userData.uid,
-            empresa: empresaId,
-            key: key,
-            nome: userData.nome || userData.usuario || userData.email,
-            usuario: userData.usuario || userData.nome || userData.email
-        }));
-        localStorage.setItem('dedetiza_session', JSON.stringify({
-            uid: userData.uid,
-            email: userData.email,
-            nome: userData.nome || userData.usuario || userData.email,
-            usuario: userData.usuario || userData.nome || userData.email,
-            empresa: empresaId
-        }));
-    },
-    
-    removerSessao(empresaId, usuarioId) {
-        const sessoes = this._carregarSessoes();
-        const key = empresaId + '_' + usuarioId;
-        delete sessoes[key];
-        this._salvarSessoes(sessoes);
-        
-        const atual = localStorage.getItem('dedetiza_session_atual');
-        if (atual) {
-            try {
-                const data = JSON.parse(atual);
-                if (data.uid === usuarioId && data.empresa === empresaId) {
-                    localStorage.removeItem('dedetiza_session_atual');
-                }
-            } catch (e) {}
-        }
-    },
-    
-    getEmpresaAtual() {
-        if (this._empresaAtual) {
-            return this._empresaAtual;
-        }
-        
-        // Tenta carregar do localStorage
-        try {
-            const ultima = localStorage.getItem('dedetiza_ultima_empresa');
-            if (ultima) {
-                this._empresaAtual = ultima;
-                return ultima;
-            }
-        } catch (e) {}
-        
-        // Busca empresa do Firestore ou localStorage
-        const empresa = this._obterEmpresaExistente();
-        if (empresa) {
-            this._empresaAtual = empresa.id;
-            return empresa.id;
-        }
-        
-        // Último recurso: cria empresa única
-        const novaEmpresa = this._criarEmpresaUnica();
-        this._empresaAtual = novaEmpresa.id;
-        return novaEmpresa.id;
-    },
-    
-    // 🔥 CORREÇÃO: Busca empresa do Firestore primeiro
-    async _obterEmpresaDoFirestore() {
-        if (this._loadingFromFirestore) {
-            return null;
-        }
-        
-        this._loadingFromFirestore = true;
-        
-        try {
-            if (typeof firebase === 'undefined' || !firebase.firestore) {
-                this._loadingFromFirestore = false;
-                return null;
-            }
-            
-            // Busca todos os usuários para encontrar a empresaId
-            const snapshot = await db.collection('usuarios').limit(10).get();
-            
-            if (snapshot.empty) {
-                this._loadingFromFirestore = false;
-                return null;
-            }
-            
-            let empresaId = null;
-            let empresaNome = null;
-            
-            snapshot.forEach(doc => {
-                const data = doc.data();
-                if (data.empresaId) {
-                    empresaId = data.empresaId;
-                    empresaNome = data.nome || 'Dedetize+';
-                    console.log('📌 Empresa encontrada no Firestore:', empresaId, '-', empresaNome);
-                }
-            });
-            
-            this._loadingFromFirestore = false;
-            
-            if (empresaId) {
-                // Salva a empresa no localStorage
-                this._carregarEmpresas();
-                if (!this._empresas[empresaId]) {
-                    this._empresas[empresaId] = {
-                        id: empresaId,
-                        nome: empresaNome || 'Dedetize+ - Sistema de Gestão',
-                        dominio: empresaId,
-                        criadoEm: new Date().toISOString(),
-                        ativo: true,
-                        admins: [],
-                        config: {
-                            empresa: {
-                                nome: empresaNome || 'Dedetize+ - Sistema de Gestão',
-                                cnpj: '',
-                                telefone: '',
-                                endereco: '',
-                                email: '',
-                                logo: null
-                            },
-                            relatorio: {
-                                titulo: 'Relatório Técnico',
-                                subtitulo: 'Controle de Pragas',
-                                cor: '#0b2a3b',
-                                rodape: 'Este relatório é de propriedade da empresa.',
-                                garantia: 'Garantia do serviço: 90 dias a partir da data do primeiro serviço\nOBS: Reentrada no local só será permitida após 06 horas da aplicação líquida, mediante o ambiente arejado, e todo objeto encontrado no chão que não puder ser descartado deverá ser higienizado antes do uso.'
-                            }
-                        }
-                    };
-                    this._salvarEmpresas();
-                }
-                this._empresaUnicaId = empresaId;
-                return this._empresas[empresaId];
-            }
-            
-            return null;
-        } catch (error) {
-            console.warn('Erro ao buscar empresa do Firestore:', error);
-            this._loadingFromFirestore = false;
-            return null;
-        }
-    },
-    
-    _obterEmpresaExistente() {
-        // 1. Primeiro tenta carregar do localStorage
-        this._carregarEmpresas();
-        const empresas = Object.values(this._empresas);
-        
-        if (empresas.length > 0) {
-            const empresa = empresas[0];
-            this._empresaUnicaId = empresa.id;
-            console.log('📌 Usando empresa do localStorage:', empresa.id);
-            return empresa;
-        }
-        
-        // 2. Se não tem no localStorage, tenta buscar do Firestore (síncrono)
-        // Nota: isso é chamado de forma síncrona, então usamos uma abordagem diferente
-        // A busca assíncrona é feita no método getEmpresaAtualAsync
-        
-        return null;
-    },
-    
-    // 🔥 Método assíncrono para obter a empresa
-    async getEmpresaAtualAsync() {
-        // Tenta do localStorage primeiro
-        const localEmpresa = this._obterEmpresaExistente();
-        if (localEmpresa) {
-            this._empresaAtual = localEmpresa.id;
-            return localEmpresa.id;
-        }
-        
-        // Busca do Firestore
-        const firestoreEmpresa = await this._obterEmpresaDoFirestore();
-        if (firestoreEmpresa) {
-            this._empresaAtual = firestoreEmpresa.id;
-            return firestoreEmpresa.id;
-        }
-        
-        // Cria nova empresa (apenas se não existir nenhuma)
-        const novaEmpresa = this._criarEmpresaUnica();
-        this._empresaAtual = novaEmpresa.id;
-        return novaEmpresa.id;
-    },
-    
-    _criarEmpresaUnica() {
-        const id = 'emp_unica_' + Date.now();
-        this._empresas[id] = {
-            id: id,
-            nome: 'Dedetize+ - Sistema de Gestão',
-            dominio: id,
-            criadoEm: new Date().toISOString(),
-            ativo: true,
-            admins: [],
-            config: {
-                empresa: {
-                    nome: 'Dedetize+ - Sistema de Gestão',
-                    cnpj: '',
-                    telefone: '',
-                    endereco: '',
-                    email: '',
-                    logo: null
-                },
-                relatorio: {
-                    titulo: 'Relatório Técnico',
-                    subtitulo: 'Controle de Pragas',
-                    cor: '#0b2a3b',
-                    rodape: 'Este relatório é de propriedade da empresa.',
-                    garantia: 'Garantia do serviço: 90 dias a partir da data do primeiro serviço\nOBS: Reentrada no local só será permitida após 06 horas da aplicação líquida, mediante o ambiente arejado, e todo objeto encontrado no chão que não puder ser descartado deverá ser higienizado antes do uso.'
-                }
-            }
-        };
-        this._salvarEmpresas();
-        this._empresaUnicaId = id;
-        console.log('✅ Empresa única criada:', id);
-        return this._empresas[id];
-    },
-    
-    getUsuarioAtual() {
-        try {
-            const atual = localStorage.getItem('dedetiza_session_atual');
-            if (atual) {
-                const data = JSON.parse(atual);
-                return data.uid;
-            }
-        } catch (e) {}
-        return null;
-    },
-    
-    getUsuarioNome() {
-        try {
-            const atual = localStorage.getItem('dedetiza_session_atual');
-            if (atual) {
-                const data = JSON.parse(atual);
-                return data.nome || data.usuario || data.email || 'Admin';
-            }
-        } catch (e) {}
-        
-        try {
-            const session = localStorage.getItem('dedetiza_session');
-            if (session) {
-                const data = JSON.parse(session);
-                return data.nome || data.usuario || data.email || 'Admin';
-            }
-        } catch (e) {}
-        
-        return 'Admin';
-    },
-    
-    setEmpresaAtual(empresaId) {
-        this._empresaAtual = empresaId;
-        try {
-            localStorage.setItem('dedetiza_ultima_empresa', empresaId);
-        } catch (e) {}
-    },
-    
-    getEmpresa(empresaId) {
-        this._carregarEmpresas();
-        if (!this._empresas[empresaId]) {
-            const empresas = Object.values(this._empresas);
-            if (empresas.length > 0) {
-                return empresas[0];
-            }
-            return null;
-        }
-        return this._empresas[empresaId] || null;
-    },
-    
-    _carregarEmpresas() {
-        try {
-            const data = localStorage.getItem('dedetiza_empresas');
-            if (data) {
-                this._empresas = JSON.parse(data);
-            }
-        } catch (e) {
-            this._empresas = {};
-        }
-        return this._empresas;
-    },
-    
-    _salvarEmpresas() {
-        try {
-            localStorage.setItem('dedetiza_empresas', JSON.stringify(this._empresas));
-        } catch (e) {
-            console.warn('Erro ao salvar empresas:', e);
-        }
-    },
-    
-    criarEmpresa(nome, dominio = null) {
-        console.warn('⚠️ criarEmpresa() chamado - usando empresa existente');
-        const empresa = this._obterEmpresaExistente();
-        if (empresa) {
-            return empresa;
-        }
-        return this._criarEmpresaUnica();
-    },
-    
-    listarEmpresas() {
-        this._carregarEmpresas();
-        const empresas = Object.values(this._empresas).filter(e => e.ativo !== false);
-        return empresas.length > 0 ? [empresas[0]] : [];
-    },
-    
-    adicionarAdmin(empresaId, usuarioId, email, nome) {
-        this._carregarEmpresas();
-        
-        if (!this._empresas[empresaId]) {
-            console.warn('⚠️ Empresa não encontrada, buscando existente...');
-            const empresa = this._obterEmpresaExistente();
-            if (empresa) {
-                empresaId = empresa.id;
-            } else {
-                const novaEmpresa = this._criarEmpresaUnica();
-                empresaId = novaEmpresa.id;
-            }
-        }
-        
-        const empresa = this._empresas[empresaId];
-        if (!empresa) {
-            console.error('❌ Empresa ainda não disponível');
-            return false;
-        }
-        
-        const exists = empresa.admins.some(a => a.usuarioId === usuarioId);
-        if (!exists) {
-            empresa.admins.push({
-                usuarioId: usuarioId,
-                email: email,
-                nome: nome,
-                adicionadoEm: new Date().toISOString()
-            });
-            this._salvarEmpresas();
-            console.log('✅ Admin adicionado à empresa:', empresaId, '-', nome);
-            return true;
-        }
-        console.log('ℹ️ Admin já existe na empresa:', usuarioId);
-        return false;
-    },
-    
-    isAdmin(empresaId, usuarioId) {
-        this._carregarEmpresas();
-        const empresa = this._empresas[empresaId];
-        if (!empresa) return false;
-        return empresa.admins.some(a => a.usuarioId === usuarioId);
-    },
-    
-    gerarLinkAcesso(empresaId) {
-        try {
-            return window.location.origin + window.location.pathname + '?empresa=' + empresaId;
-        } catch (e) {
-            return '?empresa=' + empresaId;
-        }
-    },
-    
-    getStorageKey(collection) {
-        const empresa = this.getEmpresaAtual();
-        return 'dedetiza_' + empresa + '_' + collection;
-    },
-    
-    getEmpresasDoUsuario(usuarioId) {
-        this._carregarEmpresas();
-        const result = [];
-        Object.values(this._empresas).forEach(empresa => {
-            if (empresa.admins.some(a => a.usuarioId === usuarioId)) {
-                result.push(empresa);
-            }
-        });
-        return result;
-    },
-    
-    getUsuariosLogados(empresaId) {
-        const sessoes = this._carregarSessoes();
-        const result = [];
-        Object.keys(sessoes).forEach(key => {
-            if (key.startsWith(empresaId + '_')) {
-                const sessao = sessoes[key];
-                if (sessao && sessao.uid) {
-                    result.push({
-                        uid: sessao.uid,
-                        nome: sessao.nome || sessao.usuario || sessao.email,
-                        email: sessao.email,
-                        ultimoAcesso: sessao.ultimoAcesso
-                    });
-                }
-            }
-        });
-        return result;
-    }
-};
-
-// ============================================
-// SERVIÇO DE AUTENTICAÇÃO - CORRIGIDO
+// SERVIÇO DE AUTENTICAÇÃO
 // ============================================
 
 const AuthService = {
     _loginInProgress: false,
     _lastLoginAttempt: 0,
-    _adminCache: null,
-    _adminCacheTime: 0,
-    _adminCacheTTL: 60000,
-    
-    _adminExists() {
-        try {
-            const users = JSON.parse(localStorage.getItem('dedetiza_users') || '[]');
-            const admins = users.filter(u => u.perfil === 'admin' || u.perfil === 'superadmin');
-            return admins.length > 0;
-        } catch (e) {
-            return false;
-        }
-    },
-    
-    async _hasAdmin() {
-        const now = Date.now();
-        if (this._adminCache !== null && (now - this._adminCacheTime) < this._adminCacheTTL) {
-            return this._adminCache;
-        }
-        
-        if (!firebase || !firebase.firestore) {
-            const localHas = this._adminExists();
-            this._adminCache = localHas;
-            this._adminCacheTime = now;
-            return localHas;
-        }
-        
-        try {
-            const snapshot = await db.collection('usuarios')
-                .where('perfil', 'in', ['admin', 'superadmin'])
-                .limit(3)
-                .get();
-            
-            const exists = !snapshot.empty;
-            this._adminCache = exists;
-            this._adminCacheTime = now;
-            
-            if (exists) {
-                try {
-                    const users = JSON.parse(localStorage.getItem('dedetiza_users') || '[]');
-                    snapshot.forEach(doc => {
-                        const data = doc.data();
-                        const existing = users.find(u => u.uid === data.id || u.uid === doc.id);
-                        if (!existing) {
-                            users.push({
-                                uid: data.id || doc.id,
-                                nome: data.nome || 'Admin',
-                                usuario: data.usuario || data.nome || 'admin',
-                                email: data.email,
-                                perfil: data.perfil || 'admin',
-                                empresaId: data.empresaId || 'default',
-                                criadoEm: data.criadoEm || new Date().toISOString()
-                            });
-                        }
-                    });
-                    localStorage.setItem('dedetiza_users', JSON.stringify(users));
-                } catch (e) {}
-            }
-            
-            return exists;
-        } catch (e) {
-            console.warn('Erro ao verificar admin no Firestore:', e);
-            const localHas = this._adminExists();
-            this._adminCache = localHas;
-            this._adminCacheTime = now;
-            return localHas;
-        }
-    },
-    
-    resetAdminCache() {
-        this._adminCache = null;
-        this._adminCacheTime = 0;
-        console.log('🔄 Cache de admin resetado');
-    },
     
     async cadastrar(email, senha, nome, usuario, empresaId = null) {
         console.log('📝 Cadastrando novo admin:', email);
@@ -584,100 +28,20 @@ const AuthService = {
             const userCredential = await auth.createUserWithEmailAndPassword(email, senha);
             const user = userCredential.user;
             
-            // 🔥 CORREÇÃO: Busca empresa existente
-            let empresaFinal = null;
+            let empresaFinal = empresaId || 'empresa_unica';
             
-            // 1. Tenta usar empresaId fornecida
-            if (empresaId) {
-                const empresa = EmpresaManager.getEmpresa(empresaId);
-                if (empresa) {
-                    empresaFinal = empresaId;
-                    console.log('📌 Usando empresa fornecida:', empresaFinal);
-                }
-            }
-            
-            // 2. Busca empresa do localStorage
-            if (!empresaFinal) {
-                const empresas = EmpresaManager.listarEmpresas();
-                if (empresas.length > 0) {
-                    empresaFinal = empresas[0].id;
-                    console.log('📌 Usando empresa do localStorage:', empresaFinal);
-                }
-            }
-            
-            // 3. Busca empresa do Firestore (ASYNC)
-            if (!empresaFinal) {
-                try {
-                    const snapshot = await db.collection('usuarios').limit(5).get();
-                    let foundEmpresaId = null;
-                    snapshot.forEach(doc => {
-                        const data = doc.data();
-                        if (data.empresaId) {
-                            foundEmpresaId = data.empresaId;
-                        }
-                    });
-                    if (foundEmpresaId) {
-                        empresaFinal = foundEmpresaId;
-                        console.log('📌 Usando empresa do Firestore:', empresaFinal);
-                    }
-                } catch (e) {
-                    console.warn('Erro ao buscar empresa do Firestore:', e);
-                }
-            }
-            
-            // 4. Se ainda não tem empresa, cria uma nova (apenas se NENHUMA existir)
-            if (!empresaFinal) {
-                console.log('📌 Nenhuma empresa encontrada, criando empresa única...');
-                const novaEmpresa = EmpresaManager.criarEmpresa('Dedetize+ - Sistema de Gestão');
-                empresaFinal = novaEmpresa.id;
-                EmpresaManager.setEmpresaAtual(empresaFinal);
-            }
-            
-            // Garante que a empresa existe no EmpresaManager
             let empresa = EmpresaManager.getEmpresa(empresaFinal);
             if (!empresa) {
-                // Recria a empresa se necessário
-                EmpresaManager._carregarEmpresas();
-                if (!EmpresaManager._empresas[empresaFinal]) {
-                    EmpresaManager._empresas[empresaFinal] = {
-                        id: empresaFinal,
-                        nome: 'Dedetize+ - Sistema de Gestão',
-                        dominio: empresaFinal,
-                        criadoEm: new Date().toISOString(),
-                        ativo: true,
-                        admins: [],
-                        config: {
-                            empresa: {
-                                nome: 'Dedetize+ - Sistema de Gestão',
-                                cnpj: '',
-                                telefone: '',
-                                endereco: '',
-                                email: '',
-                                logo: null
-                            },
-                            relatorio: {
-                                titulo: 'Relatório Técnico',
-                                subtitulo: 'Controle de Pragas',
-                                cor: '#0b2a3b',
-                                rodape: 'Este relatório é de propriedade da empresa.',
-                                garantia: 'Garantia do serviço: 90 dias a partir da data do primeiro serviço\nOBS: Reentrada no local só será permitida após 06 horas da aplicação líquida, mediante o ambiente arejado, e todo objeto encontrado no chão que não puder ser descartado deverá ser higienizado antes do uso.'
-                            }
-                        }
-                    };
-                    EmpresaManager._salvarEmpresas();
-                }
-                empresa = EmpresaManager._empresas[empresaFinal];
-                console.log('📌 Empresa recriada no localStorage:', empresaFinal);
+                empresa = EmpresaManager.criarEmpresa('Dedetize+ - Sistema de Gestão', empresaFinal);
             }
             
-            // Adiciona o admin à empresa
             EmpresaManager.adicionarAdmin(empresaFinal, user.uid, email, nome);
             
             try {
                 await db.collection('usuarios').doc(user.uid).set({
                     id: user.uid,
                     nome: nome,
-                    usuario: usuario,
+                    usuario: usuario || nome,
                     email: email,
                     empresaId: empresaFinal,
                     perfil: 'admin',
@@ -696,25 +60,6 @@ const AuthService = {
                 console.warn('Erro ao atualizar perfil:', profileError);
             }
             
-            try {
-                const users = JSON.parse(localStorage.getItem('dedetiza_users') || '[]');
-                const existing = users.find(u => u.uid === user.uid);
-                if (!existing) {
-                    users.push({
-                        uid: user.uid,
-                        nome: nome,
-                        usuario: usuario || nome,
-                        email: email,
-                        perfil: 'admin',
-                        empresaId: empresaFinal,
-                        criadoEm: new Date().toISOString(),
-                        senha: senha
-                    });
-                    localStorage.setItem('dedetiza_users', JSON.stringify(users));
-                }
-                this.resetAdminCache();
-            } catch (e) {}
-            
             const userData = { 
                 uid: user.uid, 
                 email: email, 
@@ -723,7 +68,19 @@ const AuthService = {
             };
             EmpresaManager.salvarSessao(empresaFinal, userData);
             
+            // INICIALIZA OS DADOS DA EMPRESA NO FIRESTORE
             await FirestoreService.inicializarDadosEmpresa(empresaFinal);
+            
+            // 🔥 FORÇA SINCRONIZAÇÃO COMPLETA
+            await FirestoreService.sincronizarDadosEmpresa(empresaFinal);
+            
+            // INICIA OBSERVADORES EM TEMPO REAL
+            FirestoreService.iniciarObservadores(() => {
+                console.log('🔄 Dados atualizados em tempo real');
+                if (typeof window.renderAll === 'function') {
+                    window.renderAll();
+                }
+            });
             
             return { 
                 success: true, 
@@ -738,36 +95,13 @@ const AuthService = {
     },
 
     _cadastrarFallback(email, senha, nome, usuario, empresaId) {
-        console.log('📝 Cadastrando fallback para:', email);
-        
         try {
             const users = JSON.parse(localStorage.getItem('dedetiza_users') || '[]');
             if (users.some(u => u.email === email)) {
                 return { success: false, message: 'Este e-mail já está cadastrado.' };
             }
             
-            // Busca empresa existente
-            let empresaFinal = null;
-            
-            if (empresaId) {
-                const empresas = EmpresaManager.listarEmpresas();
-                if (empresas.some(e => e.id === empresaId)) {
-                    empresaFinal = empresaId;
-                }
-            }
-            
-            if (!empresaFinal) {
-                const empresas = EmpresaManager.listarEmpresas();
-                if (empresas.length > 0) {
-                    empresaFinal = empresas[0].id;
-                }
-            }
-            
-            if (!empresaFinal) {
-                const novaEmpresa = EmpresaManager.criarEmpresa('Dedetize+ - Sistema de Gestão');
-                empresaFinal = novaEmpresa.id;
-                EmpresaManager.setEmpresaAtual(empresaFinal);
-            }
+            const empresaFinal = empresaId || 'empresa_unica';
             
             const uid = 'user_' + Date.now();
             const newUser = {
@@ -825,44 +159,18 @@ const AuthService = {
             const userCredential = await auth.signInWithEmailAndPassword(email, senha);
             const user = userCredential.user;
             
-            // Busca empresa existente
-            let empresaFinal = null;
+            let empresaFinal = empresaId || 'empresa_unica';
             
-            // 1. Tenta empresaId fornecida
-            if (empresaId) {
-                const empresa = EmpresaManager.getEmpresa(empresaId);
-                if (empresa) {
-                    empresaFinal = empresaId;
-                }
-            }
-            
-            // 2. Busca do localStorage
-            if (!empresaFinal) {
-                const empresas = EmpresaManager.listarEmpresas();
-                if (empresas.length > 0) {
-                    empresaFinal = empresas[0].id;
-                }
-            }
-            
-            // 3. Busca do Firestore
-            if (!empresaFinal) {
-                try {
-                    const doc = await db.collection('usuarios').doc(user.uid).get();
-                    if (doc.exists) {
-                        const data = doc.data();
-                        if (data.empresaId) {
-                            empresaFinal = data.empresaId;
-                        }
+            try {
+                const doc = await db.collection('usuarios').doc(user.uid).get();
+                if (doc.exists) {
+                    const data = doc.data();
+                    if (data.empresaId) {
+                        empresaFinal = data.empresaId;
                     }
-                } catch (e) {
-                    console.warn('Erro ao buscar empresa do Firestore:', e);
                 }
-            }
-            
-            // 4. Cria nova empresa se necessário
-            if (!empresaFinal) {
-                const novaEmpresa = EmpresaManager.criarEmpresa('Dedetize+ - Sistema de Gestão');
-                empresaFinal = novaEmpresa.id;
+            } catch (error) {
+                console.warn('Erro ao buscar empresa do usuário:', error);
             }
             
             let nomeUsuario = user.displayName || email.split('@')[0];
@@ -895,6 +203,11 @@ const AuthService = {
                 };
             }
             
+            let empresa = EmpresaManager.getEmpresa(empresaFinal);
+            if (!empresa) {
+                empresa = EmpresaManager.criarEmpresa('Dedetize+ - Sistema de Gestão', empresaFinal);
+            }
+            
             const isAdmin = EmpresaManager.isAdmin(empresaFinal, user.uid);
             if (!isAdmin) {
                 EmpresaManager.adicionarAdmin(empresaFinal, user.uid, email, nomeUsuario);
@@ -909,16 +222,21 @@ const AuthService = {
             };
             EmpresaManager.salvarSessao(empresaFinal, userData);
             
-            if (Object.keys(FirestoreService._unsubscribers).length === 0) {
-                FirestoreService.iniciarObservadores(() => {
-                    console.log('🔄 Dados atualizados em tempo real via observador');
-                    if (typeof window.renderAll === 'function') {
-                        window.renderAll();
-                    }
-                });
+            // 🔥 FORÇA LIMPEZA DE CACHE LOCAL
+            if (typeof DB !== 'undefined') {
+                DB._clearAllCaches();
             }
             
-            await FirestoreService.sincronizarDadosEmpresa(empresaFinal);
+            // 🔥 SINCRONIZA AUTOMATICAMENTE AO LOGAR (FORÇA BUSCA DO FIRESTORE)
+            await FirestoreService.sincronizarDadosEmpresa(empresaFinal, true);
+            
+            // 🔥 INICIA OBSERVADORES EM TEMPO REAL
+            FirestoreService.iniciarObservadores(() => {
+                console.log('🔄 Dados atualizados em tempo real');
+                if (typeof window.renderAll === 'function') {
+                    window.renderAll();
+                }
+            });
             
             this._loginInProgress = false;
             return { 
@@ -952,14 +270,7 @@ const AuthService = {
                 return { success: false, message: '🔒 Acesso negado! Apenas administradores têm permissão.' };
             }
             
-            let empresaFinal = empresaId || user.empresaId;
-            const empresas = EmpresaManager.listarEmpresas();
-            if (empresas.length > 0) {
-                empresaFinal = empresas[0].id;
-            } else if (!empresaFinal) {
-                const novaEmpresa = EmpresaManager.criarEmpresa('Dedetize+ - Sistema de Gestão');
-                empresaFinal = novaEmpresa.id;
-            }
+            const empresaFinal = empresaId || user.empresaId || 'empresa_unica';
             
             const userData = { 
                 uid: user.uid, 
@@ -1126,34 +437,407 @@ const AuthService = {
             'auth/network-request-failed': 'Erro de conexão. Verifique sua internet.',
             'auth/invalid-credential': 'Credenciais inválidas.'
         };
-        return messages[code] || 'Ocorreu um erro. Tente novamente.';
+        return messages[code] || 'Ocorreu um erro. Tente novamente.'
     }
 };
 
 // ============================================
-// SERVIÇO DE BANCO DE DADOS
+// EMPRESA MANAGER
+// ============================================
+
+const EmpresaManager = {
+    _empresaAtual: null,
+    _empresas: {},
+    _initialized: false,
+    
+    _getSessionKey() {
+        return 'dedetiza_sessoes';
+    },
+    
+    _carregarSessoes() {
+        try {
+            const data = localStorage.getItem(this._getSessionKey());
+            return data ? JSON.parse(data) : {};
+        } catch (e) {
+            return {};
+        }
+    },
+    
+    _salvarSessoes(sessoes) {
+        try {
+            localStorage.setItem(this._getSessionKey(), JSON.stringify(sessoes));
+        } catch (e) {
+            console.warn('Erro ao salvar sessões:', e);
+        }
+    },
+    
+    getSessao(empresaId, usuarioId) {
+        const sessoes = this._carregarSessoes();
+        const key = empresaId + '_' + usuarioId;
+        return sessoes[key] || null;
+    },
+    
+    salvarSessao(empresaId, userData) {
+        const sessoes = this._carregarSessoes();
+        const key = empresaId + '_' + userData.uid;
+        sessoes[key] = {
+            ...userData,
+            empresa: empresaId,
+            ultimoAcesso: new Date().toISOString()
+        };
+        this._salvarSessoes(sessoes);
+        this._empresaAtual = empresaId;
+        localStorage.setItem('dedetiza_session_atual', JSON.stringify({
+            uid: userData.uid,
+            empresa: empresaId,
+            key: key,
+            nome: userData.nome || userData.usuario || userData.email,
+            usuario: userData.usuario || userData.nome || userData.email
+        }));
+        localStorage.setItem('dedetiza_session', JSON.stringify({
+            uid: userData.uid,
+            email: userData.email,
+            nome: userData.nome || userData.usuario || userData.email,
+            usuario: userData.usuario || userData.nome || userData.email,
+            empresa: empresaId
+        }));
+    },
+    
+    removerSessao(empresaId, usuarioId) {
+        const sessoes = this._carregarSessoes();
+        const key = empresaId + '_' + usuarioId;
+        delete sessoes[key];
+        this._salvarSessoes(sessoes);
+        
+        const atual = localStorage.getItem('dedetiza_session_atual');
+        if (atual) {
+            try {
+                const data = JSON.parse(atual);
+                if (data.uid === usuarioId && data.empresa === empresaId) {
+                    localStorage.removeItem('dedetiza_session_atual');
+                }
+            } catch (e) {}
+        }
+    },
+    
+    getEmpresaAtual() {
+        if (this._empresaAtual) {
+            return this._empresaAtual;
+        }
+        
+        try {
+            const ultima = localStorage.getItem('dedetiza_ultima_empresa');
+            if (ultima) {
+                this._empresaAtual = ultima;
+                return ultima;
+            }
+        } catch (e) {}
+        
+        const empresa = this._obterEmpresaExistente();
+        if (empresa) {
+            this._empresaAtual = empresa.id;
+            return empresa.id;
+        }
+        
+        const novaEmpresa = this._criarEmpresaUnica();
+        this._empresaAtual = novaEmpresa.id;
+        return novaEmpresa.id;
+    },
+    
+    _obterEmpresaExistente() {
+        this._carregarEmpresas();
+        const empresas = Object.values(this._empresas);
+        
+        if (empresas.length > 0) {
+            return empresas[0];
+        }
+        
+        return null;
+    },
+    
+    async getEmpresaAtualAsync() {
+        const localEmpresa = this._obterEmpresaExistente();
+        if (localEmpresa) {
+            this._empresaAtual = localEmpresa.id;
+            return localEmpresa.id;
+        }
+        
+        try {
+            if (typeof firebase !== 'undefined' && firebase.firestore) {
+                const snapshot = await db.collection('usuarios').limit(5).get();
+                if (!snapshot.empty) {
+                    let empresaId = null;
+                    snapshot.forEach(doc => {
+                        const data = doc.data();
+                        if (data.empresaId) {
+                            empresaId = data.empresaId;
+                        }
+                    });
+                    if (empresaId) {
+                        const empresa = this.getEmpresa(empresaId);
+                        if (empresa) {
+                            this._empresaAtual = empresaId;
+                            return empresaId;
+                        }
+                    }
+                }
+            }
+        } catch (e) {
+            console.warn('Erro ao buscar empresa do Firestore:', e);
+        }
+        
+        const novaEmpresa = this._criarEmpresaUnica();
+        this._empresaAtual = novaEmpresa.id;
+        return novaEmpresa.id;
+    },
+    
+    _criarEmpresaUnica() {
+        const id = 'empresa_unica';
+        this._empresas[id] = {
+            id: id,
+            nome: 'Dedetize+ - Sistema de Gestão',
+            dominio: id,
+            criadoEm: new Date().toISOString(),
+            ativo: true,
+            admins: [],
+            config: {
+                empresa: {
+                    nome: 'Dedetize+ - Sistema de Gestão',
+                    cnpj: '',
+                    telefone: '',
+                    endereco: '',
+                    email: '',
+                    logo: null
+                },
+                relatorio: {
+                    titulo: 'Relatório Técnico',
+                    subtitulo: 'Controle de Pragas',
+                    cor: '#0b2a3b',
+                    rodape: 'Este relatório é de propriedade da empresa.',
+                    garantia: 'Garantia do serviço: 90 dias a partir da data do primeiro serviço\nOBS: Reentrada no local só será permitida após 06 horas da aplicação líquida, mediante o ambiente arejado, e todo objeto encontrado no chão que não puder ser descartado deverá ser higienizado antes do uso.'
+                }
+            }
+        };
+        this._salvarEmpresas();
+        console.log('✅ Empresa única criada:', id);
+        return this._empresas[id];
+    },
+    
+    getUsuarioAtual() {
+        try {
+            const atual = localStorage.getItem('dedetiza_session_atual');
+            if (atual) {
+                const data = JSON.parse(atual);
+                return data.uid;
+            }
+        } catch (e) {}
+        return null;
+    },
+    
+    getUsuarioNome() {
+        try {
+            const atual = localStorage.getItem('dedetiza_session_atual');
+            if (atual) {
+                const data = JSON.parse(atual);
+                return data.nome || data.usuario || data.email || 'Admin';
+            }
+        } catch (e) {}
+        
+        try {
+            const session = localStorage.getItem('dedetiza_session');
+            if (session) {
+                const data = JSON.parse(session);
+                return data.nome || data.usuario || data.email || 'Admin';
+            }
+        } catch (e) {}
+        
+        return 'Admin';
+    },
+    
+    setEmpresaAtual(empresaId) {
+        this._empresaAtual = empresaId;
+        try {
+            localStorage.setItem('dedetiza_ultima_empresa', empresaId);
+        } catch (e) {}
+    },
+    
+    getEmpresa(empresaId) {
+        this._carregarEmpresas();
+        return this._empresas[empresaId] || null;
+    },
+    
+    _carregarEmpresas() {
+        try {
+            const data = localStorage.getItem('dedetiza_empresas');
+            if (data) {
+                this._empresas = JSON.parse(data);
+            }
+        } catch (e) {
+            this._empresas = {};
+        }
+        return this._empresas;
+    },
+    
+    _salvarEmpresas() {
+        try {
+            localStorage.setItem('dedetiza_empresas', JSON.stringify(this._empresas));
+        } catch (e) {
+            console.warn('Erro ao salvar empresas:', e);
+        }
+    },
+    
+    criarEmpresa(nome, dominio = null) {
+        const id = dominio || 'empresa_unica';
+        this._empresas[id] = {
+            id: id,
+            nome: nome || 'Dedetize+ - Sistema de Gestão',
+            dominio: id,
+            criadoEm: new Date().toISOString(),
+            ativo: true,
+            admins: [],
+            config: {
+                empresa: {
+                    nome: nome || 'Dedetize+ - Sistema de Gestão',
+                    cnpj: '',
+                    telefone: '',
+                    endereco: '',
+                    email: '',
+                    logo: null
+                },
+                relatorio: {
+                    titulo: 'Relatório Técnico',
+                    subtitulo: 'Controle de Pragas',
+                    cor: '#0b2a3b',
+                    rodape: 'Este relatório é de propriedade da empresa.',
+                    garantia: 'Garantia do serviço: 90 dias a partir da data do primeiro serviço\nOBS: Reentrada no local só será permitida após 06 horas da aplicação líquida, mediante o ambiente arejado, e todo objeto encontrado no chão que não puder ser descartado deverá ser higienizado antes do uso.'
+                }
+            }
+        };
+        this._salvarEmpresas();
+        console.log('✅ Empresa criada:', id);
+        return this._empresas[id];
+    },
+    
+    listarEmpresas() {
+        this._carregarEmpresas();
+        return Object.values(this._empresas).filter(e => e.ativo !== false);
+    },
+    
+    adicionarAdmin(empresaId, usuarioId, email, nome) {
+        this._carregarEmpresas();
+        
+        if (!this._empresas[empresaId]) {
+            this._empresas[empresaId] = {
+                id: empresaId,
+                nome: 'Dedetize+ - Sistema de Gestão',
+                dominio: empresaId,
+                criadoEm: new Date().toISOString(),
+                ativo: true,
+                admins: [],
+                config: {
+                    empresa: {
+                        nome: 'Dedetize+ - Sistema de Gestão',
+                        cnpj: '',
+                        telefone: '',
+                        endereco: '',
+                        email: '',
+                        logo: null
+                    },
+                    relatorio: {
+                        titulo: 'Relatório Técnico',
+                        subtitulo: 'Controle de Pragas',
+                        cor: '#0b2a3b',
+                        rodape: 'Este relatório é de propriedade da empresa.',
+                        garantia: 'Garantia do serviço: 90 dias a partir da data do primeiro serviço\nOBS: Reentrada no local só será permitida após 06 horas da aplicação líquida, mediante o ambiente arejado, e todo objeto encontrado no chão que não puder ser descartado deverá ser higienizado antes do uso.'
+                    }
+                }
+            };
+            this._salvarEmpresas();
+        }
+        
+        const empresa = this._empresas[empresaId];
+        const exists = empresa.admins.some(a => a.usuarioId === usuarioId);
+        if (!exists) {
+            empresa.admins.push({
+                usuarioId: usuarioId,
+                email: email,
+                nome: nome,
+                adicionadoEm: new Date().toISOString()
+            });
+            this._salvarEmpresas();
+            console.log('✅ Admin adicionado à empresa:', empresaId, '-', nome);
+            return true;
+        }
+        return false;
+    },
+    
+    isAdmin(empresaId, usuarioId) {
+        this._carregarEmpresas();
+        const empresa = this._empresas[empresaId];
+        if (!empresa) return false;
+        return empresa.admins.some(a => a.usuarioId === usuarioId);
+    },
+    
+    gerarLinkAcesso(empresaId) {
+        try {
+            return window.location.origin + window.location.pathname + '?empresa=' + empresaId;
+        } catch (e) {
+            return '?empresa=' + empresaId;
+        }
+    },
+    
+    getStorageKey(collection) {
+        const empresa = this.getEmpresaAtual();
+        return 'dedetiza_' + empresa + '_' + collection;
+    },
+    
+    getEmpresasDoUsuario(usuarioId) {
+        this._carregarEmpresas();
+        const result = [];
+        Object.values(this._empresas).forEach(empresa => {
+            if (empresa.admins.some(a => a.usuarioId === usuarioId)) {
+                result.push(empresa);
+            }
+        });
+        return result;
+    },
+    
+    getUsuariosLogados(empresaId) {
+        const sessoes = this._carregarSessoes();
+        const result = [];
+        Object.keys(sessoes).forEach(key => {
+            if (key.startsWith(empresaId + '_')) {
+                const sessao = sessoes[key];
+                if (sessao && sessao.uid) {
+                    result.push({
+                        uid: sessao.uid,
+                        nome: sessao.nome || sessao.usuario || sessao.email,
+                        email: sessao.email,
+                        ultimoAcesso: sessao.ultimoAcesso
+                    });
+                }
+            }
+        });
+        return result;
+    }
+};
+
+// ============================================
+// FIRESTORE SERVICE - CORRIGIDO COM PRIORIDADE FIRESTORE
 // ============================================
 
 const FirestoreService = {
-    collections: {
-        clientes: 'clientes',
-        servicos: 'servicos',
-        ordens: 'ordens',
-        agenda: 'agenda',
-        equipe: 'equipe',
-        pontosIscas: 'pontosIscas',
-        relatorios: 'relatorios',
-        modelos: 'modelos',
-        estoque: 'estoque',
-        movimentacoes: 'movimentacoes',
-        orcamentos: 'orcamentos',
-        config: 'configuracoes'
-    },
+    collections: [
+        'clientes', 'servicos', 'ordens', 'agenda', 'equipe',
+        'pontosIscas', 'relatorios', 'modelos', 'estoque',
+        'movimentacoes', 'orcamentos', 'configuracoes', 'certificados'
+    ],
     
     _unsubscribers: {},
     _currentEmpresa: null,
     _syncInProgress: false,
-    _isInitialSync: true,
+    _isInitialized: false,
+    _lastSyncTime: {},
     
     _getStorageKey(collection) {
         const empresa = EmpresaManager.getEmpresaAtual();
@@ -1164,8 +848,11 @@ const FirestoreService = {
         try {
             const key = this._getStorageKey(collection);
             const data = localStorage.getItem(key);
-            return data ? JSON.parse(data) : [];
+            if (!data) return [];
+            const parsed = JSON.parse(data);
+            return Array.isArray(parsed) ? parsed : [];
         } catch (e) {
+            console.warn('Erro ao buscar dados locais de ' + collection + ':', e);
             return [];
         }
     },
@@ -1173,7 +860,8 @@ const FirestoreService = {
     _setLocalData(collection, data) {
         try {
             const key = this._getStorageKey(collection);
-            localStorage.setItem(key, JSON.stringify(data));
+            const safeData = Array.isArray(data) ? data : [];
+            localStorage.setItem(key, JSON.stringify(safeData));
         } catch (e) {
             console.warn('Erro ao salvar local:', e);
         }
@@ -1195,152 +883,70 @@ const FirestoreService = {
         return { ...data, empresaId: empresaId };
     },
     
-    observeCollection: function(collection, onUpdate, onError) {
-        if (!this._isFirestoreAvailable()) {
-            console.warn('Firestore não disponível para observação.');
-            return () => {};
-        }
-
-        const empresaId = EmpresaManager.getEmpresaAtual();
-        const query = db.collection(collection)
-            .where('empresaId', '==', empresaId);
-
-        const unsubscribe = query.onSnapshot((snapshot) => {
-            const items = [];
-            snapshot.forEach(doc => {
-                items.push({ id: doc.id, ...doc.data() });
-            });
-
-            const localData = this._getLocalData(collection);
-            
-            if (items.length > 0 && JSON.stringify(localData) !== JSON.stringify(items)) {
-                const mergedData = this._mergeData(localData, items);
-                this._setLocalData(collection, mergedData);
-                this._clearLocalCache(collection);
-
-                if (typeof onUpdate === 'function') {
-                    onUpdate(mergedData);
-                }
-
-                console.log(`🔄 Coleção '${collection}' atualizada em tempo real: ${mergedData.length} itens`);
-            } else if (items.length === 0 && localData.length > 0) {
-                console.log(`ℹ️ Firestore vazio para '${collection}', mantendo ${localData.length} itens locais`);
-            }
-        }, (error) => {
-            console.error(`❌ Erro no observador de '${collection}':`, error);
-            if (typeof onError === 'function') {
-                onError(error);
-            }
-        });
-
-        return unsubscribe;
-    },
-
-    iniciarObservadores: function(renderCallback) {
-        this.pararObservadores();
+    _mergeData(localData, firestoreData) {
+        const safeLocal = Array.isArray(localData) ? localData : [];
+        const safeFirestore = Array.isArray(firestoreData) ? firestoreData : [];
         
-        const empresaAtual = EmpresaManager.getEmpresaAtual();
-        this._currentEmpresa = empresaAtual;
-        this._unsubscribers = {};
-        
-        const collections = ['clientes', 'servicos', 'ordens', 'agenda', 'equipe',
-                            'pontosIscas', 'relatorios', 'modelos', 'estoque',
-                            'movimentacoes', 'orcamentos', 'configuracoes'];
-
-        collections.forEach(collection => {
-            this._unsubscribers[collection] = this.observeCollection(collection, (items) => {
-                if (typeof renderCallback === 'function') {
-                    renderCallback();
-                }
-            });
-        });
-
-        console.log(`✅ Observadores em tempo real iniciados para a empresa: ${empresaAtual}`);
-    },
-
-    pararObservadores: function() {
-        if (Object.keys(this._unsubscribers).length > 0) {
-            Object.values(this._unsubscribers).forEach(unsubscribe => {
-                if (typeof unsubscribe === 'function') {
-                    unsubscribe();
-                }
-            });
-            this._unsubscribers = {};
-            this._currentEmpresa = null;
-            console.log('⏹️ Observadores em tempo real parados.');
-        }
-    },
-
-    _mergeData: function(localData, firestoreData) {
         const merged = {};
         
-        localData.forEach(item => {
-            const id = String(item.id);
-            if (!merged[id]) {
+        // 🔥 PRIORIDADE: Dados do Firestore sobrescrevem dados locais
+        safeFirestore.forEach(item => {
+            const id = String(item.id || item._docId || '');
+            if (id) {
+                merged[id] = { ...item, _source: 'firestore' };
+            }
+        });
+        
+        // Adiciona dados locais que não existem no Firestore
+        safeLocal.forEach(item => {
+            const id = String(item.id || item._docId || '');
+            if (id && !merged[id]) {
                 merged[id] = { ...item, _source: 'local' };
             }
         });
         
-        firestoreData.forEach(item => {
-            const id = String(item.id);
-            merged[id] = { ...item, _source: 'firestore' };
-        });
-        
         return Object.values(merged);
     },
-
+    
+    // 🔥 CORREÇÃO PRINCIPAL: getAll agora PRIORIZA FIRESTORE
     async getAll(collection, forceRefresh = false) {
         const empresaId = EmpresaManager.getEmpresaAtual();
         
-        const localData = this._getLocalData(collection);
-        
-        if (!forceRefresh && localData && localData.length > 0) {
-            return localData;
-        }
-        
-        if (!this._isFirestoreAvailable()) {
-            return localData;
-        }
-        
-        try {
-            if (this._syncInProgress && !forceRefresh) {
-                return localData;
-            }
-            
-            this._syncInProgress = true;
-            
-            const snapshot = await db.collection(collection)
-                .where('empresaId', '==', empresaId)
-                .get();
-            
-            const items = [];
-            snapshot.forEach(doc => {
-                const data = doc.data();
-                items.push({ 
-                    id: data.id || doc.id, 
-                    _docId: doc.id,
-                    ...data 
+        // 🔥 SEMPRE TENTA BUSCAR DO FIRESTORE PRIMEIRO
+        if (this._isFirestoreAvailable()) {
+            try {
+                const snapshot = await db.collection(collection)
+                    .where('empresaId', '==', empresaId)
+                    .get();
+                
+                const items = [];
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    items.push({ 
+                        id: data.id || doc.id, 
+                        _docId: doc.id,
+                        ...data 
+                    });
                 });
-            });
-            
-            if (items.length > 0) {
-                const mergedData = this._mergeData(localData, items);
-                this._setLocalData(collection, mergedData);
-                this._clearLocalCache(collection);
-                console.log(`✅ Sincronizado ${collection}: ${mergedData.length} itens`);
-                this._syncInProgress = false;
-                return mergedData;
-            } else {
-                console.log(`ℹ️ Firestore vazio para ${collection}, mantendo ${localData.length} itens locais`);
-                this._syncInProgress = false;
-                return localData;
+                
+                // Se encontrou dados no Firestore, mescla com os locais
+                if (items.length > 0 || forceRefresh) {
+                    const localData = this._getLocalData(collection);
+                    const mergedData = this._mergeData(localData, items);
+                    this._setLocalData(collection, mergedData);
+                    this._clearLocalCache(collection);
+                    console.log(`✅ ${collection}: ${mergedData.length} itens carregados do Firestore`);
+                    return mergedData;
+                }
+            } catch (error) {
+                console.warn(`Erro ao buscar ${collection} do Firestore:`, error);
             }
-            
-        } catch (error) {
-            this._syncInProgress = false;
-            console.warn(`Erro ao buscar ${collection} do Firestore:`, error);
-            return localData;
         }
+        
+        // FALLBACK: dados locais
+        const localData = this._getLocalData(collection);
+        console.log(`📁 ${collection}: ${localData.length} itens carregados localmente (fallback)`);
+        return localData;
     },
     
     async getById(collection, id) {
@@ -1348,6 +954,7 @@ const FirestoreService = {
         return items.find(item => String(item.id) === String(id)) || null;
     },
     
+    // 🔥 CORREÇÃO: add agora sincroniza com Firestore e retorna o item salvo
     async add(collection, data) {
         const empresaId = EmpresaManager.getEmpresaAtual();
         const id = data.id || 'doc_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
@@ -1360,6 +967,7 @@ const FirestoreService = {
             atualizadoEm: new Date().toISOString()
         };
         
+        // Salva localmente
         const items = this._getLocalData(collection);
         const existing = items.find(item => String(item.id) === String(id));
         if (existing) {
@@ -1371,18 +979,34 @@ const FirestoreService = {
         this._setLocalData(collection, items);
         this._clearLocalCache(collection);
         
+        // 🔥 ENVIA PARA O FIRESTORE (SINCRONIZAÇÃO AUTOMÁTICA)
         if (this._isFirestoreAvailable()) {
             try {
                 await db.collection(collection).doc(id).set(docData);
                 console.log(`✅ Adicionado ${collection}/${id} no Firestore`);
             } catch (error) {
                 console.warn(`Erro ao adicionar ${collection} no Firestore:`, error);
+                // Tenta novamente após 1 segundo
+                setTimeout(async () => {
+                    try {
+                        await db.collection(collection).doc(id).set(docData);
+                        console.log(`✅ Adicionado ${collection}/${id} no Firestore (retry)`);
+                    } catch (retryError) {
+                        console.warn(`Erro ao adicionar ${collection} no Firestore (retry):`, retryError);
+                    }
+                }, 1000);
             }
         }
+        
+        // 🔥 DISPARA EVENTO PARA ATUALIZAR INTERFACE
+        document.dispatchEvent(new CustomEvent('dadosAtualizados', { 
+            detail: { collection, action: 'add', item: docData } 
+        }));
         
         return docData;
     },
     
+    // 🔥 CORREÇÃO: update agora sincroniza com Firestore e retorna o item atualizado
     async update(collection, id, data) {
         const empresaId = EmpresaManager.getEmpresaAtual();
         const idStr = String(id);
@@ -1392,6 +1016,7 @@ const FirestoreService = {
             atualizadoEm: new Date().toISOString()
         };
         
+        // Atualiza localmente
         const items = this._getLocalData(collection);
         const index = items.findIndex(item => String(item.id) === idStr);
         if (index !== -1) {
@@ -1410,11 +1035,13 @@ const FirestoreService = {
             this._clearLocalCache(collection);
         }
         
+        // 🔥 ATUALIZA NO FIRESTORE (SINCRONIZAÇÃO AUTOMÁTICA)
         if (this._isFirestoreAvailable()) {
             try {
                 await db.collection(collection).doc(idStr).update(docData);
                 console.log(`✅ Atualizado ${collection}/${idStr} no Firestore`);
             } catch (error) {
+                // Se falhou, tenta criar o documento
                 try {
                     const fullData = items.find(item => String(item.id) === idStr);
                     if (fullData) {
@@ -1423,9 +1050,25 @@ const FirestoreService = {
                     }
                 } catch (setError) {
                     console.warn(`Erro ao atualizar ${collection} no Firestore:`, setError);
+                    setTimeout(async () => {
+                        try {
+                            const fullData = items.find(item => String(item.id) === idStr);
+                            if (fullData) {
+                                await db.collection(collection).doc(idStr).set(fullData);
+                                console.log(`✅ Atualizado ${collection}/${idStr} no Firestore (retry)`);
+                            }
+                        } catch (retryError) {
+                            console.warn(`Erro ao atualizar ${collection} no Firestore (retry):`, retryError);
+                        }
+                    }, 1000);
                 }
             }
         }
+        
+        // 🔥 DISPARA EVENTO PARA ATUALIZAR INTERFACE
+        document.dispatchEvent(new CustomEvent('dadosAtualizados', { 
+            detail: { collection, action: 'update', item: items.find(item => String(item.id) === idStr) } 
+        }));
         
         return items.find(item => String(item.id) === idStr) || null;
     },
@@ -1433,23 +1076,119 @@ const FirestoreService = {
     async delete(collection, id) {
         const idStr = String(id);
         
+        // Remove localmente
         const items = this._getLocalData(collection).filter(item => String(item.id) !== idStr);
         this._setLocalData(collection, items);
         this._clearLocalCache(collection);
         
+        // 🔥 REMOVE DO FIRESTORE (SINCRONIZAÇÃO AUTOMÁTICA)
         if (this._isFirestoreAvailable()) {
             try {
                 await db.collection(collection).doc(idStr).delete();
                 console.log(`✅ Deletado ${collection}/${idStr} no Firestore`);
             } catch (error) {
                 console.warn(`Erro ao deletar ${collection} no Firestore:`, error);
+                setTimeout(async () => {
+                    try {
+                        await db.collection(collection).doc(idStr).delete();
+                        console.log(`✅ Deletado ${collection}/${idStr} no Firestore (retry)`);
+                    } catch (retryError) {
+                        console.warn(`Erro ao deletar ${collection} no Firestore (retry):`, retryError);
+                    }
+                }, 1000);
             }
         }
+        
+        // 🔥 DISPARA EVENTO PARA ATUALIZAR INTERFACE
+        document.dispatchEvent(new CustomEvent('dadosAtualizados', { 
+            detail: { collection, action: 'delete', id: idStr } 
+        }));
         
         return items;
     },
     
-    async sincronizarDadosEmpresa(empresaId) {
+    // 🔥 CORREÇÃO: observeCollection agora prioriza Firestore
+    observeCollection: function(collection, onUpdate, onError) {
+        if (!this._isFirestoreAvailable()) {
+            console.warn('Firestore não disponível para observação.');
+            return () => {};
+        }
+
+        const empresaId = EmpresaManager.getEmpresaAtual();
+        const query = db.collection(collection)
+            .where('empresaId', '==', empresaId);
+
+        const unsubscribe = query.onSnapshot((snapshot) => {
+            const items = [];
+            snapshot.forEach(doc => {
+                items.push({ id: doc.id, ...doc.data() });
+            });
+
+            // 🔥 SEMPRE ATUALIZA COM OS DADOS DO FIRESTORE (SOBRESCREVE)
+            const localData = this._getLocalData(collection);
+            const mergedData = this._mergeData(localData, items);
+            this._setLocalData(collection, mergedData);
+            this._clearLocalCache(collection);
+
+            console.log(`🔄 Coleção '${collection}' atualizada em tempo real: ${mergedData.length} itens`);
+
+            if (typeof onUpdate === 'function') {
+                onUpdate(mergedData);
+            }
+        }, (error) => {
+            console.error(`❌ Erro no observador de '${collection}':`, error);
+            if (typeof onError === 'function') {
+                onError(error);
+            }
+        });
+
+        return unsubscribe;
+    },
+
+    iniciarObservadores: function(renderCallback) {
+        this.pararObservadores();
+        
+        const empresaAtual = EmpresaManager.getEmpresaAtual();
+        this._currentEmpresa = empresaAtual;
+        this._unsubscribers = {};
+
+        this.collections.forEach(collection => {
+            if (this._unsubscribers[collection]) {
+                console.log(`ℹ️ Observador já existe para ${collection}`);
+                return;
+            }
+            
+            this._unsubscribers[collection] = this.observeCollection(collection, (items) => {
+                if (typeof renderCallback === 'function') {
+                    renderCallback();
+                }
+            });
+        });
+
+        console.log(`✅ Observadores em tempo real iniciados para a empresa: ${empresaAtual}`);
+        this._isInitialized = true;
+    },
+
+    pararObservadores: function() {
+        if (Object.keys(this._unsubscribers).length > 0) {
+            Object.values(this._unsubscribers).forEach(unsubscribe => {
+                if (typeof unsubscribe === 'function') {
+                    try {
+                        unsubscribe();
+                    } catch (e) {
+                        console.warn('Erro ao parar observador:', e);
+                    }
+                }
+            });
+            this._unsubscribers = {};
+            this._currentEmpresa = null;
+            console.log('⏹️ Observadores em tempo real parados.');
+        }
+        this._isInitialized = false;
+    },
+    
+    // 🔥 CORREÇÃO: sincronizarDadosEmpresa agora FORÇA a sincronização
+    async sincronizarDadosEmpresa(empresaId, force = false) {
         if (!this._isFirestoreAvailable()) {
             console.warn('Firestore não disponível para sincronização');
             return 0;
@@ -1458,31 +1197,45 @@ const FirestoreService = {
         const empresaAnterior = EmpresaManager.getEmpresaAtual();
         EmpresaManager.setEmpresaAtual(empresaId);
         
-        const collections = ['clientes', 'servicos', 'ordens', 'agenda', 'equipe', 
-                            'pontosIscas', 'relatorios', 'modelos', 'estoque', 
-                            'movimentacoes', 'orcamentos', 'configuracoes'];
         let totalItens = 0;
         
-        for (const collection of collections) {
+        for (const collection of this.collections) {
             try {
-                const localData = this._getLocalData(collection);
-                
+                // 🔥 SEMPRE BUSCA DO FIRESTORE
                 const snapshot = await db.collection(collection)
                     .where('empresaId', '==', empresaId)
                     .get();
+                
                 const items = [];
                 snapshot.forEach(doc => {
                     const data = doc.data();
                     items.push({ id: data.id || doc.id, ...data });
                 });
                 
+                const localData = this._getLocalData(collection);
+                
                 if (items.length > 0) {
+                    // 🔥 PRIORIDADE: Dados do Firestore sobrescrevem locais
                     const mergedData = this._mergeData(localData, items);
                     this._setLocalData(collection, mergedData);
                     totalItens += mergedData.length;
-                    console.log(`✅ Sincronizado ${collection}: ${mergedData.length} itens`);
+                    console.log(`✅ Sincronizado ${collection}: ${mergedData.length} itens (Firestore prioritário)`);
+                } else if (localData.length > 0 && force) {
+                    // Se não há dados no Firestore e é força, sincroniza os locais
+                    for (const item of localData) {
+                        try {
+                            await db.collection(collection).doc(String(item.id)).set({
+                                ...item,
+                                empresaId: empresaId
+                            });
+                            console.log(`⬆️ Sincronizado item local para Firestore: ${collection}/${item.id}`);
+                        } catch (syncError) {
+                            console.warn(`Erro ao sincronizar item ${item.id}:`, syncError);
+                        }
+                    }
+                    totalItens += localData.length;
                 } else {
-                    console.log(`ℹ️ Firestore vazio para ${collection}, mantendo ${localData.length} itens locais`);
+                    // Mantém os dados locais
                     totalItens += localData.length;
                 }
                 this._clearLocalCache(collection);
@@ -1498,6 +1251,55 @@ const FirestoreService = {
         return totalItens;
     },
     
+    async sincronizarColecao(collection) {
+        if (!this._isFirestoreAvailable()) {
+            console.warn('Firestore não disponível para sincronização');
+            return null;
+        }
+        
+        const empresaId = EmpresaManager.getEmpresaAtual();
+        try {
+            const localData = this._getLocalData(collection);
+            
+            const snapshot = await db.collection(collection)
+                .where('empresaId', '==', empresaId)
+                .get();
+            
+            const items = [];
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                items.push({ id: data.id || doc.id, ...data });
+            });
+            
+            // 🔥 PRIORIDADE: Firestore sobrescreve local
+            if (items.length > 0) {
+                const mergedData = this._mergeData(localData, items);
+                this._setLocalData(collection, mergedData);
+                this._clearLocalCache(collection);
+                console.log(`✅ Sincronizado ${collection}: ${mergedData.length} itens`);
+                return mergedData;
+            } else if (localData.length > 0) {
+                // Envia dados locais para o Firestore
+                for (const item of localData) {
+                    try {
+                        await db.collection(collection).doc(String(item.id)).set({
+                            ...item,
+                            empresaId: empresaId
+                        });
+                    } catch (syncError) {
+                        console.warn(`Erro ao sincronizar ${item.id}:`, syncError);
+                    }
+                }
+                return localData;
+            } else {
+                return localData;
+            }
+        } catch (error) {
+            console.warn(`Erro ao sincronizar ${collection}:`, error);
+            return this._getLocalData(collection);
+        }
+    },
+    
     async inicializarDadosEmpresa(empresaId) {
         if (!this._isFirestoreAvailable()) {
             console.warn('Firestore não disponível para inicialização');
@@ -1508,6 +1310,7 @@ const FirestoreService = {
         EmpresaManager.setEmpresaAtual(empresaId);
         
         try {
+            // Verifica se já existem modelos
             const modelos = await this.getAll('modelos', true);
             if (modelos.length === 0) {
                 const defaultModelos = [
@@ -1541,7 +1344,7 @@ const FirestoreService = {
                     {
                         id: 'modelo_descupinizacao',
                         nome: 'Modelo Técnico - Descupinização',
-                        categoria: 'descupsinizacao',
+                        categoria: 'descupinizacao',
                         campos: [
                             { label: 'Data da Vistoria', tipo: 'texto', valor: '' },
                             { label: 'Estrutura Inspecionada', tipo: 'texto', valor: '' },
@@ -1572,57 +1375,56 @@ const FirestoreService = {
                 }
                 console.log('✅ Modelos padrão criados!');
             }
+            
+            // 🔥 VERIFICA SE HÁ CERTIFICADOS E SINCRONIZA
+            const certificados = await this.getAll('certificados', true);
+            console.log(`📋 ${certificados.length} certificados sincronizados`);
+            
         } catch (error) {
             console.warn('Erro ao inicializar dados padrão:', error);
         }
         
         EmpresaManager.setEmpresaAtual(empresaAnterior);
-    },
-    
-    async sincronizarColecao(collection) {
-        if (!this._isFirestoreAvailable()) {
-            console.warn('Firestore não disponível para sincronização');
-            return null;
-        }
-        
-        const empresaId = EmpresaManager.getEmpresaAtual();
-        try {
-            const localData = this._getLocalData(collection);
-            
-            const snapshot = await db.collection(collection)
-                .where('empresaId', '==', empresaId)
-                .get();
-            const items = [];
-            snapshot.forEach(doc => {
-                const data = doc.data();
-                items.push({ id: data.id || doc.id, ...data });
-            });
-            
-            if (items.length > 0) {
-                const mergedData = this._mergeData(localData, items);
-                this._setLocalData(collection, mergedData);
-                this._clearLocalCache(collection);
-                console.log(`✅ Sincronizado ${collection}: ${mergedData.length} itens`);
-                return mergedData;
-            } else {
-                console.log(`ℹ️ Firestore vazio para ${collection}, mantendo ${localData.length} itens locais`);
-                return localData;
-            }
-        } catch (error) {
-            console.warn(`Erro ao sincronizar ${collection}:`, error);
-            return this._getLocalData(collection);
-        }
     }
 };
 
-// Inicializa listener de reconexão
-if (typeof firebase !== 'undefined' && firebase.firestore) {
-    firebase.firestore().enableNetwork().then(() => {
-        console.log('✅ Firestore network habilitada');
-    }).catch(() => {
-        console.warn('⚠️ Firestore network já habilitada');
-    });
-}
+// ============================================
+// INICIALIZAÇÃO AUTOMÁTICA
+// ============================================
+
+// Inicializa observadores automaticamente após o carregamento da página
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🚀 Inicializando sincronização automática...');
+    
+    // Aguarda um pouco para garantir que tudo está carregado
+    setTimeout(async () => {
+        try {
+            const empresaId = EmpresaManager.getEmpresaAtual();
+            
+            // Sincroniza dados automaticamente
+            if (FirestoreService._isFirestoreAvailable()) {
+                // 🔥 FORÇA SINCRONIZAÇÃO COMPLETA (FORCE = TRUE)
+                await FirestoreService.sincronizarDadosEmpresa(empresaId, true);
+                
+                // Inicia observadores se ainda não iniciados
+                if (!FirestoreService._isInitialized) {
+                    FirestoreService.iniciarObservadores(() => {
+                        console.log('🔄 Dados atualizados em tempo real');
+                        if (typeof window.renderAll === 'function') {
+                            window.renderAll();
+                        }
+                    });
+                }
+                
+                console.log('✅ Sincronização automática iniciada com sucesso!');
+            } else {
+                console.warn('⚠️ Firestore não disponível, usando dados locais');
+            }
+        } catch (error) {
+            console.warn('Erro na inicialização automática:', error);
+        }
+    }, 1000);
+});
 
 // ============================================
 // EXPORTAÇÃO
@@ -1631,9 +1433,8 @@ if (typeof firebase !== 'undefined' && firebase.firestore) {
 window.AuthService = AuthService;
 window.FirestoreService = FirestoreService;
 window.EmpresaManager = EmpresaManager;
-window.AuthGuard = AuthGuard;
 
-console.log('✅ Firebase Services - MODO COMPARTILHADO carregados!');
-console.log('📌 TODOS os administradores compartilham a MESMA empresa');
-console.log('📌 Busca empresa no Firestore PRIMEIRO');
-console.log('📌 NUNCA cria nova empresa se já existir uma');
+console.log('✅ Firebase Services - SINCRONIZAÇÃO AUTOMÁTICA MULTI-DISPOSITIVO carregados!');
+console.log('📌 Todos os registros são sincronizados em tempo real entre dispositivos');
+console.log('📌 PRIORIDADE: Dados do Firestore sobrescrevem dados locais');
+console.log('📌 Nenhuma ação manual necessária!');

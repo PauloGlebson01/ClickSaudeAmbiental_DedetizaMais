@@ -1,4 +1,7 @@
 // script.js - Sistema completo com sincronização em tempo real
+// CORRIGIDO - Mapa de Iscas com atualização automática sem recarregar página
+// CORRIGIDO - Seleção de responsáveis no certificado funcionando corretamente
+// CORRIGIDO - Certificado: seleção de responsáveis persistindo corretamente para todos os tipos
 // CORRIGIDO - Eliminação de duplicação de dados e controle de sessão
 // CORRIGIDO - Atualização imediata da lista de clientes
 // CORRIGIDO - Renderização imediata da equipe
@@ -9,6 +12,11 @@
 // CORRIGIDO - Certificado: campo de observação com scroll e quebra de texto
 // CORRIGIDO - Certificado: filtro de técnicos mais abrangente
 // CORRIGIDO - Certificado: exibição correta do responsável selecionado
+// CORRIGIDO - Certificado: sincronização automática com Firestore
+// CORRIGIDO - Certificado: renderização imediata após criação
+// CORRIGIDO - Nome do admin sendo exibido corretamente
+// CORRIGIDO - Mapa de Iscas: atualização automática após criar/editar/excluir
+// CORRIGIDO - Certificado: seleção de responsáveis persistindo corretamente (FIX FINAL)
 
 // =============================================
 // ===== PREVENÇÃO DE ERROS DE REFERÊNCIA =====
@@ -254,48 +262,89 @@
 
     verificarEmpresa();
 
-    // ===== CARREGA DADOS DO USUÁRIO =====
+    // ===== CARREGA DADOS DO USUÁRIO (CORRIGIDO) =====
     async function carregarDadosUsuario() {
         try {
             let nomeExibido = 'Admin';
             
-            if (typeof AuthService !== 'undefined') {
-                const userData = await AuthService.getCurrentUserData();
-                if (userData) {
-                    nomeExibido = userData.usuario || userData.nome || userData.email || 'Admin';
-                    if (nomeExibido && nomeExibido.includes('@')) {
-                        nomeExibido = nomeExibido.split('@')[0];
+            // 🔥 CORREÇÃO: Tenta buscar do Firebase primeiro
+            if (firebase && firebase.auth) {
+                try {
+                    const user = firebase.auth().currentUser;
+                    if (user) {
+                        if (user.displayName) {
+                            nomeExibido = user.displayName;
+                        } else if (user.email) {
+                            nomeExibido = user.email.split('@')[0];
+                        }
                     }
+                } catch (e) {
+                    console.warn('Erro ao buscar usuário do Firebase:', e);
                 }
             }
             
+            // Se ainda não temos nome, tenta do AuthService
             if (nomeExibido === 'Admin' || nomeExibido.includes('@')) {
-                const session = localStorage.getItem('dedetiza_session');
-                if (session) {
-                    try {
+                try {
+                    if (typeof AuthService !== 'undefined') {
+                        const userData = await AuthService.getCurrentUserData();
+                        if (userData) {
+                            nomeExibido = userData.usuario || userData.nome || userData.email || 'Admin';
+                            if (nomeExibido && nomeExibido.includes('@')) {
+                                nomeExibido = nomeExibido.split('@')[0];
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.warn('Erro ao buscar dados do AuthService:', e);
+                }
+            }
+            
+            // Se ainda não temos nome, tenta do session
+            if (nomeExibido === 'Admin' || nomeExibido.includes('@')) {
+                try {
+                    const session = localStorage.getItem('dedetiza_session');
+                    if (session) {
                         const data = JSON.parse(session);
                         nomeExibido = data.usuario || data.nome || data.email || 'Admin';
                         if (nomeExibido && nomeExibido.includes('@')) {
                             nomeExibido = nomeExibido.split('@')[0];
                         }
-                    } catch (e) {
-                        console.warn('Erro ao ler session:', e);
                     }
+                } catch (e) {
+                    console.warn('Erro ao ler session:', e);
                 }
             }
             
+            // Último recurso: tenta do session atual
             if (nomeExibido === 'Admin' || nomeExibido.includes('@')) {
-                const atual = localStorage.getItem('dedetiza_session_atual');
-                if (atual) {
-                    try {
+                try {
+                    const atual = localStorage.getItem('dedetiza_session_atual');
+                    if (atual) {
                         const data = JSON.parse(atual);
                         nomeExibido = data.usuario || data.nome || data.email || 'Admin';
                         if (nomeExibido && nomeExibido.includes('@')) {
                             nomeExibido = nomeExibido.split('@')[0];
                         }
-                    } catch (e) {
-                        console.warn('Erro ao ler session atual:', e);
                     }
+                } catch (e) {
+                    console.warn('Erro ao ler session atual:', e);
+                }
+            }
+            
+            // Se ainda está 'Admin' ou contém '@', usa fallback
+            if (nomeExibido === 'Admin' || nomeExibido.includes('@')) {
+                try {
+                    const users = JSON.parse(localStorage.getItem('dedetiza_users') || '[]');
+                    if (users.length > 0) {
+                        const user = users[0];
+                        nomeExibido = user.usuario || user.nome || user.email || 'Admin';
+                        if (nomeExibido && nomeExibido.includes('@')) {
+                            nomeExibido = nomeExibido.split('@')[0];
+                        }
+                    }
+                } catch (e) {
+                    console.warn('Erro ao buscar users:', e);
                 }
             }
             
@@ -583,6 +632,22 @@
                     document.dispatchEvent(movEvent);
                 }
                 
+                // Adiciona evento para certificados
+                if (collection === 'certificados') {
+                    var certEvent = new CustomEvent('certificadoAtualizado', { 
+                        detail: { item: newItem, action: 'add' } 
+                    });
+                    document.dispatchEvent(certEvent);
+                }
+
+                // 🔥 CORREÇÃO: Dispara evento para pontosIscas (Mapa)
+                if (collection === 'pontosIscas') {
+                    var mapaEvent = new CustomEvent('pontoIscaAtualizado', { 
+                        detail: { item: newItem, action: 'add' } 
+                    });
+                    document.dispatchEvent(mapaEvent);
+                }
+                
                 return newItem;
             } catch (e) {
                 this._isSaving = false;
@@ -618,6 +683,14 @@
                         }
                     }
 
+                    // 🔥 CORREÇÃO: Dispara evento para pontosIscas (Mapa)
+                    if (collection === 'pontosIscas') {
+                        var mapaEvent = new CustomEvent('pontoIscaAtualizado', { 
+                            detail: { item: items[index], action: 'update' } 
+                        });
+                        document.dispatchEvent(mapaEvent);
+                    }
+
                     this._isSaving = false;
                     return items[index];
                 }
@@ -644,6 +717,14 @@
                 } catch (error) {
                     console.warn('⚠️ Erro ao deletar ' + collection + ' ' + id + ' do Firebase:', error);
                 }
+            }
+
+            // 🔥 CORREÇÃO: Dispara evento para pontosIscas (Mapa)
+            if (collection === 'pontosIscas') {
+                var mapaEvent = new CustomEvent('pontoIscaAtualizado', { 
+                    detail: { id: id, action: 'delete' } 
+                });
+                document.dispatchEvent(mapaEvent);
             }
 
             return items;
@@ -816,6 +897,57 @@
         renderHistorico();
     });
 
+    // ===== LISTENER PARA CERTIFICADOS =====
+    document.addEventListener('certificadoAtualizado', function(e) {
+        console.log('🔄 Certificado atualizado automaticamente:', e.detail);
+        if (e.detail.action === 'add') {
+            // 🔥 ATUALIZA A LISTA DE CERTIFICADOS IMEDIATAMENTE
+            renderCertificados();
+            preencherFiltroCertificados();
+            
+            // 🔥 FORÇA RENDERIZAÇÃO COMPLETA
+            if (typeof renderAll === 'function') {
+                renderAll();
+            }
+            
+            // 🔥 VERIFICA SE O CARD FOI ADICIONADO
+            const item = e.detail.item;
+            if (item && item.id) {
+                setTimeout(function() {
+                    const card = document.getElementById('certificado-card-' + item.id);
+                    if (card) {
+                        console.log('✅ Card do certificado encontrado via listener');
+                        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        card.style.transition = 'all 0.5s ease';
+                        card.style.boxShadow = '0 0 0 3px #1d7a6b, 0 8px 30px rgba(29,122,107,0.3)';
+                        setTimeout(function() {
+                            card.style.boxShadow = '';
+                        }, 3000);
+                    }
+                }, 200);
+            }
+        }
+    });
+
+    // 🔥 CORREÇÃO: LISTENER PARA MAPA DE ISCAS
+    document.addEventListener('pontoIscaAtualizado', function(e) {
+        console.log('🔄 Ponto de isca atualizado automaticamente:', e.detail);
+        
+        // Força limpeza do cache e recarregamento
+        DB.forceClearCache('pontosIscas');
+        
+        // Reaplica os filtros e renderiza o mapa
+        renderMapaComFiltros();
+        
+        // Atualiza os filtros também
+        preencherFiltrosClientesMapa();
+        
+        // Se houver renderização completa, executa
+        if (typeof renderAll === 'function') {
+            renderAll();
+        }
+    });
+
     // =============================================
     // ===== SERVIÇO DE CERTIFICADOS =====
     // =============================================
@@ -891,8 +1023,29 @@
                 criadoEm: new Date().toISOString()
             };
 
-            DB.add('certificados', certificado);
-            return certificado;
+            const certificadoSalvo = DB.add('certificados', certificado);
+            
+            // 🔥 FORÇA SINCRONIZAÇÃO IMEDIATA
+            if (typeof FirestoreService !== 'undefined') {
+                try {
+                    FirestoreService.sincronizarColecao('certificados').then(() => {
+                        console.log('✅ Certificado sincronizado com o Firestore:', certificadoSalvo.id);
+                    }).catch(err => {
+                        console.warn('⚠️ Erro ao sincronizar certificado:', err);
+                    });
+                } catch (e) {
+                    console.warn('⚠️ Erro ao sincronizar certificado:', e);
+                }
+            }
+            
+            // 🔥 DISPARA EVENTO PARA ATUALIZAR INTERFACE
+            setTimeout(function() {
+                document.dispatchEvent(new CustomEvent('certificadoAtualizado', { 
+                    detail: { certificado: certificadoSalvo, action: 'add', item: certificadoSalvo } 
+                }));
+            }, 100);
+
+            return certificadoSalvo;
         },
 
         _buscarProdutosUtilizados: function(servico) {
@@ -1006,15 +1159,15 @@
             return data.toLocaleDateString('pt-BR');
         },
 
+        // 🔥 CORREÇÃO FINAL: renderizarCertificado com persistência garantida
         renderizarCertificado: function(certificado) {
             if (!certificado) return '<p>Certificado não encontrado</p>';
 
             const c = certificado;
             
-            // Busca equipe com filtro CORRIGIDO para técnicos
+            // Busca equipe com filtro para técnicos
             const equipe = DB.getAll('equipe');
             
-            // CORREÇÃO 2: Filtro mais abrangente para técnicos
             const tecnicos = equipe.filter(m => {
                 const cargo = (m.cargo || '').toLowerCase();
                 return cargo.includes('técnico') || 
@@ -1051,8 +1204,24 @@
                 });
             }
 
+            // 🔥 CORREÇÃO: Busca os valores atuais do certificado com fallback seguro
             const tecnicoAtual = c.responsaveis?.tecnico || { id: null, nome: 'Selecione...', registro: '', atuacao: '' };
             const operacionalAtual = c.responsaveis?.operacional || { id: null, nome: 'Selecione...', registro: '', atuacao: '' };
+
+            // 🔥 CORREÇÃO: Gera os selects com os valores corretamente selecionados usando comparação de string
+            const tecnicoOptions = tecnicos.map(m => {
+                const isSelected = (m.id !== null && tecnicoAtual.id !== null && String(m.id) === String(tecnicoAtual.id));
+                return `<option value="${m.id}" ${isSelected ? 'selected' : ''}>${m.nome} - ${m.cargo}</option>`;
+            }).join('');
+
+            const operacionalOptions = operacionais.map(m => {
+                const isSelected = (m.id !== null && operacionalAtual.id !== null && String(m.id) === String(operacionalAtual.id));
+                return `<option value="${m.id}" ${isSelected ? 'selected' : ''}>${m.nome} - ${m.cargo}</option>`;
+            }).join('');
+
+            // 🔥 CORREÇÃO: Verifica se o responsável selecionado existe na lista de opções
+            const tecnicoSelecionado = tecnicos.find(m => String(m.id) === String(tecnicoAtual.id));
+            const operacionalSelecionado = operacionais.find(m => String(m.id) === String(operacionalAtual.id));
 
             const produtosHtml = c.produtos.map(p => `
                 <tr>
@@ -1069,6 +1238,15 @@
             const clienteNome = clienteInfo.tipo === 'cnpj' ? 
                 (clienteInfo.nome || clienteInfo.razaoSocial) : 
                 clienteInfo.nome;
+
+            // 🔥 CORREÇÃO: Informação do responsável selecionado para exibição
+            const tecnicoDisplay = tecnicoSelecionado ? 
+                `${tecnicoSelecionado.nome} - ${tecnicoSelecionado.registro || 'Sem registro'}` : 
+                'Nenhum técnico selecionado';
+
+            const operacionalDisplay = operacionalSelecionado ? 
+                `${operacionalSelecionado.nome} - ${operacionalSelecionado.registro || 'Sem registro'}` : 
+                'Nenhum operacional selecionado';
 
             return `
                 <div style="font-family:Arial,sans-serif;font-size:10px;max-width:800px;margin:0 auto;padding:20px;background:white;border:1px solid #ddd;border-radius:8px;">
@@ -1140,7 +1318,7 @@
                             </table>
                         </div>
 
-                        <!-- CORREÇÃO 1: OBSERVAÇÃO COM SCROLL E QUEBRA DE LINHA -->
+                        <!-- OBSERVAÇÃO COM SCROLL E QUEBRA DE LINHA -->
                         <div style="margin:10px 0;padding:8px 12px;background:#f8fbfd;border-left:3px solid #0b2a3b;border-radius:4px;">
                             <div style="font-weight:700;font-size:10px;display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
                                 <span>OBSERVAÇÕES:</span>
@@ -1169,7 +1347,7 @@
                             </div>
                         </div>
 
-                        <!-- CORREÇÃO 2 e 3: RESPONSÁVEIS COM SELEÇÃO CORRIGIDA -->
+                        <!-- 🔥 RESPONSÁVEIS COM SELEÇÃO CORRIGIDA -->
                         <div style="margin:10px 0;">
                             <div style="font-weight:700;font-size:11px;margin-bottom:6px;">Responsáveis Técnicos:</div>
                             <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
@@ -1180,15 +1358,10 @@
                                             style="width:100%;padding:4px 8px;border:1px solid #dce4ec;border-radius:4px;font-size:8px;background:white;margin-bottom:4px;" 
                                             onchange="atualizarResponsavelCertificado('${c.id}', 'tecnico', this.value)">
                                         <option value="">Selecione...</option>
-                                        ${tecnicos.map(m => {
-                                            const isSelected = String(m.id) === String(tecnicoAtual.id);
-                                            return `<option value="${m.id}" ${isSelected ? 'selected' : ''}>${m.nome} - ${m.cargo}</option>`;
-                                        }).join('')}
+                                        ${tecnicoOptions}
                                     </select>
                                     <div style="font-size:7px;color:#4d687a;margin-bottom:4px;" id="certTecnicoInfo_${c.id}">
-                                        ${tecnicoAtual.nome && tecnicoAtual.nome !== 'Selecione...' ? 
-                                            `${tecnicoAtual.nome} - ${tecnicoAtual.registro || 'Sem registro'}` : 
-                                            'Nenhum técnico selecionado'}
+                                        ${tecnicoDisplay}
                                     </div>
                                     <div style="margin:4px auto 0;width:100%;min-height:50px;border:1px solid #ccc;border-radius:4px;background:white;display:flex;align-items:center;justify-content:center;cursor:pointer;" 
                                          onclick="abrirAssinaturaCertificado('${c.id}', 'tecnico')">
@@ -1206,15 +1379,10 @@
                                             style="width:100%;padding:4px 8px;border:1px solid #dce4ec;border-radius:4px;font-size:8px;background:white;margin-bottom:4px;"
                                             onchange="atualizarResponsavelCertificado('${c.id}', 'operacional', this.value)">
                                         <option value="">Selecione...</option>
-                                        ${operacionais.map(m => {
-                                            const isSelected = String(m.id) === String(operacionalAtual.id);
-                                            return `<option value="${m.id}" ${isSelected ? 'selected' : ''}>${m.nome} - ${m.cargo}</option>`;
-                                        }).join('')}
+                                        ${operacionalOptions}
                                     </select>
                                     <div style="font-size:7px;color:#4d687a;margin-bottom:4px;" id="certOperacionalInfo_${c.id}">
-                                        ${operacionalAtual.nome && operacionalAtual.nome !== 'Selecione...' ? 
-                                            `${operacionalAtual.nome} - ${operacionalAtual.registro || 'Sem registro'}` : 
-                                            'Nenhum operacional selecionado'}
+                                        ${operacionalDisplay}
                                     </div>
                                     <div style="margin:4px auto 0;width:100%;min-height:50px;border:1px solid #ccc;border-radius:4px;background:white;display:flex;align-items:center;justify-content:center;cursor:pointer;"
                                          onclick="abrirAssinaturaCertificado('${c.id}', 'operacional')">
@@ -1313,7 +1481,6 @@
     // ===== FUNÇÕES AUXILIARES DO CERTIFICADO =====
     // =============================================
 
-    // CORREÇÃO 1: Função para tratar Enter no campo de observação
     window.handleObservacaoEnter = function(event, certId) {
         if (event.key === 'Enter') {
             event.preventDefault();
@@ -1321,9 +1488,7 @@
         }
     };
 
-    // CORREÇÃO 1: Função para salvar observação quando o campo perde o foco
     window.salvarObservacaoCertificado = function(certId, conteudo) {
-        // Remove tags HTML desnecessárias e converte quebras de linha
         const texto = conteudo
             .replace(/<br\s*\/?>/gi, '\n')
             .replace(/<div>/gi, '\n')
@@ -1338,28 +1503,65 @@
         }
     };
 
+    // 🔥 CORREÇÃO FINAL: Função atualizarResponsavelCertificado com persistência garantida
     window.atualizarResponsavelCertificado = function(certId, tipo, membroId) {
         console.log('🔄 Atualizando responsável:', { certId, tipo, membroId });
         
-        if (!membroId) {
-            console.warn('⚠️ Nenhum membro selecionado');
+        // Se não houver seleção, apenas atualiza a interface
+        if (!membroId || membroId === '' || membroId === 'default_tecnico' || membroId === 'default_operacional') {
+            console.warn('⚠️ Nenhum membro selecionado - resetando');
+            const infoEl = document.getElementById('cert' + (tipo === 'tecnico' ? 'Tecnico' : 'Operacional') + 'Info_' + certId);
+            if (infoEl) {
+                infoEl.textContent = 'Nenhum ' + (tipo === 'tecnico' ? 'técnico' : 'operacional') + ' selecionado';
+            }
+            
+            // Limpa os dados no certificado
+            const updateData = {};
+            const campo = tipo === 'tecnico' ? 'tecnico' : 'operacional';
+            updateData['responsaveis.' + campo] = {
+                id: null,
+                nome: 'Selecione...',
+                registro: '',
+                atuacao: ''
+            };
+            DB.update('certificados', certId, updateData);
+            
+            // Força re-renderização para garantir consistência
+            setTimeout(function() {
+                visualizarCertificado(certId);
+            }, 150);
             return;
         }
         
-        const membro = DB.getById('equipe', parseInt(membroId));
+        // Busca o membro da equipe
+        const equipe = DB.getAll('equipe');
+        const membro = equipe.find(function(m) {
+            return String(m.id) === String(membroId);
+        });
+        
         if (!membro) {
             console.warn('⚠️ Membro não encontrado:', membroId);
+            // Tenta buscar pelo nome como fallback
+            const membroByName = equipe.find(function(m) {
+                return m.nome && m.nome.toLowerCase() === String(membroId).toLowerCase();
+            });
+            if (membroByName) {
+                console.log('📌 Membro encontrado por nome:', membroByName);
+                return window.atualizarResponsavelCertificado(certId, tipo, String(membroByName.id));
+            }
             return;
         }
         
         console.log('📌 Membro encontrado:', membro);
         
+        // Busca o certificado
         const certificado = CertificadoService.getCertificado(certId);
         if (!certificado) {
             console.warn('⚠️ Certificado não encontrado:', certId);
             return;
         }
         
+        // Atualiza os dados no certificado
         const updateData = {};
         const campo = tipo === 'tecnico' ? 'tecnico' : 'operacional';
         
@@ -1370,15 +1572,55 @@
             atuacao: membro.cargo || ''
         };
         
-        updateData[`responsaveis.${campo}`] = responsavelData;
+        updateData['responsaveis.' + campo] = responsavelData;
         
-        console.log('📝 Atualizando dados:', updateData);
+        console.log('📝 Atualizando dados:', JSON.stringify(updateData));
         
+        // Salva no banco - usando update com objeto completo para garantir persistência
         DB.update('certificados', certId, updateData);
         
+        // 🔥 FORÇA sincronização imediata com Firestore
+        if (typeof FirestoreService !== 'undefined') {
+            try {
+                const certAtualizado = CertificadoService.getCertificado(certId);
+                if (certAtualizado) {
+                    FirestoreService.update('certificados', certId, certAtualizado).catch(err => {
+                        console.warn('⚠️ Erro na sincronização Firestore:', err);
+                    });
+                }
+            } catch (e) {
+                console.warn('⚠️ Erro na sincronização Firestore:', e);
+            }
+        }
+        
+        // 🔥 Atualiza a interface imediatamente
+        const infoEl = document.getElementById('cert' + (tipo === 'tecnico' ? 'Tecnico' : 'Operacional') + 'Info_' + certId);
+        if (infoEl) {
+            infoEl.textContent = membro.nome + (membro.registro ? ' - ' + membro.registro : '');
+        }
+        
+        // Mantém o select sincronizado
+        const selectEl = document.getElementById('cert' + (tipo === 'tecnico' ? 'Tecnico' : 'Operacional') + 'Select_' + certId);
+        if (selectEl) {
+            selectEl.value = membroId;
+        }
+        
+        // 🔥 Verifica se o dado foi realmente persistido
         setTimeout(function() {
-            visualizarCertificado(certId);
-        }, 100);
+            const certVerificado = CertificadoService.getCertificado(certId);
+            if (certVerificado) {
+                const responsavelSalvo = certVerificado.responsaveis?.[campo];
+                if (responsavelSalvo && String(responsavelSalvo.id) === String(membro.id)) {
+                    console.log('✅ Responsável salvo com sucesso:', responsavelSalvo.nome);
+                } else {
+                    console.warn('⚠️ Responsável não foi salvo corretamente, forçando re-salvamento...');
+                    // Tenta salvar novamente com o objeto completo
+                    DB.update('certificados', certId, updateData);
+                }
+            }
+            // 🔥 Força re-renderização completa para garantir consistência visual
+            renderCertificados();
+        }, 300);
     };
 
     window.editarObservacaoCertificado = function(certId) {
@@ -2792,11 +3034,17 @@
         return 'Serviço #' + String(servico.id).padStart(3, '0') + ': ' + servico.tipo + ' - ' + statusInfo.emoji + ' ' + statusInfo.label + ' (R$ ' + valorFormatado + ')';
     }
 
+    // 🔥 CORREÇÃO: renderMapaIscas agora força recarregamento dos dados
     function renderMapaIscas(filtro) {
+        // Força limpeza do cache para garantir dados atualizados
+        DB.forceClearCache('pontosIscas');
+        
         if (filtro) {
             filtrosMapa.busca = filtro.toLowerCase();
             document.getElementById('filtroMapaBusca').value = filtro;
         }
+        
+        // Reaplica os filtros e renderiza
         renderMapaComFiltros();
     }
 
@@ -2915,7 +3163,7 @@
             const tipoLabel = CertificadoService._getTipoLabel(c.tipo);
 
             return `
-                <div class="certificado-card">
+                <div class="certificado-card" id="certificado-card-${c.id}">
                     <div class="cert-info">
                         <div class="cert-titulo">
                             <i class="fas fa-${c.tipo === 'Desinsetização' ? 'bug' : c.tipo === 'Desratização' ? 'rat' : 'tree'}" 
@@ -2977,7 +3225,7 @@
         abrirModal('Novo Certificado Técnico', `
             <div class="form-group">
                 <label>Serviço Concluído *</label>
-                <select id="modalCertServico">
+                <select id="modalCertServico" style="width:100%;padding:12px 16px;border:1px solid #dce4ec;border-radius:12px;font-size:0.95rem;outline:none;">
                     ${servicos.map(s => {
                         const cliente = getCliente(s.clienteId);
                         const clienteNome = cliente ? cliente.nome : 'Cliente #' + s.clienteId;
@@ -2988,7 +3236,7 @@
             </div>
             <div class="form-group">
                 <label>Tipo do Certificado</label>
-                <select id="modalCertTipo">
+                <select id="modalCertTipo" style="width:100%;padding:12px 16px;border:1px solid #dce4ec;border-radius:12px;font-size:0.95rem;outline:none;">
                     <option value="Desinsetização">Desinsetização</option>
                     <option value="Desratização">Desratização</option>
                     <option value="Descupinização">Descupinização</option>
@@ -3001,9 +3249,9 @@
                     incluindo produtos utilizados, métodos empregados e observações.
                 </p>
             </div>
-            <div class="modal-footer">
-                <button class="btn-secondary" onclick="fecharModal()">Cancelar</button>
-                <button class="btn-primary" onclick="criarCertificado()">
+            <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:12px;margin-top:24px;padding-top:20px;border-top:1px solid #e8eff5;">
+                <button class="btn-secondary" onclick="fecharModal()" style="background:#e8eff5;color:#1f3a4b;border:none;padding:12px 28px;border-radius:40px;font-weight:600;cursor:pointer;transition:0.2s;">Cancelar</button>
+                <button class="btn-primary" onclick="criarCertificado()" style="background:#0b2a3b;color:white;border:none;padding:12px 28px;border-radius:40px;font-weight:600;cursor:pointer;transition:0.2s;display:inline-flex;align-items:center;gap:10px;box-shadow:0 4px 10px rgba(11,42,59,0.2);">
                     <i class="fas fa-certificate"></i> Gerar Certificado
                 </button>
             </div>
@@ -3014,9 +3262,11 @@
         if (selectServico && selectTipo) {
             selectServico.addEventListener('change', function() {
                 const servicoId = parseInt(this.value);
-                const servico = DB.getById('servicos', servicoId);
-                if (servico && servico.tipo) {
-                    selectTipo.value = servico.tipo;
+                if (servicoId) {
+                    const servico = DB.getById('servicos', servicoId);
+                    if (servico && servico.tipo) {
+                        selectTipo.value = servico.tipo;
+                    }
                 }
             });
         }
@@ -3034,7 +3284,32 @@
         try {
             const certificado = CertificadoService.gerarCertificado(servicoId, tipo);
             fecharModal();
+            
+            console.log('✅ Certificado criado:', certificado.id);
+            
             renderCertificados();
+            preencherFiltroCertificados();
+            
+            if (typeof renderAll === 'function') {
+                renderAll();
+            }
+            
+            setTimeout(function() {
+                const card = document.getElementById('certificado-card-' + certificado.id);
+                if (card) {
+                    console.log('✅ Card do certificado encontrado na DOM');
+                    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    card.style.transition = 'all 0.5s ease';
+                    card.style.boxShadow = '0 0 0 3px #1d7a6b, 0 8px 30px rgba(29,122,107,0.3)';
+                    setTimeout(function() {
+                        card.style.boxShadow = '';
+                    }, 3000);
+                } else {
+                    console.warn('⚠️ Card do certificado não encontrado, forçando nova renderização');
+                    renderCertificados();
+                }
+            }, 300);
+            
             alert('✅ Certificado gerado com sucesso!');
             
             if (confirm('Deseja visualizar o certificado agora?')) {
@@ -3045,6 +3320,7 @@
         }
     };
 
+    // 🔥 CORREÇÃO: Função visualizarCertificado com atualização imediata
     window.visualizarCertificado = function(id) {
         const certificado = CertificadoService.getCertificado(id);
         if (!certificado) {
@@ -3058,18 +3334,23 @@
         const titleEl = document.getElementById('modalOSTitle');
         const bodyEl = document.getElementById('modalOSBody');
         
-        if (titleEl) titleEl.textContent = 'Certificado Técnico';
+        if (titleEl) titleEl.textContent = 'Certificado Técnico - ' + certificado.tipo;
         if (bodyEl) {
             bodyEl.innerHTML = `
                 ${html}
-                <div style="margin-top:20px;display:flex;gap:12px;justify-content:flex-end;border-top:1px solid #e8eff5;padding-top:20px;">
-                    <button class="btn-secondary" onclick="fecharModalOS()">Fechar</button>
-                    <button class="btn-primary" onclick="imprimirCertificado('${id}')"><i class="fas fa-print"></i> Imprimir</button>
-                    <button class="btn-danger" onclick="baixarPDFCertificado('${id}')"><i class="fas fa-file-pdf"></i> Baixar PDF</button>
+                <div style="margin-top:20px;display:flex;gap:12px;justify-content:flex-end;border-top:1px solid #e8eff5;padding-top:20px;flex-wrap:wrap;">
+                    <button class="btn-secondary" onclick="fecharModalOS()" style="background:#e8eff5;color:#1f3a4b;border:none;padding:10px 24px;border-radius:40px;font-weight:600;cursor:pointer;transition:0.2s;">Fechar</button>
+                    <button class="btn-primary" onclick="imprimirCertificado('${id}')" style="background:#0b2a3b;color:white;border:none;padding:10px 24px;border-radius:40px;font-weight:600;cursor:pointer;transition:0.2s;display:inline-flex;align-items:center;gap:8px;"><i class="fas fa-print"></i> Imprimir</button>
+                    <button class="btn-danger" onclick="baixarPDFCertificado('${id}')" style="background:#c0392b;color:white;border:none;padding:10px 24px;border-radius:40px;font-weight:600;cursor:pointer;transition:0.2s;display:inline-flex;align-items:center;gap:8px;"><i class="fas fa-file-pdf"></i> Baixar PDF</button>
                 </div>
             `;
         }
         if (overlay) overlay.classList.add('active');
+    };
+
+    window.fecharModalOS = function () {
+        var overlay = document.getElementById('modalOSOverlay');
+        if (overlay) overlay.classList.remove('active');
     };
 
     window.imprimirCertificado = function(id) {
@@ -4447,7 +4728,7 @@
     };
 
     // =============================================
-    // ===== FUNÇÕES DE MAPA DE ISCAS =====
+    // ===== FUNÇÕES DE MAPA DE ISCAS (CORRIGIDAS) =====
     // =============================================
 
     window.criarNovoPonto = function () {
@@ -4466,12 +4747,30 @@
             return;
         }
 
-        DB.add('pontosIscas', {
-            tipo: tipo, nome: nome, clienteId: clienteId, endereco: endereco, posicao: posicao,
-            dataInstalacao: dataInstalacao, ultimaManutencao: ultimaManutencao, status: status, observacoes: observacoes
+        var newPonto = DB.add('pontosIscas', {
+            tipo: tipo, 
+            nome: nome, 
+            clienteId: clienteId, 
+            endereco: endereco, 
+            posicao: posicao,
+            dataInstalacao: dataInstalacao, 
+            ultimaManutencao: ultimaManutencao, 
+            status: status, 
+            observacoes: observacoes
         });
+        
         fecharModal();
-        renderAll();
+        
+        // 🔥 CORREÇÃO: Força atualização imediata do mapa
+        DB.forceClearCache('pontosIscas');
+        renderMapaComFiltros();
+        preencherFiltrosClientesMapa();
+        
+        // Dispara evento para atualização
+        document.dispatchEvent(new CustomEvent('pontoIscaAtualizado', { 
+            detail: { item: newPonto, action: 'add' } 
+        }));
+        
         alert('Ponto de isca criado com sucesso!');
     };
 
@@ -4545,16 +4844,35 @@
             return;
         }
 
-        DB.update('pontosIscas', id, { tipo: tipo, nome: nome, clienteId: clienteId, endereco: endereco, posicao: posicao, dataInstalacao: dataInstalacao, ultimaManutencao: ultimaManutencao, status: status, observacoes: observacoes });
+        DB.update('pontosIscas', id, { 
+            tipo: tipo, 
+            nome: nome, 
+            clienteId: clienteId, 
+            endereco: endereco, 
+            posicao: posicao, 
+            dataInstalacao: dataInstalacao, 
+            ultimaManutencao: ultimaManutencao, 
+            status: status, 
+            observacoes: observacoes 
+        });
+        
         fecharModal();
-        renderAll();
+        
+        // 🔥 CORREÇÃO: Força atualização imediata do mapa
+        DB.forceClearCache('pontosIscas');
+        renderMapaComFiltros();
+        preencherFiltrosClientesMapa();
+        
         alert('Ponto atualizado com sucesso!');
     };
 
     window.excluirPontoIsca = function (id) {
         if (confirm('Tem certeza que deseja excluir este ponto de isca?')) {
             DB.remove('pontosIscas', id);
-            renderAll();
+            // 🔥 CORREÇÃO: Força atualização imediata do mapa
+            DB.forceClearCache('pontosIscas');
+            renderMapaComFiltros();
+            preencherFiltrosClientesMapa();
         }
     };
 
@@ -4564,7 +4882,9 @@
         var statusMap = { 'ativo': 'manutencao', 'manutencao': 'inativo', 'inativo': 'ativo' };
         var novoStatus = statusMap[p.status] || 'ativo';
         DB.update('pontosIscas', id, { status: novoStatus });
-        renderAll();
+        // 🔥 CORREÇÃO: Força atualização imediata do mapa
+        DB.forceClearCache('pontosIscas');
+        renderMapaComFiltros();
     };
 
     // =============================================
@@ -4617,8 +4937,12 @@
         renderMapaComFiltros();
     };
 
+    // 🔥 CORREÇÃO: renderMapaComFiltros agora força recarregamento dos dados
     function renderMapaComFiltros() {
-        var pontos = DB.getAll('pontosIscas');
+        // Força a limpeza do cache para garantir dados atualizados
+        DB.forceClearCache('pontosIscas');
+        
+        var pontos = DB.getAll('pontosIscas', true); // true = força refresh
         var container = document.getElementById('mapaGrid');
         if (!container) return;
 

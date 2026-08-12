@@ -103,9 +103,27 @@ const CertificadoService = {
         };
 
         // Salva o certificado
-        DB.add('certificados', certificado);
+        const certificadoSalvo = DB.add('certificados', certificado);
+        
+        // 🔥 FORÇA SINCRONIZAÇÃO IMEDIATA
+        if (typeof FirestoreService !== 'undefined') {
+            try {
+                FirestoreService.sincronizarColecao('certificados').then(() => {
+                    console.log('✅ Certificado sincronizado com o Firestore:', certificadoSalvo.id);
+                }).catch(err => {
+                    console.warn('⚠️ Erro ao sincronizar certificado:', err);
+                });
+            } catch (e) {
+                console.warn('⚠️ Erro ao sincronizar certificado:', e);
+            }
+        }
+        
+        // 🔥 DISPARA EVENTO PARA ATUALIZAR INTERFACE
+        document.dispatchEvent(new CustomEvent('certificadoAtualizado', { 
+            detail: { certificado: certificadoSalvo, action: 'add' } 
+        }));
 
-        return certificado;
+        return certificadoSalvo;
     },
 
     /**

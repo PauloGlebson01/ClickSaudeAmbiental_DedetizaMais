@@ -1,4 +1,6 @@
 // firebase-config.js - Configuração do Firebase com suporte multi-empresa
+
+//CONFIGURAÇÕES DE DADOS
 const firebaseConfig = {
     apiKey: "AIzaSyDHt9ZAm6LfU77RP4OVvwxCyZ7q-NYoi00",
     authDomain: "dedetiza-mais.firebaseapp.com",

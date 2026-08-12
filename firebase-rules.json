@@ -49,6 +49,14 @@
     "configuracoes": {
       ".read": "auth !== null",
       ".write": "auth !== null"
+    },
+    "orcamentos": {
+      ".read": "auth !== null",
+      ".write": "auth !== null"
+    },
+    "certificados": {
+      ".read": "auth !== null",
+      ".write": "auth !== null"
     }
   },
   "firestore": {
@@ -100,6 +108,14 @@
         ".write": "auth !== null"
       },
       "configuracoes": {
+        ".read": "auth !== null",
+        ".write": "auth !== null"
+      },
+      "orcamentos": {
+        ".read": "auth !== null",
+        ".write": "auth !== null"
+      },
+      "certificados": {
         ".read": "auth !== null",
         ".write": "auth !== null"
       }

@@ -1,236 +1,14 @@
-// login.js - Sistema de Login Multi-Empresa (MÚLTIPLOS ADMINS COMPARTILHADOS)
-// CORRIGIDO - Permite cadastro de múltiplos administradores
+// login.js - Sistema de Login Simplificado (Empresa Única)
 
 document.addEventListener('DOMContentLoaded', function() {
     
     console.log('🔍 Inicializando sistema de login...');
     console.log('📌 Firebase disponível:', typeof firebase !== 'undefined');
     console.log('📌 AuthService disponível:', typeof AuthService !== 'undefined');
-    console.log('📌 EmpresaManager disponível:', typeof EmpresaManager !== 'undefined');
 
-    // ===== VERIFICA SE O AUTH SERVICE FOI CARREGADO =====
-    function verificarServicos() {
-        if (typeof AuthService === 'undefined') {
-            console.error('❌ AuthService não carregado!');
-            
-            var scripts = document.querySelectorAll('script');
-            var firebaseServiceLoaded = false;
-            scripts.forEach(function(script) {
-                if (script.src && script.src.includes('firebase-service.js')) {
-                    firebaseServiceLoaded = true;
-                }
-            });
-            
-            if (!firebaseServiceLoaded) {
-                console.error('❌ firebase-service.js não encontrado no HTML!');
-                document.getElementById('loginError').textContent = 'Erro ao carregar o sistema. Verifique sua conexão com a internet e tente novamente.';
-                document.getElementById('loginError').classList.add('show');
-                return false;
-            }
-            
-            setTimeout(function() {
-                if (typeof AuthService !== 'undefined') {
-                    console.log('✅ AuthService carregado após retry!');
-                    document.getElementById('loginError').classList.remove('show');
-                    return true;
-                } else {
-                    console.error('❌ AuthService ainda não disponível após retry');
-                    document.getElementById('loginError').textContent = 'Erro ao carregar o sistema. Recarregue a página ou verifique sua conexão.';
-                    document.getElementById('loginError').classList.add('show');
-                    return false;
-                }
-            }, 1000);
-            
-            return false;
-        }
-        
-        console.log('✅ AuthService carregado com sucesso!');
-        return true;
-    }
-
-    // ===== ESPERA O AUTH SERVICE SER CARREGADO =====
-    function aguardarAuthService() {
-        return new Promise(function(resolve) {
-            if (typeof AuthService !== 'undefined') {
-                resolve(true);
-                return;
-            }
-            
-            var tentativas = 0;
-            var maxTentativas = 20;
-            
-            var interval = setInterval(function() {
-                tentativas++;
-                if (typeof AuthService !== 'undefined') {
-                    clearInterval(interval);
-                    resolve(true);
-                } else if (tentativas >= maxTentativas) {
-                    clearInterval(interval);
-                    resolve(false);
-                }
-            }, 100);
-        });
-    }
-
-    // ===== MOSTRA EMPRESA NA TELA DE LOGIN =====
-    function mostrarEmpresaAtual() {
-        try {
-            const urlParams = new URLSearchParams(window.location.search);
-            const empresa = urlParams.get('empresa') || urlParams.get('e');
-            
-            if (empresa) {
-                const empresaInfo = EmpresaManager ? EmpresaManager.getEmpresa(empresa) : null;
-                const el = document.getElementById('empresaAtual');
-                if (el) {
-                    if (empresaInfo) {
-                        el.textContent = '🏢 ' + empresaInfo.nome;
-                        el.style.display = 'block';
-                    } else {
-                        el.textContent = '🏢 Sistema - Crie sua conta';
-                        el.style.display = 'block';
-                        el.style.color = '#1d7a6b';
-                    }
-                }
-            }
-        } catch (e) {
-            console.warn('Erro ao mostrar empresa:', e);
-        }
-    }
-
-    // ===== VERIFICA SE JÁ EXISTE UM ADMIN (APENAS PARA AVISO) =====
-    // 🔥 CORREÇÃO: NÃO BLOQUEIA MAIS O CADASTRO
-    async function verificarAdminExistente() {
-        try {
-            if (typeof AuthService === 'undefined') return;
-            
-            // Reseta cache e verifica
-            AuthService.resetAdminCache();
-            const hasAdmin = await AuthService._hasAdmin();
-            
-            const cadastroForm = document.getElementById('cadastroForm');
-            const cadastroLink = document.querySelector('.login-footer a[onclick*="mostrarCadastro"]');
-            const cadastroBtn = document.querySelector('.btn-cadastro');
-            const cadastroInputs = document.querySelectorAll('#cadastroForm input');
-            const formDesc = document.querySelector('#cadastroForm .form-desc');
-            
-            if (hasAdmin) {
-                console.log('ℹ️ Admin existente. Cadastro PERMITIDO para múltiplos admins.');
-                
-                // 🔥 CORREÇÃO: NÃO BLOQUEIA MAIS O CADASTRO
-                // Apenas mostra um aviso informativo
-                if (cadastroBtn) {
-                    cadastroBtn.disabled = false;
-                    cadastroBtn.innerHTML = '<i class="fas fa-user-plus"></i> Criar Conta';
-                    cadastroBtn.style.opacity = '1';
-                    cadastroBtn.style.cursor = 'pointer';
-                }
-                
-                cadastroInputs.forEach(input => {
-                    input.disabled = false;
-                    input.style.opacity = '1';
-                    input.style.cursor = '';
-                });
-                
-                if (formDesc) {
-                    formDesc.innerHTML = '🔓 Crie sua conta de administrador. Você terá acesso à mesma empresa que os demais administradores.';
-                    formDesc.style.color = '#006b4f';
-                    formDesc.style.padding = '12px 16px';
-                    formDesc.style.background = '#d1f0e5';
-                    formDesc.style.borderRadius = '8px';
-                    formDesc.style.borderLeft = '4px solid #006b4f';
-                }
-                
-                const termosCheckbox = document.getElementById('cadastroTermos');
-                if (termosCheckbox) {
-                    termosCheckbox.disabled = false;
-                }
-                
-                if (cadastroLink) {
-                    cadastroLink.style.pointerEvents = 'auto';
-                    cadastroLink.style.opacity = '1';
-                }
-            } else {
-                console.log('ℹ️ Nenhum admin encontrado. Cadastro do primeiro admin liberado!');
-                
-                // Habilita o cadastro (primeiro admin)
-                if (cadastroBtn) {
-                    cadastroBtn.disabled = false;
-                    cadastroBtn.innerHTML = '<i class="fas fa-user-plus"></i> Criar Conta';
-                    cadastroBtn.style.opacity = '1';
-                    cadastroBtn.style.cursor = 'pointer';
-                }
-                
-                cadastroInputs.forEach(input => {
-                    input.disabled = false;
-                    input.style.opacity = '1';
-                    input.style.cursor = '';
-                });
-                
-                if (formDesc) {
-                    formDesc.innerHTML = '🌟 Crie sua conta de administrador. Você será o primeiro administrador do sistema.';
-                    formDesc.style.color = '#1a5276';
-                    formDesc.style.padding = '12px 16px';
-                    formDesc.style.background = '#d6eaf8';
-                    formDesc.style.borderRadius = '8px';
-                    formDesc.style.borderLeft = '4px solid #1a5276';
-                }
-                
-                const termosCheckbox = document.getElementById('cadastroTermos');
-                if (termosCheckbox) {
-                    termosCheckbox.disabled = false;
-                }
-                
-                if (cadastroLink) {
-                    cadastroLink.style.pointerEvents = 'auto';
-                    cadastroLink.style.opacity = '1';
-                }
-            }
-        } catch (e) {
-            console.warn('Erro ao verificar admin:', e);
-            // Em caso de erro, libera o cadastro
-            liberarCadastro();
-        }
-    }
-
-    function liberarCadastro() {
-        const cadastroBtn = document.querySelector('.btn-cadastro');
-        const cadastroInputs = document.querySelectorAll('#cadastroForm input');
-        const formDesc = document.querySelector('#cadastroForm .form-desc');
-        const cadastroLink = document.querySelector('.login-footer a[onclick*="mostrarCadastro"]');
-        const termosCheckbox = document.getElementById('cadastroTermos');
-        
-        if (cadastroBtn) {
-            cadastroBtn.disabled = false;
-            cadastroBtn.innerHTML = '<i class="fas fa-user-plus"></i> Criar Conta';
-            cadastroBtn.style.opacity = '1';
-            cadastroBtn.style.cursor = 'pointer';
-        }
-        
-        cadastroInputs.forEach(input => {
-            input.disabled = false;
-            input.style.opacity = '1';
-            input.style.cursor = '';
-        });
-        
-        if (formDesc) {
-            formDesc.innerHTML = 'Crie sua conta de administrador para acessar o sistema.';
-            formDesc.style.color = '';
-            formDesc.style.padding = '';
-            formDesc.style.background = '';
-            formDesc.style.borderLeft = '';
-        }
-        
-        if (termosCheckbox) {
-            termosCheckbox.disabled = false;
-        }
-        
-        if (cadastroLink) {
-            cadastroLink.style.pointerEvents = 'auto';
-            cadastroLink.style.opacity = '1';
-        }
-    }
-
-    // ===== FUNÇÕES DE NAVEGAÇÃO =====
+    // ============================================
+    // FUNÇÕES DE NAVEGAÇÃO
+    // ============================================
     window.mostrarLogin = function() {
         document.querySelectorAll('.form-container').forEach(function(el) {
             el.classList.remove('active');
@@ -246,9 +24,6 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('cadastroForm').classList.add('active');
         document.getElementById('cadastroError').classList.remove('show');
         document.getElementById('cadastroSuccess').classList.remove('show');
-        
-        // Verifica novamente o status do admin ao abrir o cadastro
-        verificarAdminExistente();
     };
 
     window.mostrarRecuperar = function() {
@@ -273,15 +48,9 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     };
 
-    // ===== FORÇAR PRIMEIRO CADASTRO =====
-    window.forcarPrimeiroCadastro = function() {
-        console.log('🔄 Forçando primeiro cadastro...');
-        liberarCadastro();
-        mostrarCadastro();
-        alert('✅ Cadastro liberado! Preencha os dados para criar um administrador.');
-    };
-
-    // ===== FUNÇÃO DE LOGIN =====
+    // ============================================
+    // FUNÇÃO DE LOGIN
+    // ============================================
     window.fazerLogin = async function() {
         var email = document.getElementById('loginUser').value.trim();
         var senha = document.getElementById('loginPassword').value;
@@ -306,52 +75,11 @@ document.addEventListener('DOMContentLoaded', function() {
         btnLogin.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Entrando...';
 
         try {
-            var urlParams = new URLSearchParams(window.location.search);
-            var empresaParam = urlParams.get('empresa') || urlParams.get('e');
-            
-            var result = await AuthService.login(email, senha, empresaParam);
+            var result = await AuthService.login(email, senha);
 
             if (result.success) {
-                var empresaId = result.empresaId || AuthService.getEmpresaAtual();
-                
-                if (result.user) {
-                    var userData = {
-                        uid: result.user.uid || 'user_' + Date.now(),
-                        email: email,
-                        nome: result.user.displayName || (result.userData && result.userData.nome) || email.split('@')[0],
-                        usuario: (result.userData && result.userData.usuario) || email.split('@')[0],
-                        perfil: result.perfil || 'admin'
-                    };
-                    
-                    if (typeof EmpresaManager !== 'undefined') {
-                        var sessao = EmpresaManager.getSessao(empresaId, userData.uid);
-                        if (sessao) {
-                            userData.nome = sessao.nome || userData.nome;
-                            userData.usuario = sessao.usuario || userData.usuario;
-                        }
-                    }
-                    
-                    if (typeof EmpresaManager !== 'undefined') {
-                        EmpresaManager.salvarSessao(empresaId, userData);
-                    }
-                    localStorage.setItem('dedetiza_session', JSON.stringify({
-                        ...userData,
-                        empresa: empresaId
-                    }));
-                }
-                
-                if (typeof FirestoreService !== 'undefined') {
-                    FirestoreService.iniciarObservadores(() => {
-                        console.log('🔄 Dados atualizados em tempo real!');
-                        if (typeof window.renderAll === 'function') {
-                            window.renderAll();
-                        }
-                    });
-                }
-                
-                var url = new URL('index.html', window.location.origin);
-                url.searchParams.set('empresa', empresaId);
-                window.location.href = url.toString();
+                // Redireciona para o dashboard
+                window.location.href = 'index.html';
             } else {
                 errorEl.textContent = result.message;
                 errorEl.classList.add('show');
@@ -372,7 +100,9 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     };
 
-    // ===== FUNÇÃO DE CADASTRO - CORRIGIDA =====
+    // ============================================
+    // FUNÇÃO DE CADASTRO
+    // ============================================
     window.fazerCadastro = async function() {
         var nome = document.getElementById('cadastroNome').value.trim();
         var usuario = document.getElementById('cadastroUser').value.trim();
@@ -393,9 +123,6 @@ document.addEventListener('DOMContentLoaded', function() {
             errorEl.classList.add('show');
             return;
         }
-
-        // 🔥 CORREÇÃO: NÃO BLOQUEIA MAIS O CADASTRO SE JÁ EXISTE ADMIN
-        // Apenas verifica para mostrar mensagem, mas permite o cadastro
 
         if (!nome || !usuario || !email || !senha || !confirm) {
             errorEl.textContent = 'Preencha todos os campos.';
@@ -425,10 +152,7 @@ document.addEventListener('DOMContentLoaded', function() {
         btnCadastro.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Criando...';
 
         try {
-            var urlParams = new URLSearchParams(window.location.search);
-            var empresaParam = urlParams.get('empresa') || urlParams.get('e') || null;
-            
-            var result = await AuthService.cadastrar(email, senha, nome, usuario, empresaParam);
+            var result = await AuthService.cadastrar(email, senha, nome, usuario);
 
             if (result.success) {
                 successEl.textContent = '✅ ' + result.message + ' Redirecionando...';
@@ -441,29 +165,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.getElementById('cadastroConfirm').value = '';
                 document.getElementById('cadastroTermos').checked = false;
 
-                var empresaId = result.empresaId || AuthService.getEmpresaAtual();
-
-                if (result.user) {
-                    var userData = {
-                        uid: result.user.uid || 'user_' + Date.now(),
-                        email: email,
-                        nome: nome,
-                        usuario: usuario,
-                        perfil: 'admin'
-                    };
-                    if (typeof EmpresaManager !== 'undefined') {
-                        EmpresaManager.salvarSessao(empresaId, userData);
-                    }
-                    localStorage.setItem('dedetiza_session', JSON.stringify({
-                        ...userData,
-                        empresa: empresaId
-                    }));
-                }
-
                 setTimeout(function() {
-                    var url = new URL('index.html', window.location.origin);
-                    url.searchParams.set('empresa', empresaId);
-                    window.location.href = url.toString();
+                    window.location.href = 'index.html';
                 }, 2000);
             } else {
                 errorEl.textContent = result.message;
@@ -479,7 +182,9 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     };
 
-    // ===== RECUPERAR SENHA =====
+    // ============================================
+    // RECUPERAR SENHA
+    // ============================================
     window.recuperarSenha = async function() {
         var email = document.getElementById('recuperarEmail').value.trim();
         var errorEl = document.getElementById('recuperarError');
@@ -529,127 +234,31 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     };
 
-    // ===== INICIALIZAR EVENT LISTENERS =====
-    function iniciarEventListeners() {
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter') {
-                if (document.getElementById('loginForm').classList.contains('active')) {
-                    e.preventDefault();
-                    window.fazerLogin();
-                } else if (document.getElementById('cadastroForm').classList.contains('active')) {
-                    e.preventDefault();
-                    window.fazerCadastro();
-                } else if (document.getElementById('recuperarForm').classList.contains('active')) {
-                    e.preventDefault();
-                    window.recuperarSenha();
-                }
-            }
-        });
-
-        // Botão de login
-        var loginBtn = document.querySelector('.btn-login');
-        if (loginBtn) {
-            loginBtn.addEventListener('click', function(e) {
-                e.preventDefault();
-                if (document.getElementById('loginForm').classList.contains('active')) {
-                    window.fazerLogin();
-                } else if (document.getElementById('recuperarForm').classList.contains('active')) {
-                    window.recuperarSenha();
-                }
-            });
-        }
-
-        console.log('🔐 Sistema de Login Multi-Empresa carregado!');
-        console.log('📌 MODO: Múltiplos administradores compartilham a mesma empresa');
-        console.log('📌 Para forçar primeiro cadastro, use: forcarPrimeiroCadastro()');
+    // ============================================
+    // INICIALIZAÇÃO
+    // ============================================
+    
+    // Verifica se já está logado
+    if (typeof AuthService !== 'undefined' && AuthService.isLoggedIn()) {
+        window.location.href = 'index.html';
     }
 
-    // ===== INICIALIZAÇÃO =====
-    aguardarAuthService().then(function(carregado) {
-        if (!carregado) {
-            console.error('❌ AuthService não carregou após aguardar!');
-            document.getElementById('loginError').textContent = 'Erro ao carregar o sistema. Verifique sua conexão com a internet e recarregue a página.';
-            document.getElementById('loginError').classList.add('show');
-            return;
+    // Event listeners para Enter
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            if (document.getElementById('loginForm').classList.contains('active')) {
+                e.preventDefault();
+                window.fazerLogin();
+            } else if (document.getElementById('cadastroForm').classList.contains('active')) {
+                e.preventDefault();
+                window.fazerCadastro();
+            } else if (document.getElementById('recuperarForm').classList.contains('active')) {
+                e.preventDefault();
+                window.recuperarSenha();
+            }
         }
-        
-        console.log('✅ Sistema inicializado com sucesso!');
-        mostrarEmpresaAtual();
-        iniciarEventListeners();
-        
-        // Verifica se já existe admin (apenas para aviso)
-        setTimeout(function() {
-            verificarAdminExistente();
-        }, 500);
     });
 
-    // Fallback
-    if (typeof AuthService === 'undefined') {
-        console.log('🔄 Tentando carregar AuthService novamente...');
-        var checkInterval = setInterval(function() {
-            if (typeof AuthService !== 'undefined') {
-                clearInterval(checkInterval);
-                console.log('✅ AuthService carregado!');
-                mostrarEmpresaAtual();
-                iniciarEventListeners();
-                verificarAdminExistente();
-            }
-        }, 500);
-        
-        setTimeout(function() {
-            clearInterval(checkInterval);
-            if (typeof AuthService === 'undefined') {
-                console.error('❌ AuthService não carregou após timeout!');
-                document.getElementById('loginError').textContent = 'Erro ao carregar o sistema. Verifique sua conexão com a internet e recarregue a página.';
-                document.getElementById('loginError').classList.add('show');
-            }
-        }, 10000);
-    }
+    console.log('🔐 Sistema de Login carregado!');
+    console.log('📌 Empresa única - dados compartilhados em tempo real');
 });
-
-// ===== FUNÇÕES DE RESET E FORÇA =====
-window.resetarCadastro = function() {
-    try {
-        localStorage.removeItem('dedetiza_users');
-        localStorage.removeItem('dedetiza_sessoes');
-        localStorage.removeItem('dedetiza_session_atual');
-        localStorage.removeItem('dedetiza_session');
-        localStorage.removeItem('dedetiza_ultima_empresa');
-        
-        if (typeof AuthService !== 'undefined' && AuthService._adminCache !== undefined) {
-            AuthService._adminCache = null;
-            AuthService._adminCacheTime = 0;
-        }
-        
-        console.log('✅ Cache resetado com sucesso!');
-        alert('✅ Cache resetado! Recarregue a página e tente cadastrar novamente.');
-        location.reload();
-    } catch (e) {
-        console.error('Erro ao resetar:', e);
-        alert('Erro ao resetar. Tente limpar manualmente o localStorage (F12 > Application > Local Storage > Clear).');
-    }
-};
-
-window.forcarPrimeiroCadastro = function() {
-    console.log('🔄 Forçando primeiro cadastro...');
-    
-    try {
-        localStorage.removeItem('dedetiza_users');
-        if (typeof AuthService !== 'undefined' && AuthService._adminCache !== undefined) {
-            AuthService._adminCache = null;
-            AuthService._adminCacheTime = 0;
-        }
-        console.log('✅ Cache de usuários resetado!');
-    } catch (e) {
-        console.warn('Erro ao resetar cache:', e);
-    }
-    
-    try {
-        liberarCadastro();
-        mostrarCadastro();
-        alert('✅ Cadastro liberado! Preencha os dados para criar um administrador.');
-    } catch (e) {
-        console.error('Erro ao liberar cadastro:', e);
-        alert('Erro ao liberar cadastro. Tente recarregar a página e usar o botão "Resetar cadastro".');
-    }
-};

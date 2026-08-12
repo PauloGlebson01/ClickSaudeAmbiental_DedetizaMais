@@ -2078,3 +2078,20 @@ td i:hover { background: #e8eff5; }
         justify-content: flex-start;
     }
 }
+
+/* ===== CORREÇÃO PARA OBSERVAÇÃO DO CERTIFICADO ===== */
+#certObservacao_* {
+    white-space: pre-wrap !important;
+    word-wrap: break-word !important;
+    overflow-y: auto !important;
+    max-height: 200px !important;
+    font-family: inherit !important;
+    line-height: 1.6 !important;
+}
+
+/* Estilo para o campo de observação em edição */
+[contenteditable="true"]:focus {
+    outline: 2px solid #1d7a6b;
+    outline-offset: 2px;
+    background: #fafffe;
+}
