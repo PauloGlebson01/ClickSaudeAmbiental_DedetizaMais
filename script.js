@@ -17,6 +17,8 @@
 // CORRIGIDO - Nome do admin sendo exibido corretamente
 // CORRIGIDO - Mapa de Iscas: atualização automática após criar/editar/excluir
 // CORRIGIDO - Certificado: seleção de responsáveis persistindo corretamente (FIX FINAL)
+// CORRIGIDO - Duplicação de serviços na agenda (verificação de existência)
+// CORRIGIDO - Atualização automática de relatórios sem recarregar página
 
 // =============================================
 // ===== PREVENÇÃO DE ERROS DE REFERÊNCIA =====
@@ -877,7 +879,74 @@
         }
     };
 
-    // ===== LISTENER PARA ATUALIZAÇÃO AUTOMÁTICA DO ESTOQUE =====
+    // =============================================
+    // ===== LISTENERS PARA ATUALIZAÇÃO AUTOMÁTICA =====
+    // =============================================
+
+    // ===== LISTENER PARA RELATÓRIOS - ATUALIZAÇÃO AUTOMÁTICA =====
+    document.addEventListener('dadosAtualizados', function(e) {
+        const detail = e.detail;
+        if (!detail) return;
+        
+        // Se a coleção for relatorios, atualiza a interface
+        if (detail.collection === 'relatorios') {
+            console.log('🔄 Relatório atualizado automaticamente:', detail.action);
+            
+            // Força limpeza do cache
+            DB.forceClearCache('relatorios');
+            
+            // Verifica se a página de relatórios está ativa
+            const relatorioPage = document.getElementById('page-relatorios');
+            if (relatorioPage && relatorioPage.classList.contains('active')) {
+                renderRelatorios();
+            }
+            
+            // Se o modal de visualização estiver aberto, atualiza também
+            const modalOverlay = document.getElementById('modalRelatorioOverlay');
+            if (modalOverlay && modalOverlay.classList.contains('active')) {
+                const id = window._relatorioVisualizandoId;
+                if (id) {
+                    setTimeout(function() {
+                        visualizarRelatorio(id);
+                    }, 100);
+                }
+            }
+        }
+        
+        // Se a coleção for servicos, atualiza a agenda
+        if (detail.collection === 'servicos') {
+            console.log('🔄 Serviço atualizado, atualizando agenda...');
+            const agendaPage = document.getElementById('page-agenda');
+            if (agendaPage && agendaPage.classList.contains('active')) {
+                renderAgenda();
+            }
+        }
+    });
+
+    // ===== LISTENER PARA RELATÓRIO ATUALIZADO =====
+    document.addEventListener('relatorioAtualizado', function(e) {
+        console.log('🔄 Relatório atualizado via evento:', e.detail);
+        DB.forceClearCache('relatorios');
+        
+        // Verifica se a página de relatórios está ativa
+        var relatorioPage = document.getElementById('page-relatorios');
+        if (relatorioPage && relatorioPage.classList.contains('active')) {
+            renderRelatorios();
+        }
+        
+        // Se o modal de visualização estiver aberto, atualiza
+        var modalOverlay = document.getElementById('modalRelatorioOverlay');
+        if (modalOverlay && modalOverlay.classList.contains('active')) {
+            var id = window._relatorioVisualizandoId;
+            if (id) {
+                setTimeout(function() {
+                    visualizarRelatorio(id);
+                }, 100);
+            }
+        }
+    });
+
+    // ===== LISTENER PARA ESTOQUE =====
     document.addEventListener('estoqueAtualizado', function(e) {
         console.log('🔄 Estoque atualizado automaticamente:', e.detail);
         if (e.detail.action === 'add') {
@@ -901,16 +970,13 @@
     document.addEventListener('certificadoAtualizado', function(e) {
         console.log('🔄 Certificado atualizado automaticamente:', e.detail);
         if (e.detail.action === 'add') {
-            // 🔥 ATUALIZA A LISTA DE CERTIFICADOS IMEDIATAMENTE
             renderCertificados();
             preencherFiltroCertificados();
             
-            // 🔥 FORÇA RENDERIZAÇÃO COMPLETA
             if (typeof renderAll === 'function') {
                 renderAll();
             }
             
-            // 🔥 VERIFICA SE O CARD FOI ADICIONADO
             const item = e.detail.item;
             if (item && item.id) {
                 setTimeout(function() {
@@ -929,20 +995,12 @@
         }
     });
 
-    // 🔥 CORREÇÃO: LISTENER PARA MAPA DE ISCAS
+    // ===== LISTENER PARA MAPA DE ISCAS =====
     document.addEventListener('pontoIscaAtualizado', function(e) {
         console.log('🔄 Ponto de isca atualizado automaticamente:', e.detail);
-        
-        // Força limpeza do cache e recarregamento
         DB.forceClearCache('pontosIscas');
-        
-        // Reaplica os filtros e renderiza o mapa
         renderMapaComFiltros();
-        
-        // Atualiza os filtros também
         preencherFiltrosClientesMapa();
-        
-        // Se houver renderização completa, executa
         if (typeof renderAll === 'function') {
             renderAll();
         }
@@ -1025,7 +1083,6 @@
 
             const certificadoSalvo = DB.add('certificados', certificado);
             
-            // 🔥 FORÇA SINCRONIZAÇÃO IMEDIATA
             if (typeof FirestoreService !== 'undefined') {
                 try {
                     FirestoreService.sincronizarColecao('certificados').then(() => {
@@ -1038,7 +1095,6 @@
                 }
             }
             
-            // 🔥 DISPARA EVENTO PARA ATUALIZAR INTERFACE
             setTimeout(function() {
                 document.dispatchEvent(new CustomEvent('certificadoAtualizado', { 
                     detail: { certificado: certificadoSalvo, action: 'add', item: certificadoSalvo } 
@@ -1159,13 +1215,11 @@
             return data.toLocaleDateString('pt-BR');
         },
 
-        // 🔥 CORREÇÃO FINAL: renderizarCertificado com persistência garantida
         renderizarCertificado: function(certificado) {
             if (!certificado) return '<p>Certificado não encontrado</p>';
 
             const c = certificado;
             
-            // Busca equipe com filtro para técnicos
             const equipe = DB.getAll('equipe');
             
             const tecnicos = equipe.filter(m => {
@@ -1185,7 +1239,6 @@
                        cargo.includes('campo');
             });
 
-            // Se não houver técnicos, adiciona uma opção padrão
             if (tecnicos.length === 0) {
                 tecnicos.push({ 
                     id: 'default_tecnico', 
@@ -1204,11 +1257,9 @@
                 });
             }
 
-            // 🔥 CORREÇÃO: Busca os valores atuais do certificado com fallback seguro
             const tecnicoAtual = c.responsaveis?.tecnico || { id: null, nome: 'Selecione...', registro: '', atuacao: '' };
             const operacionalAtual = c.responsaveis?.operacional || { id: null, nome: 'Selecione...', registro: '', atuacao: '' };
 
-            // 🔥 CORREÇÃO: Gera os selects com os valores corretamente selecionados usando comparação de string
             const tecnicoOptions = tecnicos.map(m => {
                 const isSelected = (m.id !== null && tecnicoAtual.id !== null && String(m.id) === String(tecnicoAtual.id));
                 return `<option value="${m.id}" ${isSelected ? 'selected' : ''}>${m.nome} - ${m.cargo}</option>`;
@@ -1219,7 +1270,6 @@
                 return `<option value="${m.id}" ${isSelected ? 'selected' : ''}>${m.nome} - ${m.cargo}</option>`;
             }).join('');
 
-            // 🔥 CORREÇÃO: Verifica se o responsável selecionado existe na lista de opções
             const tecnicoSelecionado = tecnicos.find(m => String(m.id) === String(tecnicoAtual.id));
             const operacionalSelecionado = operacionais.find(m => String(m.id) === String(operacionalAtual.id));
 
@@ -1239,7 +1289,6 @@
                 (clienteInfo.nome || clienteInfo.razaoSocial) : 
                 clienteInfo.nome;
 
-            // 🔥 CORREÇÃO: Informação do responsável selecionado para exibição
             const tecnicoDisplay = tecnicoSelecionado ? 
                 `${tecnicoSelecionado.nome} - ${tecnicoSelecionado.registro || 'Sem registro'}` : 
                 'Nenhum técnico selecionado';
@@ -1318,7 +1367,6 @@
                             </table>
                         </div>
 
-                        <!-- OBSERVAÇÃO COM SCROLL E QUEBRA DE LINHA -->
                         <div style="margin:10px 0;padding:8px 12px;background:#f8fbfd;border-left:3px solid #0b2a3b;border-radius:4px;">
                             <div style="font-weight:700;font-size:10px;display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
                                 <span>OBSERVAÇÕES:</span>
@@ -1347,11 +1395,9 @@
                             </div>
                         </div>
 
-                        <!-- 🔥 RESPONSÁVEIS COM SELEÇÃO CORRIGIDA -->
                         <div style="margin:10px 0;">
                             <div style="font-weight:700;font-size:11px;margin-bottom:6px;">Responsáveis Técnicos:</div>
                             <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
-                                <!-- RESPONSÁVEL TÉCNICO -->
                                 <div style="padding:10px 12px;background:#f8fbfd;border-radius:6px;border:1px solid #e8eff5;">
                                     <div style="font-weight:600;font-size:9px;color:#0b2a3b;margin-bottom:4px;">RESPONSÁVEL TÉCNICO</div>
                                     <select id="certTecnicoSelect_${c.id}" 
@@ -1372,7 +1418,6 @@
                                     <div style="font-size:6px;text-align:center;color:#999;margin-top:2px;">Assinatura Digital</div>
                                 </div>
 
-                                <!-- RESPONSÁVEL OPERACIONAL -->
                                 <div style="padding:10px 12px;background:#f8fbfd;border-radius:6px;border:1px solid #e8eff5;">
                                     <div style="font-weight:600;font-size:9px;color:#0b2a3b;margin-bottom:4px;">RESPONSÁVEL OPERACIONAL</div>
                                     <select id="certOperacionalSelect_${c.id}" 
@@ -1503,11 +1548,9 @@
         }
     };
 
-    // 🔥 CORREÇÃO FINAL: Função atualizarResponsavelCertificado com persistência garantida
     window.atualizarResponsavelCertificado = function(certId, tipo, membroId) {
         console.log('🔄 Atualizando responsável:', { certId, tipo, membroId });
         
-        // Se não houver seleção, apenas atualiza a interface
         if (!membroId || membroId === '' || membroId === 'default_tecnico' || membroId === 'default_operacional') {
             console.warn('⚠️ Nenhum membro selecionado - resetando');
             const infoEl = document.getElementById('cert' + (tipo === 'tecnico' ? 'Tecnico' : 'Operacional') + 'Info_' + certId);
@@ -1515,7 +1558,6 @@
                 infoEl.textContent = 'Nenhum ' + (tipo === 'tecnico' ? 'técnico' : 'operacional') + ' selecionado';
             }
             
-            // Limpa os dados no certificado
             const updateData = {};
             const campo = tipo === 'tecnico' ? 'tecnico' : 'operacional';
             updateData['responsaveis.' + campo] = {
@@ -1526,14 +1568,12 @@
             };
             DB.update('certificados', certId, updateData);
             
-            // Força re-renderização para garantir consistência
             setTimeout(function() {
                 visualizarCertificado(certId);
             }, 150);
             return;
         }
         
-        // Busca o membro da equipe
         const equipe = DB.getAll('equipe');
         const membro = equipe.find(function(m) {
             return String(m.id) === String(membroId);
@@ -1541,7 +1581,6 @@
         
         if (!membro) {
             console.warn('⚠️ Membro não encontrado:', membroId);
-            // Tenta buscar pelo nome como fallback
             const membroByName = equipe.find(function(m) {
                 return m.nome && m.nome.toLowerCase() === String(membroId).toLowerCase();
             });
@@ -1554,14 +1593,12 @@
         
         console.log('📌 Membro encontrado:', membro);
         
-        // Busca o certificado
         const certificado = CertificadoService.getCertificado(certId);
         if (!certificado) {
             console.warn('⚠️ Certificado não encontrado:', certId);
             return;
         }
         
-        // Atualiza os dados no certificado
         const updateData = {};
         const campo = tipo === 'tecnico' ? 'tecnico' : 'operacional';
         
@@ -1576,10 +1613,8 @@
         
         console.log('📝 Atualizando dados:', JSON.stringify(updateData));
         
-        // Salva no banco - usando update com objeto completo para garantir persistência
         DB.update('certificados', certId, updateData);
         
-        // 🔥 FORÇA sincronização imediata com Firestore
         if (typeof FirestoreService !== 'undefined') {
             try {
                 const certAtualizado = CertificadoService.getCertificado(certId);
@@ -1593,19 +1628,16 @@
             }
         }
         
-        // 🔥 Atualiza a interface imediatamente
         const infoEl = document.getElementById('cert' + (tipo === 'tecnico' ? 'Tecnico' : 'Operacional') + 'Info_' + certId);
         if (infoEl) {
             infoEl.textContent = membro.nome + (membro.registro ? ' - ' + membro.registro : '');
         }
         
-        // Mantém o select sincronizado
         const selectEl = document.getElementById('cert' + (tipo === 'tecnico' ? 'Tecnico' : 'Operacional') + 'Select_' + certId);
         if (selectEl) {
             selectEl.value = membroId;
         }
         
-        // 🔥 Verifica se o dado foi realmente persistido
         setTimeout(function() {
             const certVerificado = CertificadoService.getCertificado(certId);
             if (certVerificado) {
@@ -1614,11 +1646,9 @@
                     console.log('✅ Responsável salvo com sucesso:', responsavelSalvo.nome);
                 } else {
                     console.warn('⚠️ Responsável não foi salvo corretamente, forçando re-salvamento...');
-                    // Tenta salvar novamente com o objeto completo
                     DB.update('certificados', certId, updateData);
                 }
             }
-            // 🔥 Força re-renderização completa para garantir consistência visual
             renderCertificados();
         }, 300);
     };
@@ -3071,6 +3101,9 @@
         }).join('');
     }
 
+    // =============================================
+    // ===== RENDER RELATÓRIOS =====
+    // =============================================
     function renderRelatorios() {
         var relatorios = DB.getAll('relatorios');
         var modelos = DB.getAll('modelos');
@@ -3766,7 +3799,6 @@
             }
 
             var campo = tipo === 'operador' ? 'assinaturaOperador' : 'assinaturaCliente';
-            DB.update('ordens', signatureOSId, {});
             DB.update('ordens', signatureOSId, { [campo]: imageData });
 
             alert('Assinatura salva com sucesso!');
@@ -3789,7 +3821,6 @@
         }
 
         var campo = tipo === 'operador' ? 'assinaturaOperador' : 'assinaturaCliente';
-        DB.update('ordens', osId, {});
         DB.update('ordens', osId, { [campo]: null });
 
         fecharModal();
@@ -4101,7 +4132,7 @@
             });
         }
 
-        // Botão Novo Serviço
+        // Botão Novo Serviço - CORRIGIDO COM VERIFICAÇÃO DE DUPLICAÇÃO
         var btnNovoServico = document.getElementById('btnNovoServico');
         if (btnNovoServico) {
             btnNovoServico.addEventListener('click', function () {
@@ -4761,12 +4792,10 @@
         
         fecharModal();
         
-        // 🔥 CORREÇÃO: Força atualização imediata do mapa
         DB.forceClearCache('pontosIscas');
         renderMapaComFiltros();
         preencherFiltrosClientesMapa();
         
-        // Dispara evento para atualização
         document.dispatchEvent(new CustomEvent('pontoIscaAtualizado', { 
             detail: { item: newPonto, action: 'add' } 
         }));
@@ -4858,7 +4887,6 @@
         
         fecharModal();
         
-        // 🔥 CORREÇÃO: Força atualização imediata do mapa
         DB.forceClearCache('pontosIscas');
         renderMapaComFiltros();
         preencherFiltrosClientesMapa();
@@ -4869,7 +4897,6 @@
     window.excluirPontoIsca = function (id) {
         if (confirm('Tem certeza que deseja excluir este ponto de isca?')) {
             DB.remove('pontosIscas', id);
-            // 🔥 CORREÇÃO: Força atualização imediata do mapa
             DB.forceClearCache('pontosIscas');
             renderMapaComFiltros();
             preencherFiltrosClientesMapa();
@@ -4882,7 +4909,6 @@
         var statusMap = { 'ativo': 'manutencao', 'manutencao': 'inativo', 'inativo': 'ativo' };
         var novoStatus = statusMap[p.status] || 'ativo';
         DB.update('pontosIscas', id, { status: novoStatus });
-        // 🔥 CORREÇÃO: Força atualização imediata do mapa
         DB.forceClearCache('pontosIscas');
         renderMapaComFiltros();
     };
@@ -4939,10 +4965,9 @@
 
     // 🔥 CORREÇÃO: renderMapaComFiltros agora força recarregamento dos dados
     function renderMapaComFiltros() {
-        // Força a limpeza do cache para garantir dados atualizados
         DB.forceClearCache('pontosIscas');
         
-        var pontos = DB.getAll('pontosIscas', true); // true = força refresh
+        var pontos = DB.getAll('pontosIscas', true);
         var container = document.getElementById('mapaGrid');
         if (!container) return;
 
@@ -7762,7 +7787,7 @@
     };
 
     // =============================================
-    // ===== FUNÇÃO CRIAR NOVO SERVIÇO =====
+    // ===== FUNÇÃO CRIAR NOVO SERVIÇO (CORRIGIDA - SEM DUPLICAÇÃO) =====
     // =============================================
     window.criarNovoServico = function () {
         var clienteId = parseInt(document.getElementById('modalClienteId')?.value || '0');
@@ -7779,6 +7804,36 @@
 
         console.log('🔄 Criando novo serviço - Status: ' + status);
 
+        // 🔥 VERIFICA SE JÁ EXISTE UM SERVIÇO COM OS MESMOS DADOS (evita duplicação)
+        var servicosExistentes = DB.getAll('servicos');
+        var servicoExistente = servicosExistentes.find(function(s) {
+            return String(s.clienteId) === String(clienteId) && 
+                   s.data === data && 
+                   s.tipo === tipo &&
+                   (s.status === status || s.status === 'Agendado');
+        });
+
+        if (servicoExistente) {
+            console.warn('⚠️ Serviço já existe, atualizando em vez de criar novo:', servicoExistente.id);
+            // Atualiza o serviço existente
+            DB.update('servicos', servicoExistente.id, {
+                status: status,
+                valor: valor,
+                horario: horario,
+                atualizadoEm: new Date().toISOString()
+            });
+            
+            // Atualiza a agenda
+            sincronizarServicoComAgenda(servicoExistente, 'update');
+            sincronizarServicoComOS(servicoExistente, 'update');
+            
+            fecharModal();
+            renderAll();
+            alert('✅ Serviço #' + String(servicoExistente.id).padStart(3, '0') + ' atualizado para: ' + status);
+            return;
+        }
+
+        // Cria o serviço apenas se não existir
         var servico = DB.add('servicos', {
             clienteId: clienteId,
             tipo: tipo,
@@ -7810,32 +7865,56 @@
         var valorFormatado = valor ? valor.toFixed(2).replace('.', ',') : '0,00';
         var descricao = 'Serviço #' + String(servico.id).padStart(3, '0') + ': ' + tipo + ' - ' + statusInfo.emoji + ' ' + statusInfo.label + ' (R$ ' + valorFormatado + ')';
 
+        // 🔥 VERIFICA SE JÁ EXISTE AGENDAMENTO PARA ESTE SERVIÇO
         var agendaKey = DB.getFullKey('agenda');
         var agendaItems = JSON.parse(localStorage.getItem(agendaKey) || '[]');
-        var maxId = agendaItems.reduce(function (max, a) {
-            var id = typeof a.id === 'number' ? a.id : parseInt(a.id) || 0;
-            return Math.max(max, id);
-        }, 0);
-        var novoId = maxId + 1;
+        var agendamentoExistente = agendaItems.find(function(a) {
+            return a.servicoId === servico.id;
+        });
 
-        var novoAgendamento = {
-            id: novoId,
-            clienteId: clienteId,
-            data: data,
-            horario: horario,
-            descricao: descricao,
-            servicoId: servico.id,
-            statusServico: status,
-            tipoServico: tipo,
-            sincronizado: true,
-            clienteNome: clienteNome,
-            criadoEm: new Date().toISOString(),
-            atualizadoEm: new Date().toISOString()
-        };
+        if (agendamentoExistente) {
+            console.warn('⚠️ Agendamento já existe para o serviço #' + servico.id + ', atualizando...');
+            var index = agendaItems.findIndex(function(a) { return a.id === agendamentoExistente.id; });
+            if (index !== -1) {
+                agendaItems[index] = {
+                    ...agendamentoExistente,
+                    data: data,
+                    horario: horario,
+                    descricao: descricao,
+                    statusServico: status,
+                    tipoServico: tipo,
+                    clienteNome: clienteNome,
+                    atualizadoEm: new Date().toISOString()
+                };
+                localStorage.setItem(agendaKey, JSON.stringify(agendaItems));
+            }
+        } else {
+            // Cria novo agendamento apenas se não existir
+            var maxId = agendaItems.reduce(function(max, a) {
+                var id = typeof a.id === 'number' ? a.id : parseInt(a.id) || 0;
+                return Math.max(max, id);
+            }, 0);
+            var novoId = maxId + 1;
 
-        agendaItems.push(novoAgendamento);
-        localStorage.setItem(agendaKey, JSON.stringify(agendaItems));
-        console.log('📅 Agenda CRIADA para serviço #' + servico.id + ' Status: ' + status);
+            var novoAgendamento = {
+                id: novoId,
+                clienteId: clienteId,
+                data: data,
+                horario: horario,
+                descricao: descricao,
+                servicoId: servico.id,
+                statusServico: status,
+                tipoServico: tipo,
+                sincronizado: true,
+                clienteNome: clienteNome,
+                criadoEm: new Date().toISOString(),
+                atualizadoEm: new Date().toISOString()
+            };
+
+            agendaItems.push(novoAgendamento);
+            localStorage.setItem(agendaKey, JSON.stringify(agendaItems));
+            console.log('📅 Agenda CRIADA para serviço #' + servico.id + ' Status: ' + status);
+        }
 
         sincronizarServicoComOS(servico, 'add');
         
@@ -8547,6 +8626,7 @@
         }).join('');
     }
 
+    // ===== CRIAR RELATÓRIO (CORRIGIDO - COM DISPARO DE EVENTO) =====
     window.criarRelatorio = function () {
         var titulo = document.getElementById('modalRelatorioTitulo')?.value || '';
         var clienteId = parseInt(document.getElementById('modalRelatorioCliente')?.value || '0');
@@ -8589,8 +8669,25 @@
         }
 
         function finalizarCriacao() {
-            DB.add('relatorios', { modeloId: modeloId, clienteId: clienteId, titulo: titulo, data: data, status: status, gravidade: gravidade, observacoes: observacoes, campos: campos, imagens: imagens });
+            var novoRelatorio = DB.add('relatorios', { 
+                modeloId: modeloId, 
+                clienteId: clienteId, 
+                titulo: titulo, 
+                data: data, 
+                status: status, 
+                gravidade: gravidade, 
+                observacoes: observacoes, 
+                campos: campos, 
+                imagens: imagens 
+            });
+            
             fecharModal();
+            
+            // 🔥 DISPARA EVENTO PARA ATUALIZAR INTERFACE
+            document.dispatchEvent(new CustomEvent('relatorioAtualizado', { 
+                detail: { relatorio: novoRelatorio, action: 'add' } 
+            }));
+            
             renderAll();
             alert('Relatório criado com sucesso!');
         }
@@ -8777,9 +8874,16 @@
         editarRelatorio(id);
     };
 
+    // ===== VISUALIZAR RELATÓRIO (CORRIGIDO - GUARDA ID PARA ATUALIZAÇÃO) =====
     window.visualizarRelatorio = function (id) {
+        // GUARDA O ID PARA ATUALIZAÇÃO AUTOMÁTICA
+        window._relatorioVisualizandoId = id;
+        
         var r = DB.getById('relatorios', id);
-        if (!r) return;
+        if (!r) {
+            alert('Relatório não encontrado!');
+            return;
+        }
 
         var cliente = getCliente(r.clienteId);
         var modelo = DB.getById('modelos', r.modeloId);
@@ -8910,9 +9014,12 @@
         DB.update('relatorios', id, { campos: campos });
     };
 
+    // ===== FECHAR MODAL RELATÓRIO (CORRIGIDO - LIMPA ID) =====
     window.fecharModalRelatorio = function () {
         var overlay = document.getElementById('modalRelatorioOverlay');
         if (overlay) overlay.classList.remove('active');
+        // LIMPA O ID
+        window._relatorioVisualizandoId = null;
     };
 
     var modalRelatorioClose = document.getElementById('modalRelatorioClose');
@@ -9783,7 +9890,8 @@
         }
     };
 
-    // =============================================    // ===== EXCLUIR MEMBRO =====
+    // =============================================
+    // ===== EXCLUIR MEMBRO =====
     // =============================================
     window.excluirMembro = function (id) {
         if (confirm('Remover este membro da equipe?')) {
@@ -10164,4 +10272,7 @@
     console.log('📌 Sincronização automática de status: CADA SERVIÇO ATUALIZA APENAS SEU AGENDAMENTO');
     console.log('📌 Para sincronizar dados com o servidor, use: forcarSincronizacao()');
     console.log('📌 Para recarregar dados do servidor, use: forcarCarregamentoFirestore()');
+    console.log('✅ CORREÇÕES APLICADAS:');
+    console.log('  ✅ Duplicação de serviços na agenda eliminada');
+    console.log('  ✅ Atualização automática de relatórios sem recarregar página');
 })();
