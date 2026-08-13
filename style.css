@@ -2095,3 +2095,608 @@ td i:hover { background: #e8eff5; }
     outline-offset: 2px;
     background: #fafffe;
 }
+
+/* =============================================
+   ===== ADMINISTRAÇÃO - ESTILOS PADRONIZADOS =====
+   ============================================= */
+
+/* Cards de resumo da administração */
+#page-admin .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+    margin-bottom: 28px;
+}
+
+#page-admin .kpi-card {
+    background: white;
+    padding: 22px 20px;
+    border-radius: 16px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    border: 1px solid #eef4f9;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    transition: 0.2s;
+}
+
+#page-admin .kpi-card:hover {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+    transform: translateY(-2px);
+}
+
+#page-admin .kpi-card i {
+    font-size: 2rem;
+    width: 50px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    flex-shrink: 0;
+}
+
+#page-admin .kpi-card div {
+    display: flex;
+    flex-direction: column;
+}
+
+#page-admin .kpi-card span:first-child {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: #0b2a3b;
+    line-height: 1.2;
+}
+
+#page-admin .kpi-card span:last-child {
+    font-size: 0.85rem;
+    color: #4d687a;
+    font-weight: 400;
+}
+
+/* Container de configuração - mantendo o padrão do sistema */
+#page-admin .config-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+}
+
+#page-admin .config-card {
+    background: white;
+    border-radius: 20px;
+    padding: 28px;
+    border: 1px solid #e8eff5;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+}
+
+#page-admin .config-card h3 {
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: #0b2a3b;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+#page-admin .config-card h3 i {
+    color: #1d7a6b;
+    font-size: 1.2rem;
+}
+
+/* Informações do plano na administração */
+#planoInfoContainer {
+    margin-bottom: 16px;
+}
+
+#planoInfoContainer .plano-info {
+    background: #f8fbfd;
+    border-radius: 12px;
+    padding: 16px 20px;
+    border-left: 4px solid #1d7a6b;
+}
+
+#planoInfoContainer .plano-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+#planoInfoContainer .plano-nome {
+    font-weight: 700;
+    color: #0b2a3b;
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#planoInfoContainer .plano-status {
+    font-size: 0.8rem;
+    padding: 2px 12px;
+    border-radius: 20px;
+    font-weight: 600;
+}
+
+#planoInfoContainer .plano-status.success {
+    background: #d1f0e5;
+    color: #006b4f;
+}
+
+#planoInfoContainer .plano-status.warning {
+    background: #fff2d0;
+    color: #8e6100;
+}
+
+#planoInfoContainer .plano-status.danger {
+    background: #fde2e0;
+    color: #b13e3a;
+}
+
+#planoInfoContainer .plano-detalhes {
+    color: #4d687a;
+    font-size: 0.85rem;
+    margin-top: 2px;
+}
+
+#planoInfoContainer .plano-preco {
+    text-align: right;
+}
+
+#planoInfoContainer .plano-preco .valor {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: #0b2a3b;
+}
+
+#planoInfoContainer .plano-preco .porcentagem {
+    font-size: 0.75rem;
+    color: #4d687a;
+}
+
+#planoInfoContainer .plano-barra {
+    margin-top: 10px;
+    height: 6px;
+    background: #e8eff5;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+#planoInfoContainer .plano-barra-inner {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.6s ease;
+}
+
+#planoInfoContainer .plano-features {
+    margin-top: 10px;
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+#planoInfoContainer .plano-features .tag {
+    background: #e8eff5;
+    padding: 2px 12px;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    color: #1f3a4b;
+}
+
+#planoInfoContainer .plano-alerta {
+    margin-top: 12px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+}
+
+#planoInfoContainer .plano-alerta.danger {
+    background: #fde2e0;
+    border-left: 3px solid #b13e3a;
+    color: #b13e3a;
+}
+
+#planoInfoContainer .plano-alerta.warning {
+    background: #fff2d0;
+    border-left: 3px solid #e67e22;
+    color: #8e6100;
+}
+
+#planoInfoContainer .plano-alerta .alerta-titulo {
+    font-weight: 600;
+}
+
+#planoInfoContainer .plano-alerta .alerta-texto {
+    margin-top: 4px;
+    color: #4d687a;
+}
+
+/* Botões de ação */
+#page-admin .btn-primary {
+    background: #0b2a3b;
+    color: white;
+    border: none;
+    padding: 12px 28px;
+    border-radius: 40px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    transition: 0.2s;
+    box-shadow: 0 4px 10px rgba(11, 42, 59, 0.15);
+    font-size: 0.95rem;
+}
+
+#page-admin .btn-primary:hover {
+    background: #1a4053;
+    transform: scale(1.02);
+}
+
+#page-admin .btn-secondary {
+    background: #e8eff5;
+    color: #1f3a4b;
+    border: none;
+    padding: 12px 28px;
+    border-radius: 40px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.2s;
+    font-size: 0.95rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+}
+
+#page-admin .btn-secondary:hover {
+    background: #d5dfe8;
+}
+
+#page-admin .btn-danger {
+    background: #c0392b;
+    color: white;
+    border: none;
+    padding: 12px 28px;
+    border-radius: 40px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.2s;
+    font-size: 0.95rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+}
+
+#page-admin .btn-danger:hover {
+    background: #e74c3c;
+}
+
+/* Tabela de administradores */
+#page-admin .table-wrapper {
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid #e8eff5;
+    max-height: 350px;
+    overflow-y: auto;
+}
+
+#page-admin .table-wrapper table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+#page-admin .table-wrapper th {
+    text-align: left;
+    padding: 14px 18px;
+    background: #f8fbfd;
+    color: #1f3a4b;
+    font-weight: 600;
+    border-bottom: 1px solid #e2e9f0;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+#page-admin .table-wrapper td {
+    padding: 12px 18px;
+    border-bottom: 1px solid #edf2f7;
+    color: #1f3542;
+    font-size: 0.9rem;
+}
+
+#page-admin .table-wrapper td i {
+    padding: 6px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+#page-admin .table-wrapper td i:hover {
+    background: #f0f4f8;
+}
+
+#page-admin .table-wrapper .fa-trash {
+    color: #b13e3a;
+}
+
+#page-admin .table-wrapper .fa-trash:hover {
+    color: #e74c3c;
+    background: #fde2e0;
+}
+
+/* Informações do sistema */
+#page-admin .sistema-info {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px 20px;
+    font-size: 0.9rem;
+    padding: 4px 0;
+}
+
+#page-admin .sistema-info .info-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 0;
+    border-bottom: 1px solid #f0f4f8;
+}
+
+#page-admin .sistema-info .info-item strong {
+    color: #0b2a3b;
+}
+
+#page-admin .sistema-info .info-item .value {
+    color: #4d687a;
+}
+
+/* Botões de manutenção */
+#page-admin .botoes-manutencao {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+#page-admin .botoes-manutencao .btn {
+    width: 100%;
+    justify-content: center;
+    padding: 14px;
+    font-size: 0.95rem;
+}
+
+#page-admin .botoes-manutencao .btn-danger {
+    background: #b13e3a;
+}
+
+#page-admin .botoes-manutencao .btn-danger:hover {
+    background: #c0392b;
+}
+
+/* Responsivo */
+@media (max-width: 1024px) {
+    #page-admin .kpi-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 820px) {
+    #page-admin .config-container {
+        grid-template-columns: 1fr;
+    }
+    
+    #page-admin .kpi-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+    }
+    
+    #page-admin .kpi-card {
+        padding: 16px;
+    }
+    
+    #page-admin .kpi-card span:first-child {
+        font-size: 1.4rem;
+    }
+    
+    #page-admin .kpi-card i {
+        font-size: 1.5rem;
+        width: 40px;
+        height: 40px;
+    }
+    
+    #page-admin .config-card {
+        padding: 20px;
+    }
+    
+    #page-admin .sistema-info {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 480px) {
+    #page-admin .kpi-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+    }
+    
+    #page-admin .kpi-card {
+        padding: 14px;
+        gap: 10px;
+    }
+    
+    #page-admin .kpi-card span:first-child {
+        font-size: 1.2rem;
+    }
+    
+    #page-admin .kpi-card i {
+        font-size: 1.2rem;
+        width: 34px;
+        height: 34px;
+    }
+    
+    #page-admin .kpi-card span:last-child {
+        font-size: 0.7rem;
+    }
+    
+    #page-admin .config-card {
+        padding: 16px;
+    }
+    
+    #page-admin .table-wrapper th,
+    #page-admin .table-wrapper td {
+        padding: 10px 12px;
+        font-size: 0.8rem;
+    }
+}
+
+/* =============================================
+   ===== TOPBAR INDICADOR DE PLANO =====
+   ============================================= */
+
+.topbar-plano {
+    font-size: 0.7rem;
+    padding: 3px 12px;
+    border-radius: 20px;
+    color: white;
+    margin-right: 12px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    cursor: pointer;
+    transition: 0.2s;
+    font-weight: 500;
+}
+
+.topbar-plano:hover {
+    opacity: 0.85;
+    transform: scale(1.02);
+}
+
+/* =============================================
+   ===== MODAL DE UPGRADE =====
+   ============================================= */
+
+.modal-upgrade {
+    max-width: 900px;
+}
+
+.modal-upgrade .plano-card {
+    background: white;
+    border-radius: 16px;
+    padding: 24px;
+    border: 1px solid #e8eff5;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    flex: 1;
+    min-width: 200px;
+    max-width: 300px;
+    text-align: center;
+    transition: 0.3s;
+}
+
+.modal-upgrade .plano-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+.modal-upgrade .plano-card.popular {
+    border: 2px solid #e67e22;
+    background: #fef9f0;
+}
+
+.modal-upgrade .plano-card.recommended {
+    border: 2px solid #8e44ad;
+}
+
+.modal-upgrade .plano-card.current {
+    border: 2px solid #1d7a6b;
+}
+
+.modal-upgrade .plano-card .badge {
+    display: inline-block;
+    padding: 2px 14px;
+    border-radius: 20px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.modal-upgrade .plano-card .badge.popular {
+    background: #e67e22;
+    color: white;
+}
+
+.modal-upgrade .plano-card .badge.recommended {
+    background: #8e44ad;
+    color: white;
+}
+
+.modal-upgrade .plano-card .badge.current {
+    background: #1d7a6b;
+    color: white;
+}
+
+.modal-upgrade .plano-card h3 {
+    color: #0b2a3b;
+    font-size: 1.1rem;
+    margin: 0 0 4px 0;
+}
+
+.modal-upgrade .plano-card .preco {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: #0b2a3b;
+    margin: 4px 0;
+}
+
+.modal-upgrade .plano-card .descricao {
+    font-size: 0.8rem;
+    color: #4d687a;
+    margin-bottom: 12px;
+}
+
+.modal-upgrade .plano-card .features {
+    padding-left: 0;
+    margin: 8px 0;
+    text-align: left;
+}
+
+.modal-upgrade .plano-card .features li {
+    list-style: none;
+    padding: 4px 0;
+    font-size: 0.85rem;
+    color: #4d687a;
+}
+
+.modal-upgrade .plano-card .btn-contratar {
+    background: #0b2a3b;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    width: 100%;
+    transition: 0.2s;
+}
+
+.modal-upgrade .plano-card .btn-contratar:hover {
+    background: #1a4053;
+}
+
+.modal-upgrade .plano-card .btn-contratar:disabled {
+    background: #e8eff5;
+    color: #4d687a;
+    cursor: default;
+}
+
+.modal-upgrade .plano-card .btn-contratar.popular {
+    background: #e67e22;
+}
+
+.modal-upgrade .plano-card .btn-contratar.popular:hover {
+    background: #d35400;
+}

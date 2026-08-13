@@ -19,6 +19,9 @@
 // CORRIGIDO - Certificado: seleção de responsáveis persistindo corretamente (FIX FINAL)
 // CORRIGIDO - Duplicação de serviços na agenda (verificação de existência)
 // CORRIGIDO - Atualização automática de relatórios sem recarregar página
+// ADICIONADO - Página de Administração com gerenciamento de plano e limites
+// ADICIONADO - Sistema de planos com limite de administradores
+// ADICIONADO - Indicadores visuais de uso do plano no topbar
 
 // =============================================
 // ===== PREVENÇÃO DE ERROS DE REFERÊNCIA =====
@@ -1860,6 +1863,8 @@
             renderFinanceiro();
             renderCertificados();
             preencherFiltroCertificados();
+            adicionarIndicadorPlano();
+            carregarInfoAdministracao();
             console.log('🔄 Renderização completa executada');
         } catch (error) {
             console.error('❌ Erro na renderização:', error);
@@ -2309,8 +2314,7 @@
                 itens.push({
                     descricao: servico.tipo || 'Serviço',
                     quantidade: 1,
-                    valorUnitario: valorServico
-                });
+                    valorUnitario: valorServico                });
             }
 
             DB.add('ordens', {
@@ -10238,6 +10242,412 @@
     });
 
     // =============================================
+    // ===== FUNÇÕES DE ADMINISTRAÇÃO =====
+    // =============================================
+
+    function carregarInfoAdministracao() {
+        try {
+            const empresaId = EmpresaManager.getEmpresaAtual();
+            if (typeof PlanService === 'undefined') return;
+            
+            const resumo = PlanService.getResumoPlano(empresaId);
+            const empresa = EmpresaManager.getEmpresa(empresaId);
+            
+            // Atualiza cards
+            const elTotalAdmins = document.getElementById('adminTotalAdmins');
+            const elPlanoAtual = document.getElementById('adminPlanoAtual');
+            const elLimiteUso = document.getElementById('adminLimiteUso');
+            const elVagasRestantes = document.getElementById('adminVagasRestantes');
+            
+            if (elTotalAdmins) elTotalAdmins.textContent = resumo.adminsAtuais;
+            if (elPlanoAtual) elPlanoAtual.textContent = resumo.planoNome;
+            if (elLimiteUso) elLimiteUso.textContent = resumo.porcentagemUso + '%';
+            if (elVagasRestantes) elVagasRestantes.textContent = Math.max(0, resumo.limiteAdmins - resumo.adminsAtuais);
+            
+            // Informações da empresa
+            const elEmpresaNome = document.getElementById('adminEmpresaNome');
+            const elEmpresaId = document.getElementById('adminEmpresaId');
+            const elTotalUsuarios = document.getElementById('adminTotalUsuarios');
+            
+            if (elEmpresaNome) elEmpresaNome.textContent = empresa ? empresa.nome : 'N/A';
+            if (elEmpresaId) elEmpresaId.textContent = empresaId;
+            if (elTotalUsuarios) elTotalUsuarios.textContent = resumo.adminsAtuais;
+            
+            // Status do banco
+            const dbStatus = document.getElementById('adminDbStatus');
+            if (dbStatus) {
+                const isAvailable = typeof FirestoreService !== 'undefined' && FirestoreService._isFirestoreAvailable();
+                dbStatus.textContent = isAvailable ? 'Firestore ✅' : 'Local ⚠️';
+                dbStatus.style.color = isAvailable ? '#1d7a6b' : '#e67e22';
+            }
+            
+            // Preenche informações do plano
+            preencherInfoPlanoAdmin();
+            
+            // Carrega lista de administradores
+            carregarListaAdmins();
+            
+        } catch (e) {
+            console.warn('Erro ao carregar informações de administração:', e);
+        }
+    }
+
+    function preencherInfoPlanoAdmin() {
+        try {
+            const empresaId = EmpresaManager.getEmpresaAtual();
+            if (typeof PlanService === 'undefined') return;
+            
+            const resumo = PlanService.getResumoPlano(empresaId);
+            const container = document.getElementById('planoInfoContainer');
+            if (!container) return;
+            
+            const cores = {
+                'Grátis': '#1d7a6b',
+                'Básico': '#3498db',
+                'Profissional': '#8e44ad',
+                'Empresarial': '#e67e22',
+                'Personalizado': '#c0392b'
+            };
+            
+            const cor = cores[resumo.planoNome] || '#0b2a3b';
+            const estaLimite = resumo.estaLimite;
+            const estaProximo = resumo.estaProximo;
+            
+            container.innerHTML = `
+                <div style="background:#f8fbfd;padding:16px;border-radius:12px;border-left:4px solid ${cor};">
+                    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+                        <div>
+                            <div style="font-weight:700;color:#0b2a3b;font-size:1.1rem;display:flex;align-items:center;gap:8px;">
+                                ${resumo.planoNome}
+                                <span style="font-size:0.8rem;color:${estaLimite ? '#b13e3a' : estaProximo ? '#e67e22' : '#1d7a6b'};">
+                                    ${estaLimite ? '🔴 Limite Atingido' : estaProximo ? '🟡 Próximo do Limite' : '🟢 OK'}
+                                </span>
+                            </div>
+                            <div style="color:#4d687a;font-size:0.85rem;">
+                                ${resumo.adminsAtuais} de ${resumo.limiteAdmins} administradores utilizados
+                            </div>
+                        </div>
+                        <div style="text-align:right;">
+                            <div style="font-size:1.2rem;font-weight:700;color:${cor};">
+                                ${typeof resumo.precoMensal === 'number' ? 'R$ ' + resumo.precoMensal.toFixed(2) + '/mês' : resumo.precoMensal}
+                            </div>
+                            <div style="font-size:0.75rem;color:#4d687a;">${resumo.porcentagemUso}% utilizado</div>
+                        </div>
+                    </div>
+                    <div style="margin-top:8px;height:6px;background:#e8eff5;border-radius:3px;overflow:hidden;">
+                        <div style="height:100%;width:${Math.min(resumo.porcentagemUso, 100)}%;background:${estaLimite ? '#b13e3a' : estaProximo ? '#e67e22' : '#1d7a6b'};border-radius:3px;transition:width 0.5s ease;"></div>
+                    </div>
+                    <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
+                        ${resumo.features.slice(0, 6).map(f => 
+                            `<span style="background:#e8eff5;padding:2px 12px;border-radius:12px;font-size:0.75rem;color:#1f3a4b;">${f}</span>`
+                        ).join('')}
+                        ${resumo.features.length > 6 ? `<span style="background:#e8eff5;padding:2px 12px;border-radius:12px;font-size:0.75rem;color:#1f3a4b;">+${resumo.features.length - 6} mais</span>` : ''}
+                    </div>
+                    ${estaLimite ? `
+                        <div style="margin-top:12px;padding:10px 14px;background:#fde2e0;border-radius:8px;border-left:3px solid #b13e3a;">
+                            <div style="color:#b13e3a;font-weight:600;font-size:0.9rem;">
+                                <i class="fas fa-exclamation-triangle"></i> Limite de administradores atingido!
+                            </div>
+                            <div style="color:#4d687a;font-size:0.85rem;margin-top:4px;">
+                                Para adicionar mais administradores, faça upgrade de plano.
+                            </div>
+                        </div>
+                    ` : estaProximo ? `
+                        <div style="margin-top:12px;padding:10px 14px;background:#fff2d0;border-radius:8px;border-left:3px solid #e67e22;">
+                            <div style="color:#8e6100;font-weight:600;font-size:0.9rem;">
+                                <i class="fas fa-info-circle"></i> Próximo do limite de administradores
+                            </div>
+                            <div style="color:#4d687a;font-size:0.85rem;margin-top:4px;">
+                                Restam ${resumo.limiteAdmins - resumo.adminsAtuais} vagas. Considere fazer upgrade de plano.
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        } catch (e) {
+            console.warn('Erro ao preencher informações do plano:', e);
+        }
+    }
+
+    function carregarListaAdmins() {
+        try {
+            const empresaId = EmpresaManager.getEmpresaAtual();
+            const empresa = EmpresaManager.getEmpresa(empresaId);
+            const tbody = document.getElementById('tabelaAdmins');
+            
+            if (!tbody) return;
+            
+            if (!empresa || !empresa.admins || empresa.admins.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#999;padding:20px;">Nenhum administrador cadastrado</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = empresa.admins.map((admin, index) => {
+                const dataAdicionado = admin.adicionadoEm ? new Date(admin.adicionadoEm).toLocaleDateString('pt-BR') : 'N/A';
+                const isCurrentUser = admin.usuarioId === EmpresaManager.getUsuarioAtual();
+                return `
+                    <tr>
+                        <td><strong>${admin.nome || 'N/A'}</strong> ${isCurrentUser ? '<span style="font-size:0.7rem;color:#1d7a6b;">(Você)</span>' : ''}</td>
+                        <td>${admin.email || 'N/A'}</td>
+                        <td>${dataAdicionado}</td>
+                        <td>
+                            ${!isCurrentUser ? `<i class="fas fa-trash" onclick="removerAdmin('${admin.usuarioId}')" title="Remover" style="color:#b13e3a;cursor:pointer;"></i>` : 
+                            `<span style="color:#999;font-size:0.7rem;">Admin atual</span>`}
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        } catch (e) {
+            console.warn('Erro ao carregar lista de administradores:', e);
+        }
+    }
+
+    window.removerAdmin = function(usuarioId) {
+        if (!confirm('Tem certeza que deseja remover este administrador?')) {
+            return;
+        }
+        
+        try {
+            const empresaId = EmpresaManager.getEmpresaAtual();
+            const empresa = EmpresaManager.getEmpresa(empresaId);
+            
+            if (!empresa) return;
+            
+            // Remove o admin
+            empresa.admins = empresa.admins.filter(a => a.usuarioId !== usuarioId);
+            
+            // Salva a empresa
+            const empresas = JSON.parse(localStorage.getItem('dedetiza_empresas') || '{}');
+            empresas[empresaId] = empresa;
+            localStorage.setItem('dedetiza_empresas', JSON.stringify(empresas));
+            
+            // Atualiza cache
+            EmpresaManager._empresas[empresaId] = empresa;
+            
+            // Remove sessão do usuário
+            const sessoes = JSON.parse(localStorage.getItem('dedetiza_sessoes') || '{}');
+            const key = empresaId + '_' + usuarioId;
+            delete sessoes[key];
+            localStorage.setItem('dedetiza_sessoes', JSON.stringify(sessoes));
+            
+            // Recarrega informações
+            carregarListaAdmins();
+            carregarInfoAdministracao();
+            
+            alert('✅ Administrador removido com sucesso!');
+        } catch (e) {
+            console.warn('Erro ao remover administrador:', e);
+            alert('❌ Erro ao remover administrador: ' + e.message);
+        }
+    };
+
+    window.abrirUpgradeModal = function() {
+        const empresaId = EmpresaManager.getEmpresaAtual();
+        if (typeof PlanService === 'undefined') {
+            alert('Serviço de planos não disponível.');
+            return;
+        }
+        const modalHtml = PlanService.gerarModalUpgrade(empresaId);
+        abrirModal('📊 Upgrade de Plano', modalHtml);
+    };
+
+    window.recarregarInfoPlano = function() {
+        carregarInfoAdministracao();
+        alert('✅ Informações atualizadas!');
+    };
+
+    // =============================================
+    // ===== INDICADOR DE PLANO NO TOPBAR =====
+    // =============================================
+
+    function adicionarIndicadorPlano() {
+        try {
+            const empresaId = EmpresaManager.getEmpresaAtual();
+            if (typeof PlanService === 'undefined') return;
+            
+            const resumo = PlanService.getResumoPlano(empresaId);
+            
+            // Remove indicador existente
+            const existing = document.querySelector('.topbar-plano');
+            if (existing) existing.remove();
+            
+            // Cria indicador
+            const planoIndicator = document.createElement('span');
+            planoIndicator.className = 'topbar-plano';
+            planoIndicator.style.cssText = `
+                font-size: 0.75rem;
+                padding: 4px 14px;
+                border-radius: 20px;
+                background: ${resumo.estaLimite ? '#b13e3a' : resumo.estaProximo ? '#e67e22' : '#1d7a6b'};
+                color: white;
+                margin-right: 12px;
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                cursor: pointer;
+            `;
+            planoIndicator.innerHTML = `
+                <i class="fas fa-crown"></i>
+                ${resumo.planoNome}
+                ${resumo.estaLimite ? '🔴' : resumo.estaProximo ? '🟡' : '🟢'}
+            `;
+            planoIndicator.title = `${resumo.adminsAtuais}/${resumo.limiteAdmins} administradores • ${resumo.porcentagemUso}% usado`;
+            planoIndicator.onclick = () => abrirUpgradeModal();
+            
+            // Insere no topbar
+            const topbarUser = document.querySelector('.topbar-user');
+            if (topbarUser) {
+                topbarUser.insertBefore(planoIndicator, topbarUser.firstChild);
+            }
+        } catch (e) {
+            console.warn('Erro ao adicionar indicador de plano:', e);
+        }
+    }
+
+    // =============================================
+    // ===== BOTÃO NOVO ADMIN =====
+    // =============================================
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const btnNovoAdmin = document.getElementById('btnNovoAdmin');
+        if (btnNovoAdmin) {
+            btnNovoAdmin.addEventListener('click', function() {
+                // Verifica se pode adicionar mais admins
+                const empresaId = EmpresaManager.getEmpresaAtual();
+                if (typeof PlanService === 'undefined') {
+                    alert('Serviço de planos não disponível.');
+                    return;
+                }
+                
+                const verificacao = PlanService.verificarCadastroAdmin(empresaId);
+                
+                if (!verificacao.permitido) {
+                    const modalHtml = PlanService.gerarModalUpgrade(empresaId);
+                    abrirModal('🔒 Limite de Administradores Atingido', modalHtml);
+                    return;
+                }
+                
+                abrirModal('Novo Administrador', `
+                    <div class="form-group">
+                        <label>Nome Completo *</label>
+                        <input type="text" id="modalAdminNome" placeholder="Nome do administrador" />
+                    </div>
+                    <div class="form-group">
+                        <label>Email *</label>
+                        <input type="email" id="modalAdminEmail" placeholder="email@exemplo.com" />
+                    </div>
+                    <div class="form-group">
+                        <label>Usuário *</label>
+                        <input type="text" id="modalAdminUsuario" placeholder="Usuário de acesso" />
+                    </div>
+                    <div class="form-group">
+                        <label>Senha *</label>
+                        <input type="password" id="modalAdminSenha" placeholder="Mínimo 6 caracteres" minlength="6" />
+                    </div>
+                    <div class="form-group">
+                        <label>Confirmar Senha *</label>
+                        <input type="password" id="modalAdminConfirm" placeholder="Confirme a senha" />
+                    </div>
+                    ${verificacao.tipo === 'aviso' ? `
+                        <div style="background:#fff2d0;padding:12px 16px;border-radius:8px;border-left:4px solid #e67e22;margin-bottom:12px;">
+                            <div style="color:#8e6100;font-size:0.9rem;">
+                                <i class="fas fa-info-circle"></i> ${verificacao.mensagem}
+                            </div>
+                        </div>
+                    ` : ''}
+                    <div class="modal-footer">
+                        <button class="btn-secondary" onclick="fecharModal()">Cancelar</button>
+                        <button class="btn-primary" onclick="criarNovoAdmin()"><i class="fas fa-user-plus"></i> Criar</button>
+                    </div>
+                `);
+            });
+        }
+    });
+
+    window.criarNovoAdmin = function() {
+        const nome = document.getElementById('modalAdminNome')?.value || '';
+        const usuario = document.getElementById('modalAdminUsuario')?.value || '';
+        const email = document.getElementById('modalAdminEmail')?.value || '';
+        const senha = document.getElementById('modalAdminSenha')?.value || '';
+        const confirm = document.getElementById('modalAdminConfirm')?.value || '';
+        
+        if (!nome || !usuario || !email || !senha || !confirm) {
+            alert('Preencha todos os campos!');
+            return;
+        }
+        
+        if (senha !== confirm) {
+            alert('As senhas não coincidem!');
+            return;
+        }
+        
+        if (senha.length < 6) {
+            alert('A senha deve ter pelo menos 6 caracteres!');
+            return;
+        }
+        
+        const empresaId = EmpresaManager.getEmpresaAtual();
+        
+        // Verifica novamente o limite
+        if (typeof PlanService !== 'undefined') {
+            const verificacao = PlanService.verificarCadastroAdmin(empresaId);
+            if (!verificacao.permitido) {
+                const modalHtml = PlanService.gerarModalUpgrade(empresaId);
+                abrirModal('🔒 Limite de Administradores Atingido', modalHtml);
+                return;
+            }
+        }
+        
+        // Chama o AuthService para cadastrar
+        if (typeof AuthService === 'undefined') {
+            alert('Serviço de autenticação não disponível.');
+            return;
+        }
+        
+        AuthService.cadastrar(email, senha, nome, usuario, empresaId).then(result => {
+            if (result.success) {
+                fecharModal();
+                carregarListaAdmins();
+                carregarInfoAdministracao();
+                alert('✅ Administrador criado com sucesso!');
+            } else {
+                alert('❌ Erro ao criar administrador: ' + result.message);
+            }
+        }).catch(err => {
+            alert('❌ Erro ao criar administrador: ' + err.message);
+        });
+    };
+
+    // =============================================
+    // ===== INICIALIZAÇÃO DA PÁGINA ADMIN =====
+    // =============================================
+
+    // Carrega informações quando a página admin é ativada
+    document.addEventListener('DOMContentLoaded', function() {
+        // Observa mudanças de página
+        const observer = new MutationObserver(function() {
+            const adminPage = document.getElementById('page-admin');
+            if (adminPage && adminPage.classList.contains('active')) {
+                carregarInfoAdministracao();
+            }
+        });
+        
+        observer.observe(document.body, {
+            attributes: true,
+            attributeFilter: ['class'],
+            subtree: true
+        });
+        
+        // Carrega se já estiver ativa
+        setTimeout(() => {
+            const adminPage = document.getElementById('page-admin');
+            if (adminPage && adminPage.classList.contains('active')) {
+                carregarInfoAdministracao();
+            }
+        }, 500);
+    });
+
+    // =============================================
     // ===== INICIALIZAÇÃO =====
     // =============================================
     resetarSessaoAtual();
@@ -10245,7 +10655,14 @@
     DB.init();
     carregarDadosUsuario().catch(function (err) { console.warn('Erro ao carregar dados do usuário:', err); });
     inicializarEventListeners();
+    
+    // Renderização inicial
     renderAll();
+    
+    // Adiciona indicador de plano após renderização
+    setTimeout(function() {
+        adicionarIndicadorPlano();
+    }, 500);
 
     if (typeof FirestoreService !== 'undefined' && Object.keys(FirestoreService._unsubscribers).length === 0) {
         console.log('🔄 Iniciando observadores em tempo real a partir da página principal.');
@@ -10275,4 +10692,6 @@
     console.log('✅ CORREÇÕES APLICADAS:');
     console.log('  ✅ Duplicação de serviços na agenda eliminada');
     console.log('  ✅ Atualização automática de relatórios sem recarregar página');
+    console.log('  ✅ Página de Administração com gerenciamento de plano e limites');
+    console.log('  ✅ Indicador de plano no topbar');
 })();

@@ -1,10 +1,10 @@
-<!-- index.html -->
+<!-- admin.html - Painel de Administração do Sistema -->
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Dedetize+ - Sistema de Gestão de Serviços</title>
+    <title>Admin | Dedetize+ - Sistema de Gestão de Serviços</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
     <link rel="shortcut icon" href="assets/dedetize+_icon.png">
     <link rel="stylesheet" href="style.css" />
@@ -23,13 +23,10 @@
     <!-- Configuração do Firebase -->
     <script src="firebase-config.js"></script>
     
-    <!-- Serviços Firebase (depende do firebase-config) -->
+    <!-- Serviços Firebase -->
     <script src="firebase-service.js"></script>
     
-    <!-- Serviço de Certificados -->
-    <script src="certificado.js"></script>
-    
-    <!-- Script principal (depende dos serviços) -->
+    <!-- Script principal -->
     <script src="script.js"></script>
 </head>
 <body>
@@ -78,6 +75,7 @@
                 <li data-page="estoque"><i class="fas fa-boxes"></i> <span>Estoque</span></li>
                 <li data-page="financeiro"><i class="fas fa-chart-line"></i> <span>Financeiro</span></li>
                 <li data-page="certificados"><i class="fas fa-certificate"></i> <span>Certificados</span></li>
+                <li data-page="admin"><i class="fas fa-user-shield"></i> <span>Administração</span></li>
                 <li data-page="configuracoes"><i class="fas fa-cog"></i> <span>Configurações</span></li>
             </ul>
         </nav>
@@ -97,10 +95,11 @@
                 <i class="fas fa-bars"></i>
             </div>
             <div class="topbar-title">
-                <span>Click Saúde Ambiental</span>
+                <span>Dedetize+ TESTE</span>
             </div>
             <div class="topbar-user">
                 <span><i class="fas fa-bell"></i></span>
+                <span id="planoIndicator"></span>
                 <span><i class="fas fa-user-circle"></i> <span id="userName">Carregando...</span></span>
             </div>
         </header>
@@ -814,6 +813,115 @@
                 <div id="certificadosGrid" class="certificados-grid"></div>
             </div>
 
+            <!-- ADMINISTRAÇÃO -->
+            <div id="page-admin" class="page">
+                <h1><i class="fas fa-user-shield"></i> Administração</h1>
+                
+                <!-- Cards de Resumo -->
+                <div class="kpi-grid" style="margin-bottom:24px;">
+                    <div class="kpi-card" style="border-left:4px solid #1d7a6b;">
+                        <i class="fas fa-users" style="color:#1d7a6b;"></i>
+                        <div>
+                            <span id="adminTotalAdmins">0</span>
+                            <span>Administradores</span>
+                        </div>
+                    </div>
+                    <div class="kpi-card" style="border-left:4px solid #8e44ad;">
+                        <i class="fas fa-crown" style="color:#8e44ad;"></i>
+                        <div>
+                            <span id="adminPlanoAtual">Grátis</span>
+                            <span>Plano Atual</span>
+                        </div>
+                    </div>
+                    <div class="kpi-card" style="border-left:4px solid #e67e22;">
+                        <i class="fas fa-chart-line" style="color:#e67e22;"></i>
+                        <div>
+                            <span id="adminLimiteUso">0%</span>
+                            <span>Limite Utilizado</span>
+                        </div>
+                    </div>
+                    <div class="kpi-card" style="border-left:4px solid #2c5c6b;">
+                        <i class="fas fa-users-cog" style="color:#2c5c6b;"></i>
+                        <div>
+                            <span id="adminVagasRestantes">0</span>
+                            <span>Vagas Restantes</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Gerenciamento de Plano -->
+                <div class="config-container" style="margin-bottom:24px;">
+                    <div class="config-card">
+                        <h3><i class="fas fa-rocket"></i> Gerenciar Plano</h3>
+                        <div id="planoInfoContainer">
+                            <!-- Preenchido dinamicamente -->
+                        </div>
+                        <div style="display:flex;gap:12px;margin-top:16px;flex-wrap:wrap;">
+                            <button class="btn-primary" onclick="abrirUpgradeModal()">
+                                <i class="fas fa-arrow-up"></i> Fazer Upgrade
+                            </button>
+                            <button class="btn-secondary" onclick="recarregarInfoPlano()">
+                                <i class="fas fa-sync"></i> Atualizar
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="config-card">
+                        <h3><i class="fas fa-user-plus"></i> Gerenciar Administradores</h3>
+                        <div style="margin-bottom:12px;">
+                            <button class="btn-primary" id="btnNovoAdmin" style="width:100%;">
+                                <i class="fas fa-user-plus"></i> Novo Administrador
+                            </button>
+                        </div>
+                        <div class="table-wrapper" style="max-height:300px;overflow-y:auto;">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Nome</th>
+                                        <th>Email</th>
+                                        <th>Adicionado em</th>
+                                        <th>Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tabelaAdmins">
+                                    <tr><td colspan="4" style="text-align:center;color:#999;padding:20px;">Carregando administradores...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Informações do Sistema -->
+                <div class="config-container">
+                    <div class="config-card">
+                        <h3><i class="fas fa-info-circle"></i> Informações do Sistema</h3>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:0.9rem;">
+                            <div><strong>Versão:</strong> 2.0</div>
+                            <div><strong>Empresa:</strong> <span id="adminEmpresaNome">Carregando...</span></div>
+                            <div><strong>ID da Empresa:</strong> <span id="adminEmpresaId">Carregando...</span></div>
+                            <div><strong>Total de Usuários:</strong> <span id="adminTotalUsuarios">0</span></div>
+                            <div><strong>Banco de Dados:</strong> <span id="adminDbStatus">Local</span></div>
+                            <div><strong>Sincronização:</strong> <span id="adminSyncStatus">✅ Ativa</span></div>
+                        </div>
+                    </div>
+
+                    <div class="config-card">
+                        <h3><i class="fas fa-database"></i> Manutenção</h3>
+                        <div style="display:flex;flex-direction:column;gap:8px;">
+                            <button class="btn-secondary" onclick="forcarSincronizacao()" style="width:100%;">
+                                <i class="fas fa-sync"></i> Sincronizar com Servidor
+                            </button>
+                            <button class="btn-secondary" onclick="forcarCarregamentoFirestore()" style="width:100%;">
+                                <i class="fas fa-cloud-download-alt"></i> Recarregar do Servidor
+                            </button>
+                            <button class="btn-danger" onclick="resetarDados()" style="width:100%;">
+                                <i class="fas fa-exclamation-triangle"></i> Resetar Todos os Dados
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- CONFIGURAÇÕES -->
             <div id="page-configuracoes" class="page">
                 <h1><i class="fas fa-cog"></i> Configurações da Empresa</h1>
@@ -922,5 +1030,353 @@
     </div>
 
     <script src="script.js"></script>
+    
+    <!-- Script específico para administração -->
+    <script>
+    // =============================================
+    // ===== FUNÇÕES DE ADMINISTRAÇÃO =====
+    // =============================================
+
+    function carregarInfoAdministracao() {
+        try {
+            const empresaId = EmpresaManager.getEmpresaAtual();
+            const resumo = PlanService.getResumoPlano(empresaId);
+            const empresa = EmpresaManager.getEmpresa(empresaId);
+            
+            // Atualiza cards
+            document.getElementById('adminTotalAdmins').textContent = resumo.adminsAtuais;
+            document.getElementById('adminPlanoAtual').textContent = resumo.planoNome;
+            document.getElementById('adminLimiteUso').textContent = resumo.porcentagemUso + '%';
+            document.getElementById('adminVagasRestantes').textContent = Math.max(0, resumo.limiteAdmins - resumo.adminsAtuais);
+            
+            // Informações da empresa
+            document.getElementById('adminEmpresaNome').textContent = empresa ? empresa.nome : 'N/A';
+            document.getElementById('adminEmpresaId').textContent = empresaId;
+            document.getElementById('adminTotalUsuarios').textContent = resumo.adminsAtuais;
+            
+            // Status do banco
+            const dbStatus = document.getElementById('adminDbStatus');
+            if (dbStatus) {
+                dbStatus.textContent = FirestoreService._isFirestoreAvailable() ? 'Firestore ✅' : 'Local ⚠️';
+                dbStatus.style.color = FirestoreService._isFirestoreAvailable() ? '#1d7a6b' : '#e67e22';
+            }
+            
+            // Preenche informações do plano
+            preencherInfoPlanoAdmin();
+            
+            // Carrega lista de administradores
+            carregarListaAdmins();
+            
+        } catch (e) {
+            console.warn('Erro ao carregar informações de administração:', e);
+        }
+    }
+
+    function preencherInfoPlanoAdmin() {
+        try {
+            const empresaId = EmpresaManager.getEmpresaAtual();
+            const resumo = PlanService.getResumoPlano(empresaId);
+            const container = document.getElementById('planoInfoContainer');
+            if (!container) return;
+            
+            const cores = {
+                'Grátis': '#1d7a6b',
+                'Básico': '#3498db',
+                'Profissional': '#8e44ad',
+                'Empresarial': '#e67e22',
+                'Personalizado': '#c0392b'
+            };
+            
+            const cor = cores[resumo.planoNome] || '#0b2a3b';
+            const estaLimite = resumo.estaLimite;
+            const estaProximo = resumo.estaProximo;
+            
+            container.innerHTML = `
+                <div style="background:#f8fbfd;padding:16px;border-radius:12px;border-left:4px solid ${cor};">
+                    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+                        <div>
+                            <div style="font-weight:700;color:#0b2a3b;font-size:1.1rem;display:flex;align-items:center;gap:8px;">
+                                ${resumo.planoNome}
+                                <span style="font-size:0.8rem;color:${estaLimite ? '#b13e3a' : estaProximo ? '#e67e22' : '#1d7a6b'};">
+                                    ${estaLimite ? '🔴 Limite Atingido' : estaProximo ? '🟡 Próximo do Limite' : '🟢 OK'}
+                                </span>
+                            </div>
+                            <div style="color:#4d687a;font-size:0.85rem;">
+                                ${resumo.adminsAtuais} de ${resumo.limiteAdmins} administradores utilizados
+                            </div>
+                        </div>
+                        <div style="text-align:right;">
+                            <div style="font-size:1.2rem;font-weight:700;color:${cor};">
+                                ${typeof resumo.precoMensal === 'number' ? 'R$ ' + resumo.precoMensal.toFixed(2) + '/mês' : resumo.precoMensal}
+                            </div>
+                            <div style="font-size:0.75rem;color:#4d687a;">${resumo.porcentagemUso}% utilizado</div>
+                        </div>
+                    </div>
+                    <div style="margin-top:8px;height:6px;background:#e8eff5;border-radius:3px;overflow:hidden;">
+                        <div style="height:100%;width:${Math.min(resumo.porcentagemUso, 100)}%;background:${estaLimite ? '#b13e3a' : estaProximo ? '#e67e22' : '#1d7a6b'};border-radius:3px;transition:width 0.5s ease;"></div>
+                    </div>
+                    <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
+                        ${resumo.features.slice(0, 6).map(f => 
+                            `<span style="background:#e8eff5;padding:2px 12px;border-radius:12px;font-size:0.75rem;color:#1f3a4b;">${f}</span>`
+                        ).join('')}
+                        ${resumo.features.length > 6 ? `<span style="background:#e8eff5;padding:2px 12px;border-radius:12px;font-size:0.75rem;color:#1f3a4b;">+${resumo.features.length - 6} mais</span>` : ''}
+                    </div>
+                    ${estaLimite ? `
+                        <div style="margin-top:12px;padding:10px 14px;background:#fde2e0;border-radius:8px;border-left:3px solid #b13e3a;">
+                            <div style="color:#b13e3a;font-weight:600;font-size:0.9rem;">
+                                <i class="fas fa-exclamation-triangle"></i> Limite de administradores atingido!
+                            </div>
+                            <div style="color:#4d687a;font-size:0.85rem;margin-top:4px;">
+                                Para adicionar mais administradores, faça upgrade de plano.
+                            </div>
+                        </div>
+                    ` : estaProximo ? `
+                        <div style="margin-top:12px;padding:10px 14px;background:#fff2d0;border-radius:8px;border-left:3px solid #e67e22;">
+                            <div style="color:#8e6100;font-weight:600;font-size:0.9rem;">
+                                <i class="fas fa-info-circle"></i> Próximo do limite de administradores
+                            </div>
+                            <div style="color:#4d687a;font-size:0.85rem;margin-top:4px;">
+                                Restam ${resumo.limiteAdmins - resumo.adminsAtuais} vagas. Considere fazer upgrade de plano.
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        } catch (e) {
+            console.warn('Erro ao preencher informações do plano:', e);
+        }
+    }
+
+    function carregarListaAdmins() {
+        try {
+            const empresaId = EmpresaManager.getEmpresaAtual();
+            const empresa = EmpresaManager.getEmpresa(empresaId);
+            const tbody = document.getElementById('tabelaAdmins');
+            
+            if (!empresa || !empresa.admins || empresa.admins.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#999;padding:20px;">Nenhum administrador cadastrado</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = empresa.admins.map((admin, index) => {
+                const dataAdicionado = admin.adicionadoEm ? new Date(admin.adicionadoEm).toLocaleDateString('pt-BR') : 'N/A';
+                const isCurrentUser = admin.usuarioId === EmpresaManager.getUsuarioAtual();
+                return `
+                    <tr>
+                        <td><strong>${admin.nome || 'N/A'}</strong> ${isCurrentUser ? '<span style="font-size:0.7rem;color:#1d7a6b;">(Você)</span>' : ''}</td>
+                        <td>${admin.email || 'N/A'}</td>
+                        <td>${dataAdicionado}</td>
+                        <td>
+                            ${!isCurrentUser ? `<i class="fas fa-trash" onclick="removerAdmin('${admin.usuarioId}')" title="Remover" style="color:#b13e3a;cursor:pointer;"></i>` : 
+                            `<span style="color:#999;font-size:0.7rem;">Admin atual</span>`}
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        } catch (e) {
+            console.warn('Erro ao carregar lista de administradores:', e);
+        }
+    }
+
+    window.removerAdmin = function(usuarioId) {
+        if (!confirm('Tem certeza que deseja remover este administrador?')) {
+            return;
+        }
+        
+        try {
+            const empresaId = EmpresaManager.getEmpresaAtual();
+            const empresa = EmpresaManager.getEmpresa(empresaId);
+            
+            if (!empresa) return;
+            
+            // Remove o admin
+            empresa.admins = empresa.admins.filter(a => a.usuarioId !== usuarioId);
+            
+            // Salva a empresa
+            const empresas = JSON.parse(localStorage.getItem('dedetiza_empresas') || '{}');
+            empresas[empresaId] = empresa;
+            localStorage.setItem('dedetiza_empresas', JSON.stringify(empresas));
+            
+            // Atualiza cache
+            EmpresaManager._empresas[empresaId] = empresa;
+            
+            // Remove sessão do usuário
+            const sessoes = JSON.parse(localStorage.getItem('dedetiza_sessoes') || '{}');
+            const key = empresaId + '_' + usuarioId;
+            delete sessoes[key];
+            localStorage.setItem('dedetiza_sessoes', JSON.stringify(sessoes));
+            
+            // Recarrega informações
+            carregarListaAdmins();
+            carregarInfoAdministracao();
+            
+            alert('✅ Administrador removido com sucesso!');
+        } catch (e) {
+            console.warn('Erro ao remover administrador:', e);
+            alert('❌ Erro ao remover administrador: ' + e.message);
+        }
+    };
+
+    window.abrirUpgradeModal = function() {
+        const empresaId = EmpresaManager.getEmpresaAtual();
+        const modalHtml = PlanService.gerarModalUpgrade(empresaId);
+        abrirModal('📊 Upgrade de Plano', modalHtml);
+    };
+
+    window.recarregarInfoPlano = function() {
+        carregarInfoAdministracao();
+        alert('✅ Informações atualizadas!');
+    };
+
+    // =============================================
+    // ===== BOTÃO NOVO ADMIN =====
+    // =============================================
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const btnNovoAdmin = document.getElementById('btnNovoAdmin');
+        if (btnNovoAdmin) {
+            btnNovoAdmin.addEventListener('click', function() {
+                // Verifica se pode adicionar mais admins
+                const empresaId = EmpresaManager.getEmpresaAtual();
+                const verificacao = PlanService.verificarCadastroAdmin(empresaId);
+                
+                if (!verificacao.permitido) {
+                    const modalHtml = PlanService.gerarModalUpgrade(empresaId);
+                    abrirModal('🔒 Limite de Administradores Atingido', modalHtml);
+                    return;
+                }
+                
+                abrirModal('Novo Administrador', `
+                    <div class="form-group">
+                        <label>Nome Completo *</label>
+                        <input type="text" id="modalAdminNome" placeholder="Nome do administrador" />
+                    </div>
+                    <div class="form-group">
+                        <label>Email *</label>
+                        <input type="email" id="modalAdminEmail" placeholder="email@exemplo.com" />
+                    </div>
+                    <div class="form-group">
+                        <label>Usuário *</label>
+                        <input type="text" id="modalAdminUsuario" placeholder="Usuário de acesso" />
+                    </div>
+                    <div class="form-group">
+                        <label>Senha *</label>
+                        <input type="password" id="modalAdminSenha" placeholder="Mínimo 6 caracteres" minlength="6" />
+                    </div>
+                    <div class="form-group">
+                        <label>Confirmar Senha *</label>
+                        <input type="password" id="modalAdminConfirm" placeholder="Confirme a senha" />
+                    </div>
+                    ${verificacao.tipo === 'aviso' ? `
+                        <div style="background:#fff2d0;padding:12px 16px;border-radius:8px;border-left:4px solid #e67e22;margin-bottom:12px;">
+                            <div style="color:#8e6100;font-size:0.9rem;">
+                                <i class="fas fa-info-circle"></i> ${verificacao.mensagem}
+                            </div>
+                        </div>
+                    ` : ''}
+                    <div class="modal-footer">
+                        <button class="btn-secondary" onclick="fecharModal()">Cancelar</button>
+                        <button class="btn-primary" onclick="criarNovoAdmin()"><i class="fas fa-user-plus"></i> Criar</button>
+                    </div>
+                `);
+            });
+        }
+    });
+
+    window.criarNovoAdmin = function() {
+        const nome = document.getElementById('modalAdminNome')?.value || '';
+        const usuario = document.getElementById('modalAdminUsuario')?.value || '';
+        const email = document.getElementById('modalAdminEmail')?.value || '';
+        const senha = document.getElementById('modalAdminSenha')?.value || '';
+        const confirm = document.getElementById('modalAdminConfirm')?.value || '';
+        
+        if (!nome || !usuario || !email || !senha || !confirm) {
+            alert('Preencha todos os campos!');
+            return;
+        }
+        
+        if (senha !== confirm) {
+            alert('As senhas não coincidem!');
+            return;
+        }
+        
+        if (senha.length < 6) {
+            alert('A senha deve ter pelo menos 6 caracteres!');
+            return;
+        }
+        
+        const empresaId = EmpresaManager.getEmpresaAtual();
+        
+        // Verifica novamente o limite
+        const verificacao = PlanService.verificarCadastroAdmin(empresaId);
+        if (!verificacao.permitido) {
+            const modalHtml = PlanService.gerarModalUpgrade(empresaId);
+            abrirModal('🔒 Limite de Administradores Atingido', modalHtml);
+            return;
+        }
+        
+        // Chama o AuthService para cadastrar
+        AuthService.cadastrar(email, senha, nome, usuario, empresaId).then(result => {
+            if (result.success) {
+                fecharModal();
+                carregarListaAdmins();
+                carregarInfoAdministracao();
+                alert('✅ Administrador criado com sucesso!');
+            } else {
+                alert('❌ Erro ao criar administrador: ' + result.message);
+            }
+        }).catch(err => {
+            alert('❌ Erro ao criar administrador: ' + err.message);
+        });
+    };
+
+    // =============================================
+    // ===== INICIALIZAÇÃO DA PÁGINA ADMIN =====
+    // =============================================
+
+    // Carrega informações quando a página admin é ativada
+    document.addEventListener('DOMContentLoaded', function() {
+        // Observa mudanças de página
+        const observer = new MutationObserver(function() {
+            const adminPage = document.getElementById('page-admin');
+            if (adminPage && adminPage.classList.contains('active')) {
+                carregarInfoAdministracao();
+            }
+        });
+        
+        observer.observe(document.body, {
+            attributes: true,
+            attributeFilter: ['class'],
+            subtree: true
+        });
+        
+        // Carrega se já estiver ativa
+        setTimeout(() => {
+            const adminPage = document.getElementById('page-admin');
+            if (adminPage && adminPage.classList.contains('active')) {
+                carregarInfoAdministracao();
+            }
+        }, 500);
+    });
+
+    // Adiciona a página admin ao menu de navegação se não existir
+    document.addEventListener('DOMContentLoaded', function() {
+        const navMenu = document.querySelector('.nav-menu ul');
+        if (navMenu) {
+            const adminItemExists = navMenu.querySelector('[data-page="admin"]');
+            if (!adminItemExists) {
+                const li = document.createElement('li');
+                li.dataset.page = 'admin';
+                li.innerHTML = '<i class="fas fa-user-shield"></i> <span>Administração</span>';
+                navMenu.appendChild(li);
+                
+                li.addEventListener('click', function() {
+                    setActivePage('admin');
+                    carregarInfoAdministracao();
+                });
+            }
+        }
+    });
+    </script>
 </body>
 </html>

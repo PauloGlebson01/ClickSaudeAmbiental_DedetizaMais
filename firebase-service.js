@@ -103,6 +103,24 @@ const AuthService = {
             
             const empresaFinal = empresaId || 'empresa_unica';
             
+            // 🔥 VERIFICA O LIMITE DE ADMINISTRADORES
+            if (typeof PlanService !== 'undefined') {
+                const verificacao = PlanService.verificarCadastroAdmin(empresaFinal);
+                if (!verificacao.permitido) {
+                    // Mostra modal de upgrade
+                    if (typeof window !== 'undefined' && typeof window.abrirModal === 'function') {
+                        const modalHtml = PlanService.gerarModalUpgrade(empresaFinal);
+                        window.abrirModal('🔒 Limite de Administradores Atingido', modalHtml);
+                    }
+                    return { 
+                        success: false, 
+                        message: '❌ Limite de administradores atingido. Entre em contato com nosso comercial para fazer upgrade de plano.',
+                        bloquear: true,
+                        mostrarModal: true
+                    };
+                }
+            }
+            
             const uid = 'user_' + Date.now();
             const newUser = {
                 uid: uid,
@@ -128,6 +146,16 @@ const AuthService = {
                 usuario: usuario || nome 
             };
             EmpresaManager.salvarSessao(empresaFinal, userData);
+            
+            // Verifica se está próximo do limite
+            if (typeof PlanService !== 'undefined') {
+                const resumo = PlanService.getResumoPlano(empresaFinal);
+                if (resumo.estaProximo && !resumo.estaLimite) {
+                    setTimeout(() => {
+                        alert(`ℹ️ Você está utilizando ${resumo.porcentagemUso}% do limite de administradores.\nRestam ${resumo.limiteAdmins - resumo.adminsAtuais} vagas.\nConsidere fazer upgrade de plano para continuar crescendo!`);
+                    }, 500);
+                }
+            }
             
             return { 
                 success: true, 
@@ -599,6 +627,7 @@ const EmpresaManager = {
             dominio: id,
             criadoEm: new Date().toISOString(),
             ativo: true,
+            plano: 'basico',
             admins: [],
             config: {
                 empresa: {
@@ -694,6 +723,7 @@ const EmpresaManager = {
             dominio: id,
             criadoEm: new Date().toISOString(),
             ativo: true,
+            plano: 'basico',
             admins: [],
             config: {
                 empresa: {
@@ -733,6 +763,7 @@ const EmpresaManager = {
                 dominio: empresaId,
                 criadoEm: new Date().toISOString(),
                 ativo: true,
+                plano: 'basico',
                 admins: [],
                 config: {
                     empresa: {
@@ -823,7 +854,7 @@ const EmpresaManager = {
 };
 
 // ============================================
-// FIRESTORE SERVICE - CORRIGIDO COM PRIORIDADE FIRESTORE
+// FIRESTORE SERVICE - CORRIGIDO
 // ============================================
 
 const FirestoreService = {
@@ -889,7 +920,7 @@ const FirestoreService = {
         
         const merged = {};
         
-        // 🔥 PRIORIDADE: Dados do Firestore sobrescrevem dados locais
+        // PRIORIDADE: Dados do Firestore sobrescrevem dados locais
         safeFirestore.forEach(item => {
             const id = String(item.id || item._docId || '');
             if (id) {
@@ -908,11 +939,10 @@ const FirestoreService = {
         return Object.values(merged);
     },
     
-    // 🔥 CORREÇÃO PRINCIPAL: getAll agora PRIORIZA FIRESTORE
     async getAll(collection, forceRefresh = false) {
         const empresaId = EmpresaManager.getEmpresaAtual();
         
-        // 🔥 SEMPRE TENTA BUSCAR DO FIRESTORE PRIMEIRO
+        // SEMPRE TENTA BUSCAR DO FIRESTORE PRIMEIRO
         if (this._isFirestoreAvailable()) {
             try {
                 const snapshot = await db.collection(collection)
@@ -954,7 +984,6 @@ const FirestoreService = {
         return items.find(item => String(item.id) === String(id)) || null;
     },
     
-    // 🔥 CORREÇÃO: add agora sincroniza com Firestore e retorna o item salvo
     async add(collection, data) {
         const empresaId = EmpresaManager.getEmpresaAtual();
         const id = data.id || 'doc_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
@@ -967,7 +996,7 @@ const FirestoreService = {
             atualizadoEm: new Date().toISOString()
         };
         
-        // Salva localmente
+        // 🔥 VERIFICA SE O ITEM JÁ EXISTE LOCALMENTE
         const items = this._getLocalData(collection);
         const existing = items.find(item => String(item.id) === String(id));
         if (existing) {
@@ -975,18 +1004,32 @@ const FirestoreService = {
             return this.update(collection, id, data);
         }
         
+        // 🔥 VERIFICA SE O ITEM JÁ EXISTE NO FIRESTORE
+        if (this._isFirestoreAvailable()) {
+            try {
+                const docRef = db.collection(collection).doc(id);
+                const docSnap = await docRef.get();
+                if (docSnap.exists) {
+                    console.warn(`⚠️ Item ${id} já existe no Firestore, atualizando...`);
+                    return this.update(collection, id, data);
+                }
+            } catch (error) {
+                console.warn('Erro ao verificar existência no Firestore:', error);
+            }
+        }
+        
+        // Salva localmente apenas se não existir
         items.push(docData);
         this._setLocalData(collection, items);
         this._clearLocalCache(collection);
         
-        // 🔥 ENVIA PARA O FIRESTORE (SINCRONIZAÇÃO AUTOMÁTICA)
+        // ENVIA PARA O FIRESTORE
         if (this._isFirestoreAvailable()) {
             try {
                 await db.collection(collection).doc(id).set(docData);
                 console.log(`✅ Adicionado ${collection}/${id} no Firestore`);
             } catch (error) {
                 console.warn(`Erro ao adicionar ${collection} no Firestore:`, error);
-                // Tenta novamente após 1 segundo
                 setTimeout(async () => {
                     try {
                         await db.collection(collection).doc(id).set(docData);
@@ -998,7 +1041,7 @@ const FirestoreService = {
             }
         }
         
-        // 🔥 DISPARA EVENTO PARA ATUALIZAR INTERFACE
+        // DISPARA EVENTO PARA ATUALIZAR INTERFACE
         document.dispatchEvent(new CustomEvent('dadosAtualizados', { 
             detail: { collection, action: 'add', item: docData } 
         }));
@@ -1006,7 +1049,6 @@ const FirestoreService = {
         return docData;
     },
     
-    // 🔥 CORREÇÃO: update agora sincroniza com Firestore e retorna o item atualizado
     async update(collection, id, data) {
         const empresaId = EmpresaManager.getEmpresaAtual();
         const idStr = String(id);
@@ -1035,7 +1077,7 @@ const FirestoreService = {
             this._clearLocalCache(collection);
         }
         
-        // 🔥 ATUALIZA NO FIRESTORE (SINCRONIZAÇÃO AUTOMÁTICA)
+        // ATUALIZA NO FIRESTORE
         if (this._isFirestoreAvailable()) {
             try {
                 await db.collection(collection).doc(idStr).update(docData);
@@ -1065,7 +1107,7 @@ const FirestoreService = {
             }
         }
         
-        // 🔥 DISPARA EVENTO PARA ATUALIZAR INTERFACE
+        // DISPARA EVENTO PARA ATUALIZAR INTERFACE
         document.dispatchEvent(new CustomEvent('dadosAtualizados', { 
             detail: { collection, action: 'update', item: items.find(item => String(item.id) === idStr) } 
         }));
@@ -1081,7 +1123,7 @@ const FirestoreService = {
         this._setLocalData(collection, items);
         this._clearLocalCache(collection);
         
-        // 🔥 REMOVE DO FIRESTORE (SINCRONIZAÇÃO AUTOMÁTICA)
+        // REMOVE DO FIRESTORE
         if (this._isFirestoreAvailable()) {
             try {
                 await db.collection(collection).doc(idStr).delete();
@@ -1099,7 +1141,7 @@ const FirestoreService = {
             }
         }
         
-        // 🔥 DISPARA EVENTO PARA ATUALIZAR INTERFACE
+        // DISPARA EVENTO PARA ATUALIZAR INTERFACE
         document.dispatchEvent(new CustomEvent('dadosAtualizados', { 
             detail: { collection, action: 'delete', id: idStr } 
         }));
@@ -1107,7 +1149,6 @@ const FirestoreService = {
         return items;
     },
     
-    // 🔥 CORREÇÃO: observeCollection agora prioriza Firestore
     observeCollection: function(collection, onUpdate, onError) {
         if (!this._isFirestoreAvailable()) {
             console.warn('Firestore não disponível para observação.');
@@ -1124,7 +1165,7 @@ const FirestoreService = {
                 items.push({ id: doc.id, ...doc.data() });
             });
 
-            // 🔥 SEMPRE ATUALIZA COM OS DADOS DO FIRESTORE (SOBRESCREVE)
+            // SEMPRE ATUALIZA COM OS DADOS DO FIRESTORE (SOBRESCREVE)
             const localData = this._getLocalData(collection);
             const mergedData = this._mergeData(localData, items);
             this._setLocalData(collection, mergedData);
@@ -1187,7 +1228,6 @@ const FirestoreService = {
         this._isInitialized = false;
     },
     
-    // 🔥 CORREÇÃO: sincronizarDadosEmpresa agora FORÇA a sincronização
     async sincronizarDadosEmpresa(empresaId, force = false) {
         if (!this._isFirestoreAvailable()) {
             console.warn('Firestore não disponível para sincronização');
@@ -1201,7 +1241,7 @@ const FirestoreService = {
         
         for (const collection of this.collections) {
             try {
-                // 🔥 SEMPRE BUSCA DO FIRESTORE
+                // SEMPRE BUSCA DO FIRESTORE
                 const snapshot = await db.collection(collection)
                     .where('empresaId', '==', empresaId)
                     .get();
@@ -1215,7 +1255,7 @@ const FirestoreService = {
                 const localData = this._getLocalData(collection);
                 
                 if (items.length > 0) {
-                    // 🔥 PRIORIDADE: Dados do Firestore sobrescrevem locais
+                    // PRIORIDADE: Dados do Firestore sobrescrevem locais
                     const mergedData = this._mergeData(localData, items);
                     this._setLocalData(collection, mergedData);
                     totalItens += mergedData.length;
@@ -1271,7 +1311,7 @@ const FirestoreService = {
                 items.push({ id: data.id || doc.id, ...data });
             });
             
-            // 🔥 PRIORIDADE: Firestore sobrescreve local
+            // PRIORIDADE: Firestore sobrescreve local
             if (items.length > 0) {
                 const mergedData = this._mergeData(localData, items);
                 this._setLocalData(collection, mergedData);
@@ -1376,7 +1416,7 @@ const FirestoreService = {
                 console.log('✅ Modelos padrão criados!');
             }
             
-            // 🔥 VERIFICA SE HÁ CERTIFICADOS E SINCRONIZA
+            // VERIFICA SE HÁ CERTIFICADOS E SINCRONIZA
             const certificados = await this.getAll('certificados', true);
             console.log(`📋 ${certificados.length} certificados sincronizados`);
             
@@ -1387,6 +1427,551 @@ const FirestoreService = {
         EmpresaManager.setEmpresaAtual(empresaAnterior);
     }
 };
+
+// ============================================
+// SERVIÇO DE PLANOS E LIMITES - ATUALIZADO
+// ============================================
+
+const PlanService = {
+    // Configuração dos planos conforme a imagem
+    PLANOS: {
+        'basico': {
+            nome: 'Básico',
+            limiteAdmins: 3,
+            maxEmpresas: 1,
+            precoMensal: 69.90,
+            cor: '#3498db',
+            descricao: 'Perfeito para pequenas operações.',
+            features: [
+                '✅ Até 3 usuários',
+                '✅ OS e Clientes',
+                '✅ Agenda inteligente',
+                '✅ Mapas de Iscas',
+                '✅ Estoque completo',
+                '✅ Financeiro',
+                '✅ Assinatura digital',
+                '✅ Suporte técnico'
+            ]
+        },
+        'profissional': {
+            nome: 'Profissional',
+            limiteAdmins: 10,
+            maxEmpresas: 2,
+            precoMensal: 149.90,
+            cor: '#8e44ad',
+            descricao: 'Ideal para empresas em crescimento.',
+            features: [
+                '✅ Até 10 usuários',
+                '✅ OS e Clientes',
+                '✅ Agenda inteligente',
+                '✅ Mapas de Iscas',
+                '✅ Estoque completo',
+                '✅ Financeiro',
+                '✅ Assinatura digital',
+                '✅ Suporte técnico'
+            ],
+            isRecommended: true
+        },
+        'premium': {
+            nome: 'Premium',
+            limiteAdmins: 999,
+            maxEmpresas: 5,
+            precoMensal: 199.90,
+            cor: '#e67e22',
+            descricao: 'Para grandes operações e franquias.',
+            features: [
+                '✅ Usuários ilimitados',
+                '✅ OS e Clientes',
+                '✅ Agenda inteligente',
+                '✅ Mapas de Iscas',
+                '✅ Estoque completo',
+                '✅ Financeiro',
+                '✅ Assinatura digital',
+                '✅ Suporte técnico'
+            ],
+            isPopular: true
+        }
+    },
+
+    // Plano padrão para novas empresas
+    PLANO_PADRAO: 'basico',
+    LIMITE_AVISO: 0.8, // 80% do limite
+    
+    /**
+     * Obtém o plano atual da empresa
+     */
+    getPlanoEmpresa: function(empresaId) {
+        const empresa = EmpresaManager.getEmpresa(empresaId);
+        if (!empresa) return this.PLANOS[this.PLANO_PADRAO];
+        
+        const planoNome = empresa.plano || this.PLANO_PADRAO;
+        return this.PLANOS[planoNome] || this.PLANOS[this.PLANO_PADRAO];
+    },
+
+    /**
+     * Obtém o nome do plano atual da empresa
+     */
+    getPlanoNome: function(empresaId) {
+        const empresa = EmpresaManager.getEmpresa(empresaId);
+        return empresa.plano || this.PLANO_PADRAO;
+    },
+
+    /**
+     * Atualiza o plano da empresa
+     */
+    setPlanoEmpresa: function(empresaId, planoNome) {
+        if (!this.PLANOS[planoNome]) {
+            console.warn('⚠️ Plano inválido:', planoNome);
+            return false;
+        }
+        
+        const empresa = EmpresaManager.getEmpresa(empresaId);
+        if (!empresa) return false;
+        
+        empresa.plano = planoNome;
+        this._salvarEmpresa(empresaId, empresa);
+        return true;
+    },
+
+    /**
+     * Conta o número de administradores da empresa
+     */
+    contarAdmins: function(empresaId) {
+        const empresa = EmpresaManager.getEmpresa(empresaId);
+        if (!empresa) return 0;
+        return empresa.admins ? empresa.admins.length : 0;
+    },
+
+    /**
+     * Verifica se a empresa pode adicionar mais administradores
+     */
+    podeAdicionarAdmin: function(empresaId) {
+        const plano = this.getPlanoEmpresa(empresaId);
+        const adminsAtuais = this.contarAdmins(empresaId);
+        return adminsAtuais < plano.limiteAdmins;
+    },
+
+    /**
+     * Calcula a porcentagem de uso do limite
+     */
+    getPorcentagemUso: function(empresaId) {
+        const plano = this.getPlanoEmpresa(empresaId);
+        const adminsAtuais = this.contarAdmins(empresaId);
+        if (plano.limiteAdmins === 0) return 100;
+        return (adminsAtuais / plano.limiteAdmins) * 100;
+    },
+
+    /**
+     * Verifica se está próximo do limite (>= 80%)
+     */
+    isProximoLimite: function(empresaId) {
+        const porcentagem = this.getPorcentagemUso(empresaId);
+        return porcentagem >= this.LIMITE_AVISO * 100;
+    },
+
+    /**
+     * Verifica se atingiu o limite
+     */
+    isLimiteAtingido: function(empresaId) {
+        return !this.podeAdicionarAdmin(empresaId);
+    },
+
+    /**
+     * Salva a empresa atualizada
+     */
+    _salvarEmpresa: function(empresaId, empresa) {
+        try {
+            const empresas = JSON.parse(localStorage.getItem('dedetiza_empresas') || '{}');
+            empresas[empresaId] = empresa;
+            localStorage.setItem('dedetiza_empresas', JSON.stringify(empresas));
+            
+            // Atualiza a cache do EmpresaManager
+            if (EmpresaManager._empresas) {
+                EmpresaManager._empresas[empresaId] = empresa;
+            }
+            
+            // Sincroniza com Firestore
+            if (typeof FirestoreService !== 'undefined' && FirestoreService._isFirestoreAvailable()) {
+                try {
+                    db.collection('empresas').doc(empresaId).set(empresa, { merge: true })
+                        .catch(err => console.warn('Erro ao sincronizar plano:', err));
+                } catch (e) {
+                    console.warn('Erro ao sincronizar plano no Firestore:', e);
+                }
+            }
+        } catch (e) {
+            console.warn('Erro ao salvar empresa:', e);
+        }
+    },
+
+    /**
+     * Gera as opções de plano para seleção
+     */
+    gerarOpcoesPlano: function(empresaId) {
+        const planoAtual = this.getPlanoNome(empresaId);
+        return Object.entries(this.PLANOS).map(([key, plano]) => {
+            const selected = key === planoAtual ? 'selected' : '';
+            const precoDisplay = typeof plano.precoMensal === 'number' ? 
+                `R$ ${plano.precoMensal.toFixed(2)}/mês` : 
+                plano.precoMensal;
+            return `<option value="${key}" ${selected}>
+                ${plano.nome} - ${plano.limiteAdmins} admins - ${precoDisplay}
+            </option>`;
+        }).join('');
+    },
+
+    /**
+     * Obtém o resumo do plano para exibição
+     */
+    getResumoPlano: function(empresaId) {
+        const plano = this.getPlanoEmpresa(empresaId);
+        const admins = this.contarAdmins(empresaId);
+        const limite = plano.limiteAdmins;
+        const porcentagem = this.getPorcentagemUso(empresaId);
+        
+        return {
+            planoNome: plano.nome,
+            adminsAtuais: admins,
+            limiteAdmins: limite,
+            porcentagemUso: Math.round(porcentagem),
+            podeAdicionar: this.podeAdicionarAdmin(empresaId),
+            estaProximo: this.isProximoLimite(empresaId),
+            estaLimite: this.isLimiteAtingido(empresaId),
+            precoMensal: plano.precoMensal,
+            cor: plano.cor || '#1d7a6b',
+            descricao: plano.descricao || '',
+            features: plano.features,
+            isRecommended: plano.isRecommended || false,
+            isPopular: plano.isPopular || false
+        };
+    },
+
+    /**
+     * Gera a mensagem de alerta baseada no uso
+     */
+    getMensagemAlerta: function(empresaId) {
+        const resumo = this.getResumoPlano(empresaId);
+        
+        if (resumo.estaLimite) {
+            return {
+                tipo: 'danger',
+                titulo: '⚠️ Limite de Administradores Atingido!',
+                mensagem: `Sua empresa atingiu o limite de ${resumo.limiteAdmins} administradores do plano ${resumo.planoNome}. 
+                    Para adicionar mais administradores, faça upgrade para um plano superior.`,
+                acao: 'Ver Planos'
+            };
+        } else if (resumo.estaProximo) {
+            return {
+                tipo: 'warning',
+                titulo: '🔔 Limite de Administradores Próximo!',
+                mensagem: `Você está utilizando ${resumo.porcentagemUso}% do limite de ${resumo.limiteAdmins} administradores do plano ${resumo.planoNome}.
+                    Restam ${resumo.limiteAdmins - resumo.adminsAtuais} vagas. Quando atingir o limite, será necessário fazer upgrade de plano.`,
+                acao: 'Ver Planos'
+            };
+        }
+        return null;
+    },
+
+    /**
+     * Verifica o limite ao tentar cadastrar um novo administrador
+     * Retorna um objeto com status e mensagem
+     */
+    verificarCadastroAdmin: function(empresaId) {
+        const resumo = this.getResumoPlano(empresaId);
+        
+        if (resumo.estaLimite) {
+            return {
+                permitido: false,
+                mensagem: `❌ Limite de administradores atingido!\nPlano atual: ${resumo.planoNome} (${resumo.limiteAdmins} admins)\nFaça upgrade para um plano superior.`,
+                tipo: 'erro',
+                mostrarModal: true
+            };
+        }
+        
+        if (resumo.estaProximo) {
+            return {
+                permitido: true,
+                mensagem: `ℹ️ Você está utilizando ${resumo.porcentagemUso}% do limite de administradores.\nRestam ${resumo.limiteAdmins - resumo.adminsAtuais} vagas.\nConsidere fazer upgrade de plano para continuar crescendo!`,
+                tipo: 'aviso',
+                mostrarModal: false
+            };
+        }
+        
+        return {
+            permitido: true,
+            mensagem: null,
+            tipo: 'ok',
+            mostrarModal: false
+        };
+    },
+
+    /**
+     * Gera o HTML do modal de planos/upgrade - Estilo conforme a imagem
+     */
+    gerarModalUpgrade: function(empresaId) {
+        const resumo = this.getResumoPlano(empresaId);
+        
+        const planosHtml = Object.entries(this.PLANOS).map(([key, plano]) => {
+            const isCurrent = key === resumo.planoNome;
+            const isRecommended = plano.isRecommended || false;
+            const isPopular = plano.isPopular || false;
+            const precoDisplay = typeof plano.precoMensal === 'number' ? 
+                `R$ ${plano.precoMensal.toFixed(2)} /mês` : 
+                plano.precoMensal;
+            
+            const featuresList = plano.features.map(f => `<li style="list-style:none;padding:4px 0;font-size:0.85rem;color:#4d687a;">${f}</li>`).join('');
+            
+            let badgeHtml = '';
+            if (isPopular) {
+                badgeHtml = '<span style="display:inline-block;background:#e67e22;color:white;padding:2px 12px;border-radius:20px;font-size:0.7rem;font-weight:600;margin-bottom:8px;">Mais Popular</span>';
+            }
+            if (isRecommended && !isPopular) {
+                badgeHtml = '<span style="display:inline-block;background:#8e44ad;color:white;padding:2px 12px;border-radius:20px;font-size:0.7rem;font-weight:600;margin-bottom:8px;">⭐ Recomendado</span>';
+            }
+            if (isCurrent) {
+                badgeHtml = '<span style="display:inline-block;background:#1d7a6b;color:white;padding:2px 12px;border-radius:20px;font-size:0.7rem;font-weight:600;margin-bottom:8px;">✅ Atual</span>';
+            }
+            
+            const borderClass = isPopular ? 'border: 2px solid #e67e22;' : 
+                               isRecommended ? 'border: 2px solid #8e44ad;' : 
+                               isCurrent ? 'border: 2px solid #1d7a6b;' : 
+                               'border: 1px solid #e8eff5;';
+            
+            const bgClass = isPopular ? 'background: #fef9f0;' : 'background: white;';
+            
+            return `
+                <div style="${bgClass} border-radius:16px;padding:24px;${borderClass} box-shadow:0 2px 12px rgba(0,0,0,0.06);flex:1;min-width:220px;max-width:300px;text-align:center;">
+                    ${badgeHtml}
+                    <h3 style="color:#0b2a3b;font-size:1.1rem;margin:0 0 4px 0;">${plano.nome}</h3>
+                    <div style="font-size:1.8rem;font-weight:700;color:#0b2a3b;margin:4px 0;">${precoDisplay}</div>
+                    <div style="font-size:0.8rem;color:#4d687a;margin-bottom:12px;">${plano.descricao || ''}</div>
+                    <ul style="padding-left:0;margin:8px 0;text-align:left;">
+                        ${featuresList}
+                    </ul>
+                    ${isCurrent ? 
+                        `<button style="background:#e8eff5;color:#4d687a;border:none;padding:10px 20px;border-radius:8px;font-weight:600;cursor:default;width:100%;">Plano Atual</button>` :
+                        `<button onclick="solicitarUpgrade('${key}')" style="background:#0b2a3b;color:white;border:none;padding:10px 20px;border-radius:8px;font-weight:600;cursor:pointer;width:100%;transition:0.2s;">
+                            ${isPopular ? '⭐ Escolher' : 'Contratar'}
+                        </button>`
+                    }
+                </div>
+            `;
+        }).join('');
+
+        return `
+            <div style="text-align:center;margin-bottom:16px;">
+                <div style="font-size:2.5rem;">🚀</div>
+                <h2 style="color:#0b2a3b;margin:8px 0;">Escolha o Plano Ideal</h2>
+                <p style="color:#4d687a;">
+                    ${resumo.estaLimite ? 
+                        `Sua empresa atingiu o limite de ${resumo.limiteAdmins} administradores do plano ${resumo.planoNome}.` :
+                        `Você está utilizando ${resumo.porcentagemUso}% do limite de ${resumo.limiteAdmins} administradores.`
+                    }
+                </p>
+                ${resumo.estaLimite ? 
+                    `<p style="color:#b13e3a;font-weight:600;">🔴 Faça upgrade para continuar adicionando administradores.</p>` :
+                    resumo.estaProximo ?
+                    `<p style="color:#e67e22;font-weight:600;">🟡 Restam ${resumo.limiteAdmins - resumo.adminsAtuais} vagas.</p>` :
+                    ''
+                }
+            </div>
+
+            <div style="display:flex;gap:20px;flex-wrap:wrap;justify-content:center;margin:16px 0;">
+                ${planosHtml}
+            </div>
+
+            <div style="background:#f0f7fc;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #1d7a6b;">
+                <div style="font-weight:600;color:#0b2a3b;">📞 Entre em contato com nosso comercial</div>
+                <div style="color:#4d687a;font-size:0.9rem;">
+                    <div>📧 Email: <strong>softpowersolucoesdigitais@gmail.com</strong></div>
+                    <div>📱 WhatsApp: <strong>(83) 98101-1900</strong></div>
+                </div>
+                <div style="margin-top:8px;font-size:0.85rem;color:#4d687a;">
+                    Ou clique em um dos planos acima para solicitar a contratação.
+                </div>
+            </div>
+
+            <div style="display:flex;gap:12px;justify-content:center;margin-top:16px;flex-wrap:wrap;">
+                <button onclick="fecharModal()" style="background:#e8eff5;color:#1f3a4b;border:none;padding:10px 24px;border-radius:40px;font-weight:600;cursor:pointer;">
+                    ${resumo.estaLimite ? 'Fechar' : 'Continuar'}
+                </button>
+                <button onclick="abrirContatoComercial()" style="background:#1d7a6b;color:white;border:none;padding:10px 24px;border-radius:40px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:8px;">
+                    <i class="fas fa-envelope"></i> Falar com Comercial
+                </button>
+            </div>
+        `;
+    }
+};
+
+// ============================================
+// FUNÇÕES DE UPGRADE (GLOBAIS)
+// ============================================
+
+if (typeof window !== 'undefined') {
+    window.PlanService = PlanService;
+
+    window.solicitarUpgrade = function(planoNome) {
+        const empresaId = EmpresaManager.getEmpresaAtual();
+        const planos = PlanService.PLANOS;
+        const plano = planos[planoNome];
+        
+        if (!plano) return;
+        
+        const mensagem = `Olá! Gostaria de solicitar a contratação do plano "${plano.nome}".
+        
+    Dados da empresa:
+    - Empresa: ${EmpresaManager.getEmpresa(empresaId)?.nome || 'N/A'}
+    - Plano atual: ${PlanService.getPlanoNome(empresaId)}
+    - Administradores atuais: ${PlanService.contarAdmins(empresaId)}
+    - Limite desejado: ${plano.limiteAdmins} administradores
+    - Valor: ${typeof plano.precoMensal === 'number' ? 'R$ ' + plano.precoMensal.toFixed(2) + '/mês' : plano.precoMensal}
+    
+    Aguardo retorno para prosseguirmos com a contratação.
+    Obrigado!`;
+        
+        // Abre modal com opções de contato
+        if (typeof window.abrirModal === 'function') {
+            window.abrirModal('Solicitar Contratação - ' + plano.nome, `
+                <div style="text-align:center;padding:16px 0;">
+                    <div style="font-size:3rem;">📋</div>
+                    <h3 style="color:#0b2a3b;margin:8px 0;">Plano ${plano.nome}</h3>
+                    <p style="color:#4d687a;font-size:0.9rem;">
+                        ${plano.limiteAdmins} administradores • ${typeof plano.precoMensal === 'number' ? 'R$ ' + plano.precoMensal.toFixed(2) + '/mês' : plano.precoMensal}
+                    </p>
+                </div>
+
+                <div style="background:#f8fbfd;border-radius:8px;padding:12px 16px;margin:12px 0;">
+                    <div style="font-weight:600;color:#0b2a3b;margin-bottom:8px;">Sua solicitação:</div>
+                    <div style="font-size:0.85rem;color:#4d687a;white-space:pre-wrap;background:white;padding:12px;border-radius:6px;border:1px solid #e8eff5;max-height:150px;overflow-y:auto;">
+                        ${mensagem}
+                    </div>
+                </div>
+
+                <div style="display:flex;flex-direction:column;gap:8px;margin:12px 0;">
+                    <button onclick="enviarEmailComercial()" style="background:#0b2a3b;color:white;border:none;padding:12px;border-radius:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;">
+                        <i class="fas fa-envelope"></i> Enviar por E-mail
+                    </button>
+                    <button onclick="abrirWhatsAppComercial()" style="background:#25D366;color:white;border:none;padding:12px;border-radius:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;">
+                        <i class="fab fa-whatsapp"></i> Enviar via WhatsApp
+                    </button>
+                    <button onclick="copiarMensagemComercial()" style="background:#e8eff5;color:#1f3a4b;border:none;padding:12px;border-radius:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;">
+                        <i class="fas fa-copy"></i> Copiar Mensagem
+                    </button>
+                </div>
+
+                <div style="background:#f0f7fc;padding:12px;border-radius:8px;border-left:4px solid #1d7a6b;font-size:0.85rem;color:#4d687a;">
+                    <strong>📌 Importante:</strong> Nossa equipe comercial entrará em contato em até 24 horas úteis 
+                    para dar continuidade ao processo de contratação.
+                </div>
+
+                <div class="modal-footer" style="margin-top:16px;">
+                    <button class="btn-secondary" onclick="fecharModal()">Fechar</button>
+                </div>
+            `);
+        }
+        
+        // Salva a mensagem para uso nas funções
+        window._upgradeMensagem = mensagem;
+        window._upgradePlano = planoNome;
+    };
+
+    window.enviarEmailComercial = function() {
+        const mensagem = window._upgradeMensagem || '';
+        const assunto = 'Solicitação de Contratação de Plano - Dedetize+';
+        const email = 'softpowersoluucoesdigitais@gmail.com';
+        
+        window.location.href = `mailto:${email}?subject=${encodeURIComponent(assunto)}&body=${encodeURIComponent(mensagem)}`;
+        
+        setTimeout(() => {
+            if (typeof window.fecharModal === 'function') {
+                window.fecharModal();
+            }
+        }, 500);
+    };
+
+    window.abrirWhatsAppComercial = function() {
+        const mensagem = window._upgradeMensagem || '';
+        const numero = '5583981011900';
+        
+        window.open(`https://api.whatsapp.com/send?phone=${numero}&text=${encodeURIComponent(mensagem)}`, '_blank');
+        
+        setTimeout(() => {
+            if (typeof window.fecharModal === 'function') {
+                window.fecharModal();
+            }
+        }, 500);
+    };
+
+    window.copiarMensagemComercial = function() {
+        const mensagem = window._upgradeMensagem || '';
+        
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(mensagem).then(() => {
+                alert('✅ Mensagem copiada para a área de transferência!');
+            }).catch(() => {
+                const textarea = document.createElement('textarea');
+                textarea.value = mensagem;
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+                alert('✅ Mensagem copiada para a área de transferência!');
+            });
+        } else {
+            const textarea = document.createElement('textarea');
+            textarea.value = mensagem;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            alert('✅ Mensagem copiada para a área de transferência!');
+        }
+    };
+
+    window.abrirContatoComercial = function() {
+        if (typeof window.fecharModal === 'function') {
+            window.fecharModal();
+        }
+        window.solicitarUpgrade(PlanService.PLANOS['profissional'].nome);
+    };
+
+    // ============================================
+    // VERIFICAÇÃO DE LIMITE NO CADASTRO (HOOK)
+    // ============================================
+
+    // Hook para verificar limite antes de cadastrar novo admin
+    const originalCadastrar = AuthService.cadastrar;
+    AuthService.cadastrar = async function(email, senha, nome, usuario, empresaId = null) {
+        const empresaFinal = empresaId || 'empresa_unica';
+        
+        // Verifica o limite
+        const verificacao = PlanService.verificarCadastroAdmin(empresaFinal);
+        
+        if (!verificacao.permitido) {
+            // Mostra modal de upgrade
+            const modalHtml = PlanService.gerarModalUpgrade(empresaFinal);
+            if (typeof window.abrirModal === 'function') {
+                window.abrirModal('🔒 Limite de Administradores Atingido', modalHtml);
+            }
+            return { 
+                success: false, 
+                message: verificacao.mensagem,
+                bloquear: true,
+                mostrarModal: true
+            };
+        }
+        
+        // Se está próximo do limite, mostra aviso
+        if (verificacao.tipo === 'aviso' && verificacao.mensagem) {
+            setTimeout(() => {
+                alert(verificacao.mensagem);
+            }, 100);
+        }
+        
+        // Chama a função original
+        return originalCadastrar.call(this, email, senha, nome, usuario, empresaId);
+    };
+}
 
 // ============================================
 // INICIALIZAÇÃO AUTOMÁTICA
@@ -1403,7 +1988,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Sincroniza dados automaticamente
             if (FirestoreService._isFirestoreAvailable()) {
-                // 🔥 FORÇA SINCRONIZAÇÃO COMPLETA (FORCE = TRUE)
+                // FORÇA SINCRONIZAÇÃO COMPLETA (FORCE = TRUE)
                 await FirestoreService.sincronizarDadosEmpresa(empresaId, true);
                 
                 // Inicia observadores se ainda não iniciados
@@ -1433,8 +2018,11 @@ document.addEventListener('DOMContentLoaded', function() {
 window.AuthService = AuthService;
 window.FirestoreService = FirestoreService;
 window.EmpresaManager = EmpresaManager;
+window.PlanService = PlanService;
 
 console.log('✅ Firebase Services - SINCRONIZAÇÃO AUTOMÁTICA MULTI-DISPOSITIVO carregados!');
 console.log('📌 Todos os registros são sincronizados em tempo real entre dispositivos');
 console.log('📌 PRIORIDADE: Dados do Firestore sobrescrevem dados locais');
 console.log('📌 Nenhuma ação manual necessária!');
+console.log('📌 Planos disponíveis: Básico (3 admins), Profissional (10 admins), Premium (usuários ilimitados)');
+console.log('📌 Para alterar o plano, use PlanService.PLANOS');
