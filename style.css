@@ -2700,3 +2700,37 @@ td i:hover { background: #e8eff5; }
 .modal-upgrade .plano-card .btn-contratar.popular:hover {
     background: #d35400;
 }
+
+/* Campo de garantia na OS */
+#modalOSGarantia {
+    min-height: 80px;
+    font-family: inherit;
+    resize: vertical;
+    background: #fafcfe;
+    transition: all 0.25s ease;
+}
+
+#modalOSGarantia:focus {
+    border-color: #1d7a6b;
+    box-shadow: 0 0 0 3px rgba(29, 122, 107, 0.1);
+    background: #ffffff;
+}
+
+/* Estilo para a garantia na impressão da OS */
+.garantia-os-texto {
+    background: #f0f7fc;
+    padding: 8px 14px;
+    border-radius: 4px;
+    margin: 6px 0;
+    font-size: 7px;
+    border-left: 3px solid #0b2a3b;
+    white-space: pre-line;
+    line-height: 1.5;
+    min-height: 20px;
+    word-wrap: break-word;
+}
+
+.garantia-os-texto strong {
+    font-size: 7px;
+    color: #0b2a3b;
+}

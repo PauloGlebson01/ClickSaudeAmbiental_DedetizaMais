@@ -22,6 +22,11 @@
 // ADICIONADO - Página de Administração com gerenciamento de plano e limites
 // ADICIONADO - Sistema de planos com limite de administradores
 // ADICIONADO - Indicadores visuais de uso do plano no topbar
+// CORRIGIDO - Campo "Texto da Garantia do Serviço" movido para dentro da OS (editável por OS)
+// ADICIONADO - Sistema de assinaturas salvas para técnicos e operacionais
+// ADICIONADO - Gerenciador de assinaturas com upload de imagens
+// ADICIONADO - Aplicação automática de assinaturas salvas em certificados
+// CORRIGIDO - Duplicação do botão "Gerenciar Assinaturas" removida
 
 // =============================================
 // ===== PREVENÇÃO DE ERROS DE REFERÊNCIA =====
@@ -385,8 +390,8 @@
             titulo: 'Relatório Técnico',
             subtitulo: 'Controle de Pragas',
             cor: '#0b2a3b',
-            rodape: 'Este relatório é de propriedade da empresa e contém informações confidenciais.',
-            garantia: 'Garantia do serviço: 90 dias a partir da data do primeiro serviço\nOBS: Reentrada no local só será permitida após 06 horas da aplicação líquida, mediante o ambiente arejado, e todo objeto encontrado no chão que não puder ser descartado deverá ser higienizado antes do uso.'
+            rodape: 'Este relatório é de propriedade da empresa e contém informações confidenciais.'
+            // Campo 'garantia' removido - agora gerenciado por OS
         }
     };
 
@@ -1276,6 +1281,12 @@
             const tecnicoSelecionado = tecnicos.find(m => String(m.id) === String(tecnicoAtual.id));
             const operacionalSelecionado = operacionais.find(m => String(m.id) === String(operacionalAtual.id));
 
+            // Verifica se os responsáveis têm assinaturas salvas
+            const tecnicoTemAssinatura = tecnicoSelecionado ? 
+                (tecnicoSelecionado.assinaturaTecnico ? true : false) : false;
+            const operacionalTemAssinatura = operacionalSelecionado ? 
+                (operacionalSelecionado.assinaturaOperacional ? true : false) : false;
+
             const produtosHtml = c.produtos.map(p => `
                 <tr>
                     <td style="padding:4px 8px;border:1px solid #ccc;text-align:center;font-size:9px;">${p.nome || '-'}</td>
@@ -1299,6 +1310,38 @@
             const operacionalDisplay = operacionalSelecionado ? 
                 `${operacionalSelecionado.nome} - ${operacionalSelecionado.registro || 'Sem registro'}` : 
                 'Nenhum operacional selecionado';
+
+            // HTML dos botões de assinatura salva
+            const botoesAssinaturaHtml = `
+                <div style="grid-column:1/-1;display:flex;gap:8px;margin-top:4px;flex-wrap:wrap;justify-content:center;">
+                    ${tecnicoTemAssinatura ? `
+                        <button onclick="aplicarAssinaturaSalvaCertificado('${c.id}', 'tecnico')" 
+                                style="background:#1d7a6b;color:white;border:none;padding:3px 14px;border-radius:4px;font-size:7px;cursor:pointer;display:flex;align-items:center;gap:4px;">
+                            <i class="fas fa-check-circle"></i> Aplicar Assinatura Salva (Técnico)
+                        </button>
+                    ` : tecnicoSelecionado && tecnicoSelecionado.id !== 'default_tecnico' ? `
+                        <button onclick="abrirGerenciadorAssinaturas()" 
+                                style="background:#e67e22;color:white;border:none;padding:3px 14px;border-radius:4px;font-size:7px;cursor:pointer;display:flex;align-items:center;gap:4px;">
+                            <i class="fas fa-exclamation-triangle"></i> Adicionar Assinatura (Técnico)
+                        </button>
+                    ` : ''}
+                    ${operacionalTemAssinatura ? `
+                        <button onclick="aplicarAssinaturaSalvaCertificado('${c.id}', 'operacional')" 
+                                style="background:#1d7a6b;color:white;border:none;padding:3px 14px;border-radius:4px;font-size:7px;cursor:pointer;display:flex;align-items:center;gap:4px;">
+                            <i class="fas fa-check-circle"></i> Aplicar Assinatura Salva (Operacional)
+                        </button>
+                    ` : operacionalSelecionado && operacionalSelecionado.id !== 'default_operacional' ? `
+                        <button onclick="abrirGerenciadorAssinaturas()" 
+                                style="background:#e67e22;color:white;border:none;padding:3px 14px;border-radius:4px;font-size:7px;cursor:pointer;display:flex;align-items:center;gap:4px;">
+                            <i class="fas fa-exclamation-triangle"></i> Adicionar Assinatura (Operacional)
+                        </button>
+                    ` : ''}
+                    <button onclick="abrirGerenciadorAssinaturas()" 
+                            style="background:#0b2a3b;color:white;border:none;padding:3px 14px;border-radius:4px;font-size:7px;cursor:pointer;display:flex;align-items:center;gap:4px;">
+                        <i class="fas fa-cog"></i> Gerenciar Assinaturas
+                    </button>
+                </div>
+            `;
 
             return `
                 <div style="font-family:Arial,sans-serif;font-size:10px;max-width:800px;margin:0 auto;padding:20px;background:white;border:1px solid #ddd;border-radius:8px;">
@@ -1440,6 +1483,7 @@
                                     </div>
                                     <div style="font-size:6px;text-align:center;color:#999;margin-top:2px;">Assinatura Digital</div>
                                 </div>
+                                ${botoesAssinaturaHtml}
                             </div>
                         </div>
 
@@ -1524,6 +1568,348 @@
     };
 
     window.CertificadoService = CertificadoService;
+
+    // =============================================
+    // ===== SERVIÇO DE ASSINATURAS SALVAS =====
+    // =============================================
+
+    const AssinaturaService = {
+        /**
+         * Salva uma assinatura para um membro da equipe
+         */
+        salvarAssinaturaMembro: function(membroId, tipo, imagemData) {
+            if (!membroId) return false;
+            
+            const equipe = DB.getAll('equipe');
+            const membro = equipe.find(m => String(m.id) === String(membroId));
+            if (!membro) return false;
+            
+            const campo = tipo === 'tecnico' ? 'assinaturaTecnico' : 'assinaturaOperacional';
+            
+            // Salva a assinatura no membro
+            DB.update('equipe', membroId, {
+                [campo]: imagemData,
+                assinaturaAtualizada: new Date().toISOString()
+            });
+            
+            // Atualiza cache
+            DB.forceClearCache('equipe');
+            
+            console.log(`✅ Assinatura salva para ${membro.nome} (${tipo})`);
+            return true;
+        },
+        
+        /**
+         * Obtém a assinatura salva de um membro
+         */
+        getAssinaturaMembro: function(membroId, tipo) {
+            if (!membroId) return null;
+            
+            const equipe = DB.getAll('equipe');
+            const membro = equipe.find(m => String(m.id) === String(membroId));
+            if (!membro) return null;
+            
+            const campo = tipo === 'tecnico' ? 'assinaturaTecnico' : 'assinaturaOperacional';
+            return membro[campo] || null;
+        },
+        
+        /**
+         * Verifica se um membro tem assinatura salva
+         */
+        temAssinaturaSalva: function(membroId, tipo) {
+            return this.getAssinaturaMembro(membroId, tipo) !== null;
+        },
+        
+        /**
+         * Aplica a assinatura salva ao certificado
+         */
+        aplicarAssinaturaSalva: function(certId, tipo, membroId) {
+            if (!membroId) {
+                alert('Selecione um responsável primeiro!');
+                return false;
+            }
+            
+            const imagemData = this.getAssinaturaMembro(membroId, tipo);
+            if (!imagemData) {
+                alert('Este responsável não possui uma assinatura salva. Você pode adicionar uma clicando no botão "Gerenciar Assinaturas".');
+                return false;
+            }
+            
+            const campo = tipo === 'tecnico' ? 'assinaturaTecnico' : 'assinaturaOperacional';
+            
+            // Aplica a assinatura ao certificado
+            DB.update('certificados', certId, {
+                [campo]: imagemData
+            });
+            
+            // Atualiza a visualização
+            setTimeout(() => {
+                visualizarCertificado(certId);
+            }, 100);
+            
+            // Dispara evento de atualização
+            document.dispatchEvent(new CustomEvent('certificadoAtualizado', {
+                detail: { certificado: { id: certId }, action: 'update' }
+            }));
+            
+            console.log(`✅ Assinatura aplicada ao certificado ${certId}`);
+            return true;
+        }
+    };
+
+    window.AssinaturaService = AssinaturaService;
+
+    // =============================================
+    // ===== FUNÇÕES DE GERENCIAMENTO DE ASSINATURAS =====
+    // =============================================
+
+    window.abrirGerenciadorAssinaturas = function() {
+        const equipe = DB.getAll('equipe');
+        
+        if (equipe.length === 0) {
+            alert('Cadastre membros na equipe primeiro!');
+            return;
+        }
+        
+        const html = `
+            <div style="margin-bottom:16px;">
+                <p style="color:#4d687a;font-size:0.9rem;">
+                    <i class="fas fa-info-circle" style="color:#1d7a6b;"></i>
+                    Gerencie as assinaturas salvas dos membros da equipe. 
+                    As assinaturas serão aplicadas automaticamente nos certificados.
+                </p>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;max-height:500px;overflow-y:auto;">
+                ${equipe.map(m => `
+                    <div style="background:#f8fbfd;border-radius:12px;padding:16px;border:1px solid #e8eff5;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                            <div>
+                                <strong style="color:#0b2a3b;">${m.nome}</strong>
+                                <span style="display:block;font-size:0.8rem;color:#4d687a;">${m.cargo || 'Sem cargo'}</span>
+                            </div>
+                            <span style="font-size:0.7rem;color:#999;">ID: ${m.id}</span>
+                        </div>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;">
+                            <div style="background:white;border-radius:8px;padding:8px;border:1px solid #e8eff5;text-align:center;">
+                                <div style="font-size:0.7rem;font-weight:600;color:#0b2a3b;margin-bottom:4px;">Assinatura Técnico</div>
+                                ${m.assinaturaTecnico ? 
+                                    `<img src="${m.assinaturaTecnico}" style="max-width:100%;max-height:50px;border:1px solid #e8eff5;border-radius:4px;margin:4px 0;" />` :
+                                    '<span style="font-size:0.7rem;color:#999;">Não definida</span>'
+                                }
+                                <div style="margin-top:4px;display:flex;gap:4px;justify-content:center;flex-wrap:wrap;">
+                                    <button onclick="abrirUploadAssinatura(${m.id}, 'tecnico')" style="background:#0b2a3b;color:white;border:none;padding:2px 10px;border-radius:4px;font-size:0.7rem;cursor:pointer;">
+                                        ${m.assinaturaTecnico ? '🔄' : '📤'} ${m.assinaturaTecnico ? 'Trocar' : 'Upload'}
+                                    </button>
+                                    ${m.assinaturaTecnico ? `<button onclick="removerAssinaturaMembro(${m.id}, 'tecnico')" style="background:#b13e3a;color:white;border:none;padding:2px 10px;border-radius:4px;font-size:0.7rem;cursor:pointer;">🗑️</button>` : ''}
+                                </div>
+                            </div>
+                            <div style="background:white;border-radius:8px;padding:8px;border:1px solid #e8eff5;text-align:center;">
+                                <div style="font-size:0.7rem;font-weight:600;color:#0b2a3b;margin-bottom:4px;">Assinatura Operacional</div>
+                                ${m.assinaturaOperacional ? 
+                                    `<img src="${m.assinaturaOperacional}" style="max-width:100%;max-height:50px;border:1px solid #e8eff5;border-radius:4px;margin:4px 0;" />` :
+                                    '<span style="font-size:0.7rem;color:#999;">Não definida</span>'
+                                }
+                                <div style="margin-top:4px;display:flex;gap:4px;justify-content:center;flex-wrap:wrap;">
+                                    <button onclick="abrirUploadAssinatura(${m.id}, 'operacional')" style="background:#0b2a3b;color:white;border:none;padding:2px 10px;border-radius:4px;font-size:0.7rem;cursor:pointer;">
+                                        ${m.assinaturaOperacional ? '🔄' : '📤'} ${m.assinaturaOperacional ? 'Trocar' : 'Upload'}
+                                    </button>
+                                    ${m.assinaturaOperacional ? `<button onclick="removerAssinaturaMembro(${m.id}, 'operacional')" style="background:#b13e3a;color:white;border:none;padding:2px 10px;border-radius:4px;font-size:0.7rem;cursor:pointer;">🗑️</button>` : ''}
+                                </div>
+                            </div>
+                        </div>
+                        ${(m.assinaturaTecnico || m.assinaturaOperacional) ? `
+                            <div style="margin-top:8px;font-size:0.6rem;color:#999;text-align:center;">
+                                Atualizado: ${m.assinaturaAtualizada ? new Date(m.assinaturaAtualizada).toLocaleString('pt-BR') : 'N/A'}
+                            </div>
+                        ` : ''}
+                    </div>
+                `).join('')}
+            </div>
+            <div class="modal-footer" style="margin-top:16px;">
+                <button class="btn-secondary" onclick="fecharModal()">Fechar</button>
+                <button class="btn-primary" onclick="fecharModal()" style="background:#1d7a6b;">
+                    <i class="fas fa-check"></i> Concluído
+                </button>
+            </div>
+        `;
+        
+        abrirModal('📝 Gerenciar Assinaturas da Equipe', html);
+    };
+
+    window.abrirUploadAssinatura = function(membroId, tipo) {
+        const equipe = DB.getAll('equipe');
+        const membro = equipe.find(m => String(m.id) === String(membroId));
+        if (!membro) {
+            alert('Membro não encontrado!');
+            return;
+        }
+        
+        const tipoLabel = tipo === 'tecnico' ? 'Técnico' : 'Operacional';
+        const hasExisting = tipo === 'tecnico' ? membro.assinaturaTecnico : membro.assinaturaOperacional;
+        
+        abrirModal(`📤 Upload Assinatura - ${membro.nome} (${tipoLabel})`, `
+            <div style="text-align:center;padding:8px 0;">
+                <div style="font-size:3rem;">✍️</div>
+                <p style="color:#4d687a;font-size:0.9rem;">
+                    Faça upload de uma imagem da assinatura do <strong>${tipoLabel}</strong>.
+                </p>
+                <p style="color:#999;font-size:0.8rem;">
+                    Formatos aceitos: PNG, JPG, JPEG, SVG
+                </p>
+            </div>
+            
+            ${hasExisting ? `
+                <div style="background:#f0f7fc;padding:12px;border-radius:8px;margin-bottom:12px;text-align:center;border-left:4px solid #1d7a6b;">
+                    <div style="font-size:0.8rem;color:#4d687a;">Assinatura atual:</div>
+                    <img src="${hasExisting}" style="max-width:200px;max-height:60px;border:1px solid #e8eff5;border-radius:4px;margin:4px auto;" />
+                </div>
+            ` : ''}
+            
+            <div class="form-group">
+                <label>Selecione a imagem da assinatura</label>
+                <input type="file" id="uploadAssinaturaInput" accept="image/*" style="padding:8px;" />
+                <div id="uploadAssinaturaPreview" style="margin-top:8px;text-align:center;"></div>
+            </div>
+            
+            <div style="background:#f0f7fc;padding:12px;border-radius:8px;margin:8px 0;border-left:4px solid #1d7a6b;">
+                <p style="margin:0;font-size:0.85rem;color:#0b2a3b;">
+                    <i class="fas fa-lightbulb" style="color:#e67e22;"></i>
+                    <strong>Dica:</strong> Use uma imagem com fundo branco ou transparente para melhor resultado.
+                    Recorte apenas a área da assinatura para ficar mais profissional.
+                </p>
+            </div>
+            
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="fecharModal()">Cancelar</button>
+                <button class="btn-primary" onclick="salvarUploadAssinatura(${membroId}, '${tipo}')">
+                    <i class="fas fa-save"></i> Salvar Assinatura
+                </button>
+            </div>
+        `);
+        
+        // Preview da imagem selecionada
+        setTimeout(() => {
+            const input = document.getElementById('uploadAssinaturaInput');
+            if (input) {
+                input.addEventListener('change', function(e) {
+                    const preview = document.getElementById('uploadAssinaturaPreview');
+                    if (!preview) return;
+                    
+                    const file = this.files[0];
+                    if (!file) {
+                        preview.innerHTML = '';
+                        return;
+                    }
+                    
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        preview.innerHTML = `
+                            <div style="display:inline-block;border:2px solid #1d7a6b;border-radius:8px;padding:8px;background:white;">
+                                <img src="${e.target.result}" style="max-width:200px;max-height:80px;object-fit:contain;" />
+                                <div style="font-size:0.7rem;color:#999;margin-top:4px;">${file.name} (${(file.size/1024).toFixed(1)} KB)</div>
+                            </div>
+                        `;
+                    };
+                    reader.readAsDataURL(file);
+                });
+            }
+        }, 100);
+    };
+
+    window.salvarUploadAssinatura = function(membroId, tipo) {
+        const input = document.getElementById('uploadAssinaturaInput');
+        if (!input || !input.files || !input.files[0]) {
+            alert('Selecione uma imagem da assinatura!');
+            return;
+        }
+        
+        const file = input.files[0];
+        const reader = new FileReader();
+        
+        reader.onload = function(e) {
+            const imagemData = e.target.result;
+            
+            // Salva a assinatura
+            const result = AssinaturaService.salvarAssinaturaMembro(membroId, tipo, imagemData);
+            
+            if (result) {
+                fecharModal();
+                
+                // Recarrega o gerenciador se estiver aberto
+                setTimeout(() => {
+                    abrirGerenciadorAssinaturas();
+                }, 200);
+                
+                alert('✅ Assinatura salva com sucesso!');
+            } else {
+                alert('❌ Erro ao salvar assinatura.');
+            }
+        };
+        
+        reader.readAsDataURL(file);
+    };
+
+    window.removerAssinaturaMembro = function(membroId, tipo) {
+        if (!confirm('Tem certeza que deseja remover esta assinatura?')) {
+            return;
+        }
+        
+        const campo = tipo === 'tecnico' ? 'assinaturaTecnico' : 'assinaturaOperacional';
+        const updateData = {};
+        updateData[campo] = null;
+        
+        DB.update('equipe', membroId, updateData);
+        DB.forceClearCache('equipe');
+        
+        // Recarrega o gerenciador
+        setTimeout(() => {
+            abrirGerenciadorAssinaturas();
+        }, 100);
+        
+        alert('Assinatura removida com sucesso!');
+    };
+
+    window.aplicarAssinaturaSalvaCertificado = function(certId, tipo) {
+        const certificado = CertificadoService.getCertificado(certId);
+        if (!certificado) {
+            alert('Certificado não encontrado!');
+            return;
+        }
+        
+        const campo = tipo === 'tecnico' ? 'tecnico' : 'operacional';
+        const responsavel = certificado.responsaveis?.[campo];
+        
+        if (!responsavel || !responsavel.id || responsavel.id === 'default_tecnico' || responsavel.id === 'default_operacional') {
+            alert('Selecione um responsável válido no certificado primeiro!');
+            return;
+        }
+        
+        const imagemData = AssinaturaService.getAssinaturaMembro(responsavel.id, tipo);
+        if (!imagemData) {
+            if (confirm(`O responsável "${responsavel.nome}" não possui uma assinatura salva. Deseja abrir o gerenciador para adicionar uma?`)) {
+                abrirGerenciadorAssinaturas();
+            }
+            return;
+        }
+        
+        // Aplica ao certificado
+        const campoAssinatura = tipo === 'tecnico' ? 'assinaturaTecnico' : 'assinaturaOperacional';
+        DB.update('certificados', certId, {
+            [campoAssinatura]: imagemData
+        });
+        
+        // Atualiza a visualização
+        setTimeout(() => {
+            visualizarCertificado(certId);
+        }, 100);
+        
+        // Dispara evento
+        document.dispatchEvent(new CustomEvent('certificadoAtualizado', {
+            detail: { certificado: { id: certId }, action: 'update' }
+        }));
+        
+        alert('✅ Assinatura aplicada ao certificado com sucesso!');
+    };
 
     // =============================================
     // ===== FUNÇÕES AUXILIARES DO CERTIFICADO =====
@@ -2330,6 +2716,7 @@
                 dataEntrega: '',
                 assinaturaOperador: null,
                 assinaturaCliente: null,
+                garantia: '', // Campo de garantia vazio inicialmente
                 criadoEm: new Date().toISOString(),
                 atualizadoEm: new Date().toISOString()
             });
@@ -2928,7 +3315,7 @@
         var elSubtitulo = document.getElementById('configRelatorioSubtitulo');
         var elCor = document.getElementById('configRelatorioCor');
         var elRodape = document.getElementById('configRelatorioRodape');
-        var elGarantia = document.getElementById('configRelatorioGarantia');
+        // Campo 'garantia' removido - agora gerenciado por OS
         var elLogo = document.getElementById('logoPreview');
 
         if (elNome) elNome.value = config.empresa.nome || '';
@@ -2940,7 +3327,7 @@
         if (elSubtitulo) elSubtitulo.value = config.relatorio.subtitulo || '';
         if (elCor) elCor.value = config.relatorio.cor || '#0b2a3b';
         if (elRodape) elRodape.value = config.relatorio.rodape || '';
-        if (elGarantia) elGarantia.value = config.relatorio.garantia || 'Garantia do serviço: 90 dias a partir da data do primeiro serviço\nOBS: Reentrada no local só será permitida após 06 horas da aplicação líquida, mediante o ambiente arejado, e todo objeto encontrado no chão que não puder ser descartado deverá ser higienizado antes do uso.';
+        // Garantia removida das configurações
 
         if (elLogo && config.empresa.logo) {
             elLogo.innerHTML = '<img src="' + config.empresa.logo + '" alt="Logo" />';
@@ -2964,8 +3351,8 @@
             titulo: document.getElementById('configRelatorioTitulo')?.value || '',
             subtitulo: document.getElementById('configRelatorioSubtitulo')?.value || '',
             cor: document.getElementById('configRelatorioCor')?.value || '#0b2a3b',
-            rodape: document.getElementById('configRelatorioRodape')?.value || '',
-            garantia: document.getElementById('configRelatorioGarantia')?.value || ''
+            rodape: document.getElementById('configRelatorioRodape')?.value || ''
+            // Campo 'garantia' removido - agora gerenciado por OS
         };
 
         var inputLogo = document.getElementById('configEmpresaLogo');
@@ -4127,6 +4514,12 @@
                         <label>Observações</label>
                         <textarea id="modalOSObs" rows="2" placeholder="Observações sobre a OS..."></textarea>
                     </div>
+
+                    <div class="form-group" style="margin-top:12px;">
+                        <label>📝 Texto da Garantia do Serviço</label>
+                        <textarea id="modalOSGarantia" rows="4" placeholder="Digite o texto da garantia do serviço..." style="width:100%;padding:10px 14px;border:1px solid #dce4ec;border-radius:10px;font-size:0.9rem;outline:none;transition:0.2s;resize:vertical;font-family:inherit;background:#fafcfe;"></textarea>
+                        <small style="color:#4d687a;font-size:0.75rem;display:block;margin-top:4px;">Este texto aparecerá no rodapé da Ordem de Serviço impressa.</small>
+                    </div>
                     
                     <div class="modal-footer">
                         <button class="btn-secondary" onclick="fecharModal()">Cancelar</button>
@@ -4599,6 +4992,9 @@
             btnNovoCert.addEventListener('click', abrirNovoCertificado);
         }
 
+        // NOTA: O botão "Gerenciar Assinaturas" é adicionado dinamicamente
+        // via DOMContentLoaded para evitar duplicação com o HTML.
+
         // Botão Logout
         var logoutBtn = document.getElementById('logoutBtn');
         if (logoutBtn) {
@@ -4636,6 +5032,27 @@
             menuToggle.addEventListener('click', toggleSidebar);
         }
     }
+
+    // =============================================
+    // ===== BOTÃO GERENCIAR ASSINATURAS (ADICIONADO) =====
+    // =============================================
+
+    document.addEventListener('DOMContentLoaded', function() {
+        // Adiciona o botão "Gerenciar Assinaturas" na página de certificados
+        const toolbarCert = document.querySelector('#page-certificados .toolbar');
+        if (toolbarCert) {
+            // Verifica se o botão já existe para evitar duplicação
+            const existingBtn = toolbarCert.querySelector('.btn-gerenciar-assinaturas');
+            if (!existingBtn) {
+                const btnGerenciarAssinaturas = document.createElement('button');
+                btnGerenciarAssinaturas.className = 'btn-secondary btn-sm btn-gerenciar-assinaturas';
+                btnGerenciarAssinaturas.style.marginLeft = '8px';
+                btnGerenciarAssinaturas.innerHTML = '<i class="fas fa-signature"></i> Gerenciar Assinaturas';
+                btnGerenciarAssinaturas.onclick = window.abrirGerenciadorAssinaturas;
+                toolbarCert.appendChild(btnGerenciarAssinaturas);
+            }
+        }
+    });
 
     // =============================================
     // ===== FUNÇÃO RENDERIZAR TABELA ESTOQUE =====
@@ -7674,6 +8091,7 @@
         var status = document.getElementById('modalOSStatus')?.value || 'Pendente';
         var observacoes = document.getElementById('modalOSObs')?.value || '';
         var areaLiberada = document.getElementById('modalOSAreaLiberada')?.value || '';
+        var garantia = document.getElementById('modalOSGarantia')?.value || '';
         var numero = gerarNumeroOS();
 
         var servicosExecutados = [];
@@ -7772,7 +8190,7 @@
 
         DB.add('ordens', {
             numero: numero, clienteId: clienteId, data: data, dataEntrega: dataEntrega, status: status,
-            observacoes: observacoes, areaLiberada: areaLiberada,
+            observacoes: observacoes, areaLiberada: areaLiberada, garantia: garantia,
             servicosExecutados: servicosExecutados, pragasAlvo: pragasAlvo,
             metodosEmpregados: metodosEmpregados, inseticidasUtilizados: inseticidasUtilizados,
             itens: itens,
@@ -9338,6 +9756,8 @@
                 '</div>';
         }).join('') || '';
 
+        var garantia = os.garantia || '';
+
         abrirModal('Editar OS ' + os.numero, `
             <div class="form-group">
                 <label>Cliente</label>
@@ -9388,6 +9808,12 @@
                 <label>Observações</label>
                 <textarea id="modalOSObs" rows="2">${os.observacoes || ''}</textarea>
             </div>
+
+            <div class="form-group" style="margin-top:12px;">
+                <label>📝 Texto da Garantia do Serviço</label>
+                <textarea id="modalOSGarantia" rows="4" placeholder="Digite o texto da garantia do serviço..." style="width:100%;padding:10px 14px;border:1px solid #dce4ec;border-radius:10px;font-size:0.9rem;outline:none;transition:0.2s;resize:vertical;font-family:inherit;background:#fafcfe;">${garantia}</textarea>
+                <small style="color:#4d687a;font-size:0.75rem;display:block;margin-top:4px;">Este texto aparecerá no rodapé da Ordem de Serviço impressa.</small>
+            </div>
             
             <div class="modal-footer">
                 <button class="btn-secondary" onclick="fecharModal()">Cancelar</button>
@@ -9404,6 +9830,7 @@
         var status = document.getElementById('modalOSStatus')?.value || 'Pendente';
         var observacoes = document.getElementById('modalOSObs')?.value || '';
         var areaLiberada = document.getElementById('modalOSAreaLiberada')?.value || '';
+        var garantia = document.getElementById('modalOSGarantia')?.value || '';
 
         var servicosExecutados = [];
         document.querySelectorAll('.servico-check:checked').forEach(function (el) {
@@ -9515,7 +9942,7 @@
 
         DB.update('ordens', id, {
             clienteId: clienteId, data: data, dataEntrega: dataEntrega, status: status, observacoes: observacoes,
-            areaLiberada: areaLiberada,
+            areaLiberada: areaLiberada, garantia: garantia,
             servicosExecutados: servicosExecutados, pragasAlvo: pragasAlvo, metodosEmpregados: metodosEmpregados, inseticidasUtilizados: inseticidasUtilizados,
             itens: itens,
             movimentacoes: movimentacoesRegistradas,
@@ -9544,7 +9971,8 @@
         var assinaturaOperador = os.assinaturaOperador || '';
         var assinaturaCliente = os.assinaturaCliente || '';
 
-        var garantiaTexto = config.relatorio.garantia || 'Garantia do serviço: 90 dias a partir da data do primeiro serviço\nOBS: Reentrada no local só será permitida após 06 horas da aplicação líquida, mediante o ambiente arejado, e todo objeto encontrado no chão que não puder ser descartado deverá ser higienizado antes do uso.';
+        // Usa a garantia salva na OS, ou fallback para a configuração
+        var garantiaTexto = os.garantia || config.relatorio.garantia || 'Garantia do serviço: 90 dias a partir da data do primeiro serviço\nOBS: Reentrada no local só será permitida após 06 horas da aplicação líquida, mediante o ambiente arejado, e todo objeto encontrado no chão que não puder ser descartado deverá ser higienizado antes do uso.';
         var garantiaLinhas = garantiaTexto.split('\n');
 
         var inseticidasHtml = '';
@@ -10694,4 +11122,9 @@
     console.log('  ✅ Atualização automática de relatórios sem recarregar página');
     console.log('  ✅ Página de Administração com gerenciamento de plano e limites');
     console.log('  ✅ Indicador de plano no topbar');
+    console.log('  ✅ Campo "Texto da Garantia do Serviço" movido para dentro da OS (editável por OS)');
+    console.log('  ✅ Sistema de assinaturas salvas para técnicos e operacionais');
+    console.log('  ✅ Gerenciador de assinaturas com upload de imagens');
+    console.log('  ✅ Aplicação automática de assinaturas salvas em certificados');
+    console.log('  ✅ Duplicação do botão "Gerenciar Assinaturas" removida');
 })();
