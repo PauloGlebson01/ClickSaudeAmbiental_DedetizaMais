@@ -223,7 +223,7 @@
                 </div>
             </div>
 
-            <!-- MAPA DE ISCAS -->
+            <!-- MAPA DE ISCAS - CORRIGIDO -->
             <div id="page-mapa" class="page">
                 <h1><i class="fas fa-map-marked-alt"></i> Mapa de Portas Iscas e Túneis</h1>
                 
@@ -247,14 +247,15 @@
                             <label><i class="fas fa-circle"></i> Status</label>
                             <select id="filtroMapaStatus">
                                 <option value="">Todos os Status</option>
-                                <option value="ativo">✅ Ativo</option>
-                                <option value="inativo">❌ Inativo</option>
-                                <option value="manutencao">🔧 Manutenção</option>
+                                <option value="ok">✅ Ok</option>
+                                <option value="consumo">📦 Consumo</option>
+                                <option value="danificado">⚠️ Danificado</option>
+                                <option value="substituido">🔄 Substituído</option>
                             </select>
                         </div>
                         <div class="filtro-group">
                             <label><i class="fas fa-search"></i> Busca</label>
-                            <input type="text" id="filtroMapaBusca" placeholder="Nome, endereço..." />
+                            <input type="text" id="filtroMapaBusca" placeholder="Número, localização..." />
                         </div>
                         <div class="filtro-actions">
                             <button class="btn-primary btn-sm" onclick="aplicarFiltrosMapa()">
@@ -973,7 +974,6 @@
                             <label>Rodapé do Relatório</label>
                             <textarea id="configRelatorioRodape" rows="2" placeholder="Informações adicionais no rodapé..."></textarea>
                         </div>
-                        <!-- Campo "Texto da Garantia do Serviço" removido - agora editável dentro da OS -->
                         <button class="btn-primary" onclick="salvarConfiguracoes()"><i class="fas fa-save"></i> Salvar Configurações</button>
                     </div>
                 </div>

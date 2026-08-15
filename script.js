@@ -27,6 +27,14 @@
 // ADICIONADO - Gerenciador de assinaturas com upload de imagens
 // ADICIONADO - Aplicação automática de assinaturas salvas em certificados
 // CORRIGIDO - Duplicação do botão "Gerenciar Assinaturas" removida
+// CORRIGIDO - Mapa de Iscas: campo "nome" alterado para "numero", "posicao" para "localizacao"
+// CORRIGIDO - Mapa de Iscas: campo "endereco" removido
+// CORRIGIDO - Mapa de Iscas: status alterados para ok, consumo, danificado, substituido
+// CORRIGIDO - Estoque: TODOS os produtos (qualquer categoria) aparecem na OS
+// CORRIGIDO - Mapa de Iscas: campo "Última Manutenção" removido e substituído por checkboxes
+// CORRIGIDO - Tamanhos de fonte para impressão ajustados para melhor visualização
+// CORRIGIDO - Removido "Documento gerado em..." dos arquivos impressos
+// CORRIGIDO - Impressão otimizada para uma única página com fontes padronizadas
 
 // =============================================
 // ===== PREVENÇÃO DE ERROS DE REFERÊNCIA =====
@@ -99,9 +107,9 @@
                     if (typeof FirestoreService !== 'undefined') {
                         FirestoreService.pararObservadores();
                     }
-                    const collections = ['clientes', 'servicos', 'ordens', 'agenda', 'equipe', 
-                                         'pontosIscas', 'relatorios', 'modelos', 'estoque', 
-                                         'movimentacoes', 'orcamentos', 'configuracoes', 'certificados'];
+                    const collections = ['clientes', 'servicos', 'ordens', 'agenda', 'equipe',
+                        'pontosIscas', 'relatorios', 'modelos', 'estoque',
+                        'movimentacoes', 'orcamentos', 'configuracoes', 'certificados'];
                     const prefixoAntigo = 'dedetiza_' + data.empresa + '_';
                     collections.forEach(col => {
                         localStorage.removeItem(prefixoAntigo + col);
@@ -123,19 +131,19 @@
             return false;
         }
         window._authVerifying = true;
-        
+
         try {
             const session = localStorage.getItem('dedetiza_session');
-            
+
             if (typeof EmpresaManager !== 'undefined') {
                 const sessoes = EmpresaManager._carregarSessoes();
                 const empresaAtual = EmpresaManager.getEmpresaAtual();
-                
+
                 if (sessoes[empresaAtual] && sessoes[empresaAtual].uid) {
                     window._authVerifying = false;
                     return true;
                 }
-                
+
                 const keys = Object.keys(sessoes);
                 if (keys.length > 0) {
                     if (!AuthGuard.isRedirecting() && AuthGuard.startRedirect()) {
@@ -147,7 +155,7 @@
                     return false;
                 }
             }
-            
+
             if (session) {
                 try {
                     const data = JSON.parse(session);
@@ -155,7 +163,7 @@
                         if (typeof EmpresaManager !== 'undefined') {
                             const empresaId = data.empresa || 'default';
                             EmpresaManager.salvarSessao(empresaId, data);
-                            
+
                             if (!AuthGuard.isRedirecting() && AuthGuard.startRedirect()) {
                                 const url = new URL('index.html', window.location.origin);
                                 url.searchParams.set('empresa', empresaId);
@@ -169,7 +177,7 @@
                     localStorage.removeItem('dedetiza_session');
                 }
             }
-            
+
             if (!AuthGuard.isRedirecting() && AuthGuard.startRedirect()) {
                 window.location.href = 'login.html';
             }
@@ -276,7 +284,7 @@
     async function carregarDadosUsuario() {
         try {
             let nomeExibido = 'Admin';
-            
+
             // 🔥 CORREÇÃO: Tenta buscar do Firebase primeiro
             if (firebase && firebase.auth) {
                 try {
@@ -292,7 +300,7 @@
                     console.warn('Erro ao buscar usuário do Firebase:', e);
                 }
             }
-            
+
             // Se ainda não temos nome, tenta do AuthService
             if (nomeExibido === 'Admin' || nomeExibido.includes('@')) {
                 try {
@@ -309,7 +317,7 @@
                     console.warn('Erro ao buscar dados do AuthService:', e);
                 }
             }
-            
+
             // Se ainda não temos nome, tenta do session
             if (nomeExibido === 'Admin' || nomeExibido.includes('@')) {
                 try {
@@ -325,7 +333,7 @@
                     console.warn('Erro ao ler session:', e);
                 }
             }
-            
+
             // Último recurso: tenta do session atual
             if (nomeExibido === 'Admin' || nomeExibido.includes('@')) {
                 try {
@@ -341,7 +349,7 @@
                     console.warn('Erro ao ler session atual:', e);
                 }
             }
-            
+
             // Se ainda está 'Admin' ou contém '@', usa fallback
             if (nomeExibido === 'Admin' || nomeExibido.includes('@')) {
                 try {
@@ -357,12 +365,12 @@
                     console.warn('Erro ao buscar users:', e);
                 }
             }
-            
+
             const nomeEl = document.getElementById('userName');
             if (nomeEl) {
                 nomeEl.textContent = nomeExibido;
             }
-            
+
             const empresaEl = document.querySelector('.topbar-empresa');
             if (empresaEl && typeof EmpresaManager !== 'undefined') {
                 const empresaId = EmpresaManager.getEmpresaAtual();
@@ -391,7 +399,6 @@
             subtitulo: 'Controle de Pragas',
             cor: '#0b2a3b',
             rodape: 'Este relatório é de propriedade da empresa e contém informações confidenciais.'
-            // Campo 'garantia' removido - agora gerenciado por OS
         }
     };
 
@@ -542,16 +549,16 @@
         getAll: function (collection, forceRefresh = false) {
             try {
                 var key = this.getFullKey(collection);
-                
+
                 if (forceRefresh) {
                     this._clearCache(collection);
                 }
-                
+
                 var cached = this._getFromCache(key);
                 if (cached !== null && !forceRefresh) {
                     return cached;
                 }
-                
+
                 var data = JSON.parse(localStorage.getItem(key) || '[]');
                 var uniqueData = this._removeDuplicates(data);
                 if (uniqueData.length !== data.length) {
@@ -565,9 +572,9 @@
             }
         },
 
-        _removeDuplicates: function(items) {
+        _removeDuplicates: function (items) {
             var seen = {};
-            return items.filter(function(item) {
+            return items.filter(function (item) {
                 var id = String(item.id || '');
                 if (!id) return true;
                 if (seen[id]) {
@@ -590,21 +597,21 @@
                 console.warn('⚠️ Salvamento em andamento, ignorando duplicata:', collection);
                 return item;
             }
-            
+
             this._isSaving = true;
-            
+
             try {
                 var items = this.getAll(collection);
-                
+
                 if (item.id) {
-                    var existing = items.find(function(i) { return String(i.id) === String(item.id); });
+                    var existing = items.find(function (i) { return String(i.id) === String(item.id); });
                     if (existing) {
                         console.warn('⚠️ Item já existe, atualizando em vez de adicionar:', item.id);
                         this._isSaving = false;
                         return this.update(collection, item.id, item);
                     }
                 }
-                
+
                 var maxId = items.reduce(function (max, i) {
                     var id = typeof i.id === 'number' ? i.id : parseInt(i.id) || 0;
                     return Math.max(max, id);
@@ -618,7 +625,7 @@
 
                 if (typeof FirestoreService !== 'undefined' && !window._firestoreSyncing) {
                     try {
-                        FirestoreService.add(collection, newItem).catch(function(error) {
+                        FirestoreService.add(collection, newItem).catch(function (error) {
                             console.warn('⚠️ Erro na sincronização de ' + collection + ':', error);
                         });
                     } catch (error) {
@@ -627,37 +634,35 @@
                 }
 
                 this._isSaving = false;
-                
+
                 if (collection === 'estoque') {
-                    var event = new CustomEvent('estoqueAtualizado', { 
-                        detail: { item: newItem, action: 'add' } 
+                    var event = new CustomEvent('estoqueAtualizado', {
+                        detail: { item: newItem, action: 'add' }
                     });
                     document.dispatchEvent(event);
                 }
-                
+
                 if (collection === 'movimentacoes') {
-                    var movEvent = new CustomEvent('movimentacaoAtualizada', { 
-                        detail: { item: newItem, action: 'add' } 
+                    var movEvent = new CustomEvent('movimentacaoAtualizada', {
+                        detail: { item: newItem, action: 'add' }
                     });
                     document.dispatchEvent(movEvent);
                 }
-                
-                // Adiciona evento para certificados
+
                 if (collection === 'certificados') {
-                    var certEvent = new CustomEvent('certificadoAtualizado', { 
-                        detail: { item: newItem, action: 'add' } 
+                    var certEvent = new CustomEvent('certificadoAtualizado', {
+                        detail: { item: newItem, action: 'add' }
                     });
                     document.dispatchEvent(certEvent);
                 }
 
-                // 🔥 CORREÇÃO: Dispara evento para pontosIscas (Mapa)
                 if (collection === 'pontosIscas') {
-                    var mapaEvent = new CustomEvent('pontoIscaAtualizado', { 
-                        detail: { item: newItem, action: 'add' } 
+                    var mapaEvent = new CustomEvent('pontoIscaAtualizado', {
+                        detail: { item: newItem, action: 'add' }
                     });
                     document.dispatchEvent(mapaEvent);
                 }
-                
+
                 return newItem;
             } catch (e) {
                 this._isSaving = false;
@@ -670,9 +675,9 @@
                 console.warn('⚠️ Salvamento em andamento, ignorando atualização duplicada:', collection);
                 return null;
             }
-            
+
             this._isSaving = true;
-            
+
             try {
                 var key = this.getFullKey(collection);
                 var items = JSON.parse(localStorage.getItem(key) || '[]');
@@ -685,7 +690,7 @@
 
                     if (typeof FirestoreService !== 'undefined' && !window._firestoreSyncing) {
                         try {
-                            FirestoreService.update(collection, id, items[index]).catch(function(error) {
+                            FirestoreService.update(collection, id, items[index]).catch(function (error) {
                                 console.warn('⚠️ Erro na sincronização de ' + collection + ':', error);
                             });
                         } catch (error) {
@@ -693,10 +698,9 @@
                         }
                     }
 
-                    // 🔥 CORREÇÃO: Dispara evento para pontosIscas (Mapa)
                     if (collection === 'pontosIscas') {
-                        var mapaEvent = new CustomEvent('pontoIscaAtualizado', { 
-                            detail: { item: items[index], action: 'update' } 
+                        var mapaEvent = new CustomEvent('pontoIscaAtualizado', {
+                            detail: { item: items[index], action: 'update' }
                         });
                         document.dispatchEvent(mapaEvent);
                     }
@@ -721,7 +725,7 @@
 
             if (typeof FirestoreService !== 'undefined' && !window._firestoreSyncing) {
                 try {
-                    FirestoreService.delete(collection, id).catch(function(error) {
+                    FirestoreService.delete(collection, id).catch(function (error) {
                         console.warn('⚠️ Erro ao deletar ' + collection + ' ' + id + ' do Firebase:', error);
                     });
                 } catch (error) {
@@ -729,10 +733,9 @@
                 }
             }
 
-            // 🔥 CORREÇÃO: Dispara evento para pontosIscas (Mapa)
             if (collection === 'pontosIscas') {
-                var mapaEvent = new CustomEvent('pontoIscaAtualizado', { 
-                    detail: { id: id, action: 'delete' } 
+                var mapaEvent = new CustomEvent('pontoIscaAtualizado', {
+                    detail: { id: id, action: 'delete' }
                 });
                 document.dispatchEvent(mapaEvent);
             }
@@ -740,24 +743,24 @@
             return items;
         },
 
-        syncFromFirestore: function(collection, firestoreData) {
+        syncFromFirestore: function (collection, firestoreData) {
             if (window._firestoreSyncing) {
                 console.warn('⚠️ Sincronização Firestore já em andamento, ignorando:', collection);
                 return;
             }
-            
+
             window._firestoreSyncing = true;
-            
+
             try {
                 var key = this.getFullKey(collection);
                 var localData = JSON.parse(localStorage.getItem(key) || '[]');
-                
+
                 var mergedData = this._mergeData(localData, firestoreData);
                 mergedData = this._removeDuplicates(mergedData);
-                
+
                 localStorage.setItem(key, JSON.stringify(mergedData));
                 this._clearCache(collection);
-                
+
                 console.log('✅ Sincronizado ' + collection + ': ' + mergedData.length + ' itens');
                 window._firestoreSyncing = false;
                 return mergedData;
@@ -768,32 +771,32 @@
             }
         },
 
-        _mergeData: function(localData, firestoreData) {
+        _mergeData: function (localData, firestoreData) {
             var merged = {};
-            
-            localData.forEach(function(item) {
+
+            localData.forEach(function (item) {
                 var id = String(item.id);
                 merged[id] = { ...item, _source: 'local' };
             });
-            
-            firestoreData.forEach(function(item) {
+
+            firestoreData.forEach(function (item) {
                 var id = String(item.id);
                 merged[id] = { ...item, _source: 'firestore' };
             });
-            
+
             return Object.values(merged);
         },
 
-        forcarSincronizacao: function() {
+        forcarSincronizacao: function () {
             console.log('🔄 Forçando sincronização com Firestore...');
             if (typeof FirestoreService !== 'undefined') {
                 var empresaId = EmpresaManager.getEmpresaAtual();
-                return FirestoreService.sincronizarDadosEmpresa(empresaId).then(function(total) {
+                return FirestoreService.sincronizarDadosEmpresa(empresaId).then(function (total) {
                     console.log('✅ Sincronização concluída: ' + total + ' itens');
                     DB._clearAllCaches();
                     renderAll();
                     return total;
-                }).catch(function(err) {
+                }).catch(function (err) {
                     console.error('❌ Erro na sincronização:', err);
                     throw err;
                 });
@@ -806,14 +809,14 @@
             try {
                 var key = this.getFullKey('configuracoes');
                 var configData = localStorage.getItem(key);
-                
+
                 if (configData) {
                     var parsed = JSON.parse(configData);
                     if (!parsed.empresa) parsed.empresa = CONFIG_PADRAO.empresa;
                     if (!parsed.relatorio) parsed.relatorio = CONFIG_PADRAO.relatorio;
                     return parsed;
                 }
-                
+
                 localStorage.setItem(key, JSON.stringify(CONFIG_PADRAO));
                 return JSON.parse(JSON.stringify(CONFIG_PADRAO));
             } catch (e) {
@@ -827,7 +830,7 @@
             try {
                 if (!config.empresa) config.empresa = CONFIG_PADRAO.empresa;
                 if (!config.relatorio) config.relatorio = CONFIG_PADRAO.relatorio;
-                
+
                 localStorage.setItem(key, JSON.stringify(config));
                 if (typeof ConfigService !== 'undefined') {
                     setTimeout(function () {
@@ -891,37 +894,28 @@
     // ===== LISTENERS PARA ATUALIZAÇÃO AUTOMÁTICA =====
     // =============================================
 
-    // ===== LISTENER PARA RELATÓRIOS - ATUALIZAÇÃO AUTOMÁTICA =====
-    document.addEventListener('dadosAtualizados', function(e) {
+    document.addEventListener('dadosAtualizados', function (e) {
         const detail = e.detail;
         if (!detail) return;
-        
-        // Se a coleção for relatorios, atualiza a interface
+
         if (detail.collection === 'relatorios') {
             console.log('🔄 Relatório atualizado automaticamente:', detail.action);
-            
-            // Força limpeza do cache
             DB.forceClearCache('relatorios');
-            
-            // Verifica se a página de relatórios está ativa
             const relatorioPage = document.getElementById('page-relatorios');
             if (relatorioPage && relatorioPage.classList.contains('active')) {
                 renderRelatorios();
             }
-            
-            // Se o modal de visualização estiver aberto, atualiza também
             const modalOverlay = document.getElementById('modalRelatorioOverlay');
             if (modalOverlay && modalOverlay.classList.contains('active')) {
                 const id = window._relatorioVisualizandoId;
                 if (id) {
-                    setTimeout(function() {
+                    setTimeout(function () {
                         visualizarRelatorio(id);
                     }, 100);
                 }
             }
         }
-        
-        // Se a coleção for servicos, atualiza a agenda
+
         if (detail.collection === 'servicos') {
             console.log('🔄 Serviço atualizado, atualizando agenda...');
             const agendaPage = document.getElementById('page-agenda');
@@ -931,31 +925,25 @@
         }
     });
 
-    // ===== LISTENER PARA RELATÓRIO ATUALIZADO =====
-    document.addEventListener('relatorioAtualizado', function(e) {
+    document.addEventListener('relatorioAtualizado', function (e) {
         console.log('🔄 Relatório atualizado via evento:', e.detail);
         DB.forceClearCache('relatorios');
-        
-        // Verifica se a página de relatórios está ativa
         var relatorioPage = document.getElementById('page-relatorios');
         if (relatorioPage && relatorioPage.classList.contains('active')) {
             renderRelatorios();
         }
-        
-        // Se o modal de visualização estiver aberto, atualiza
         var modalOverlay = document.getElementById('modalRelatorioOverlay');
         if (modalOverlay && modalOverlay.classList.contains('active')) {
             var id = window._relatorioVisualizandoId;
             if (id) {
-                setTimeout(function() {
+                setTimeout(function () {
                     visualizarRelatorio(id);
                 }, 100);
             }
         }
     });
 
-    // ===== LISTENER PARA ESTOQUE =====
-    document.addEventListener('estoqueAtualizado', function(e) {
+    document.addEventListener('estoqueAtualizado', function (e) {
         console.log('🔄 Estoque atualizado automaticamente:', e.detail);
         if (e.detail.action === 'add') {
             var produtos = DB.getAll('estoque', true);
@@ -965,7 +953,7 @@
         }
     });
 
-    document.addEventListener('movimentacaoAtualizada', function(e) {
+    document.addEventListener('movimentacaoAtualizada', function (e) {
         console.log('🔄 Movimentação registrada automaticamente:', e.detail);
         var movTab = document.getElementById('tab-movimentacoes');
         if (movTab && movTab.classList.contains('active')) {
@@ -974,27 +962,24 @@
         renderHistorico();
     });
 
-    // ===== LISTENER PARA CERTIFICADOS =====
-    document.addEventListener('certificadoAtualizado', function(e) {
+    document.addEventListener('certificadoAtualizado', function (e) {
         console.log('🔄 Certificado atualizado automaticamente:', e.detail);
         if (e.detail.action === 'add') {
             renderCertificados();
             preencherFiltroCertificados();
-            
             if (typeof renderAll === 'function') {
                 renderAll();
             }
-            
             const item = e.detail.item;
             if (item && item.id) {
-                setTimeout(function() {
+                setTimeout(function () {
                     const card = document.getElementById('certificado-card-' + item.id);
                     if (card) {
                         console.log('✅ Card do certificado encontrado via listener');
                         card.scrollIntoView({ behavior: 'smooth', block: 'center' });
                         card.style.transition = 'all 0.5s ease';
                         card.style.boxShadow = '0 0 0 3px #1d7a6b, 0 8px 30px rgba(29,122,107,0.3)';
-                        setTimeout(function() {
+                        setTimeout(function () {
                             card.style.boxShadow = '';
                         }, 3000);
                     }
@@ -1003,8 +988,7 @@
         }
     });
 
-    // ===== LISTENER PARA MAPA DE ISCAS =====
-    document.addEventListener('pontoIscaAtualizado', function(e) {
+    document.addEventListener('pontoIscaAtualizado', function (e) {
         console.log('🔄 Ponto de isca atualizado automaticamente:', e.detail);
         DB.forceClearCache('pontosIscas');
         renderMapaComFiltros();
@@ -1019,7 +1003,7 @@
     // =============================================
 
     const CertificadoService = {
-        gerarCertificado: function(servicoId, tipo) {
+        gerarCertificado: function (servicoId, tipo) {
             const servico = DB.getById('servicos', servicoId);
             if (!servico) {
                 throw new Error('Serviço não encontrado!');
@@ -1067,7 +1051,7 @@
                 dataEmissao: new Date().toISOString(),
                 dataServico: servico.data,
                 dataValidade: this._calcularDataValidade(servico.data, tipo),
-                
+
                 cliente: {
                     nome: cliente.tipoCliente === 'cnpj' ? (cliente.nomeFantasia || cliente.razaoSocial || cliente.nome) : cliente.nome,
                     razaoSocial: cliente.razaoSocial || '',
@@ -1090,7 +1074,7 @@
             };
 
             const certificadoSalvo = DB.add('certificados', certificado);
-            
+
             if (typeof FirestoreService !== 'undefined') {
                 try {
                     FirestoreService.sincronizarColecao('certificados').then(() => {
@@ -1102,24 +1086,24 @@
                     console.warn('⚠️ Erro ao sincronizar certificado:', e);
                 }
             }
-            
-            setTimeout(function() {
-                document.dispatchEvent(new CustomEvent('certificadoAtualizado', { 
-                    detail: { certificado: certificadoSalvo, action: 'add', item: certificadoSalvo } 
+
+            setTimeout(function () {
+                document.dispatchEvent(new CustomEvent('certificadoAtualizado', {
+                    detail: { certificado: certificadoSalvo, action: 'add', item: certificadoSalvo }
                 }));
             }, 100);
 
             return certificadoSalvo;
         },
 
-        _buscarProdutosUtilizados: function(servico) {
+        _buscarProdutosUtilizados: function (servico) {
             if (servico.produtosUtilizados && servico.produtosUtilizados.length > 0) {
                 return servico.produtosUtilizados;
             }
 
             const ordens = DB.getAll('ordens');
             const osVinculada = ordens.find(o => o.servicoId === servico.id);
-            
+
             if (osVinculada && osVinculada.inseticidasUtilizados) {
                 return osVinculada.inseticidasUtilizados.map(ins => ({
                     nome: ins.nome || '',
@@ -1152,7 +1136,7 @@
             return produtosPadrao[servico.tipo] || [];
         },
 
-        _buscarMetodosEmpregados: function(servico) {
+        _buscarMetodosEmpregados: function (servico) {
             const ordens = DB.getAll('ordens');
             const osVinculada = ordens.find(o => o.servicoId === servico.id);
 
@@ -1200,7 +1184,7 @@
             };
         },
 
-        _gerarObservacoesPorTipo: function(tipo, produtos) {
+        _gerarObservacoesPorTipo: function (tipo, produtos) {
             const observacoes = {
                 'Desinsetização': 'Bifentol -- Interdição: Necessário por no mínimo 06 horas -- Ação Tóxica: Hipersensibilidade, Distúrbios Sensoriais, Cutâneos e Neurite Periférica -- Antídoto: Anti-histamínico e Sintomático.\nBaramid -- Interdição: Não é necessário -- Ação Tóxica: Toxicante Metabólico, Inibidor da Respiração Celular -- Antidoto: Tratamento Sintomático.\nFormifim -- Interdição: Não é necessário -- Ação Tóxica: Agonista da Acetilcolina, Hipersensibilidade, Distúrbios Sensoriais, Cutâneos e Neurite Periférica -- Antidoto: Anti-histamínico e Sintomático.',
                 'Desratização': 'Raticida Blocos -- Interdição: Necessário por no mínimo 04 horas -- Ação Tóxica: Anticoagulante, Distúrbios de Coagulação -- Antídoto: Vitamina K1 e Tratamento Sintomático.\nRaticida Pó -- Interdição: Não é necessário -- Ação Tóxica: Anticoagulante, Distúrbios de Coagulação -- Antídoto: Vitamina K1 e Tratamento Sintomático.',
@@ -1209,7 +1193,7 @@
             return observacoes[tipo] || '';
         },
 
-        _calcularDataValidade: function(dataServico, tipo) {
+        _calcularDataValidade: function (dataServico, tipo) {
             const diasValidade = {
                 'Desinsetização': 90,
                 'Desratização': 90,
@@ -1223,43 +1207,43 @@
             return data.toLocaleDateString('pt-BR');
         },
 
-        renderizarCertificado: function(certificado) {
+        renderizarCertificado: function (certificado) {
             if (!certificado) return '<p>Certificado não encontrado</p>';
 
             const c = certificado;
-            
+
             const equipe = DB.getAll('equipe');
-            
+
             const tecnicos = equipe.filter(m => {
                 const cargo = (m.cargo || '').toLowerCase();
-                return cargo.includes('técnico') || 
-                       cargo.includes('farmacêutico') || 
-                       cargo.includes('responsável') ||
-                       cargo.includes('tecnico') ||
-                       cargo.includes('especialista');
+                return cargo.includes('técnico') ||
+                    cargo.includes('farmacêutico') ||
+                    cargo.includes('responsável') ||
+                    cargo.includes('tecnico') ||
+                    cargo.includes('especialista');
             });
-            
+
             const operacionais = equipe.filter(m => {
                 const cargo = (m.cargo || '').toLowerCase();
-                return cargo.includes('operacional') || 
-                       cargo.includes('coordenador') || 
-                       cargo.includes('suporte') ||
-                       cargo.includes('campo');
+                return cargo.includes('operacional') ||
+                    cargo.includes('coordenador') ||
+                    cargo.includes('suporte') ||
+                    cargo.includes('campo');
             });
 
             if (tecnicos.length === 0) {
-                tecnicos.push({ 
-                    id: 'default_tecnico', 
-                    nome: 'Nenhum técnico cadastrado', 
+                tecnicos.push({
+                    id: 'default_tecnico',
+                    nome: 'Nenhum técnico cadastrado',
                     cargo: 'Cadastre um técnico na equipe',
                     registro: ''
                 });
             }
 
             if (operacionais.length === 0) {
-                operacionais.push({ 
-                    id: 'default_operacional', 
-                    nome: 'Nenhum operacional cadastrado', 
+                operacionais.push({
+                    id: 'default_operacional',
+                    nome: 'Nenhum operacional cadastrado',
                     cargo: 'Cadastre um operacional na equipe',
                     registro: ''
                 });
@@ -1281,73 +1265,71 @@
             const tecnicoSelecionado = tecnicos.find(m => String(m.id) === String(tecnicoAtual.id));
             const operacionalSelecionado = operacionais.find(m => String(m.id) === String(operacionalAtual.id));
 
-            // Verifica se os responsáveis têm assinaturas salvas
-            const tecnicoTemAssinatura = tecnicoSelecionado ? 
+            const tecnicoTemAssinatura = tecnicoSelecionado ?
                 (tecnicoSelecionado.assinaturaTecnico ? true : false) : false;
-            const operacionalTemAssinatura = operacionalSelecionado ? 
+            const operacionalTemAssinatura = operacionalSelecionado ?
                 (operacionalSelecionado.assinaturaOperacional ? true : false) : false;
 
             const produtosHtml = c.produtos.map(p => `
                 <tr>
-                    <td style="padding:4px 8px;border:1px solid #ccc;text-align:center;font-size:9px;">${p.nome || '-'}</td>
-                    <td style="padding:4px 8px;border:1px solid #ccc;text-align:center;font-size:9px;">${p.registroMs || '-'}</td>
-                    <td style="padding:4px 8px;border:1px solid #ccc;text-align:center;font-size:9px;">${p.grupoQuimico || '-'}</td>
-                    <td style="padding:4px 8px;border:1px solid #ccc;text-align:center;font-size:9px;">${p.principioAtivo || '-'}</td>
-                    <td style="padding:4px 8px;border:1px solid #ccc;text-align:center;font-size:9px;">${p.concentracao || '-'}</td>
-                    <td style="padding:4px 8px;border:1px solid #ccc;text-align:center;font-size:9px;">${p.tratamento || 'Sintomático'}</td>
+                    <td style="padding:6px 10px;border:1px solid #ccc;text-align:center;font-size:12px;">${p.nome || '-'}</td>
+                    <td style="padding:6px 10px;border:1px solid #ccc;text-align:center;font-size:12px;">${p.registroMs || '-'}</td>
+                    <td style="padding:6px 10px;border:1px solid #ccc;text-align:center;font-size:12px;">${p.grupoQuimico || '-'}</td>
+                    <td style="padding:6px 10px;border:1px solid #ccc;text-align:center;font-size:12px;">${p.principioAtivo || '-'}</td>
+                    <td style="padding:6px 10px;border:1px solid #ccc;text-align:center;font-size:12px;">${p.concentracao || '-'}</td>
+                    <td style="padding:6px 10px;border:1px solid #ccc;text-align:center;font-size:12px;">${p.tratamento || 'Sintomático'}</td>
                 </tr>
             `).join('');
 
             const clienteInfo = c.cliente;
-            const clienteNome = clienteInfo.tipo === 'cnpj' ? 
-                (clienteInfo.nome || clienteInfo.razaoSocial) : 
+            const clienteNome = clienteInfo.tipo === 'cnpj' ?
+                (clienteInfo.nome || clienteInfo.razaoSocial) :
                 clienteInfo.nome;
 
-            const tecnicoDisplay = tecnicoSelecionado ? 
-                `${tecnicoSelecionado.nome} - ${tecnicoSelecionado.registro || 'Sem registro'}` : 
+            const tecnicoDisplay = tecnicoSelecionado ?
+                `${tecnicoSelecionado.nome} - ${tecnicoSelecionado.registro || 'Sem registro'}` :
                 'Nenhum técnico selecionado';
 
-            const operacionalDisplay = operacionalSelecionado ? 
-                `${operacionalSelecionado.nome} - ${operacionalSelecionado.registro || 'Sem registro'}` : 
+            const operacionalDisplay = operacionalSelecionado ?
+                `${operacionalSelecionado.nome} - ${operacionalSelecionado.registro || 'Sem registro'}` :
                 'Nenhum operacional selecionado';
 
-            // HTML dos botões de assinatura salva
             const botoesAssinaturaHtml = `
-                <div style="grid-column:1/-1;display:flex;gap:8px;margin-top:4px;flex-wrap:wrap;justify-content:center;">
+                <div style="grid-column:1/-1;display:flex;gap:10px;margin-top:6px;flex-wrap:wrap;justify-content:center;">
                     ${tecnicoTemAssinatura ? `
                         <button onclick="aplicarAssinaturaSalvaCertificado('${c.id}', 'tecnico')" 
-                                style="background:#1d7a6b;color:white;border:none;padding:3px 14px;border-radius:4px;font-size:7px;cursor:pointer;display:flex;align-items:center;gap:4px;">
+                                style="background:#1d7a6b;color:white;border:none;padding:5px 18px;border-radius:4px;font-size:10px;cursor:pointer;display:flex;align-items:center;gap:6px;">
                             <i class="fas fa-check-circle"></i> Aplicar Assinatura Salva (Técnico)
                         </button>
                     ` : tecnicoSelecionado && tecnicoSelecionado.id !== 'default_tecnico' ? `
                         <button onclick="abrirGerenciadorAssinaturas()" 
-                                style="background:#e67e22;color:white;border:none;padding:3px 14px;border-radius:4px;font-size:7px;cursor:pointer;display:flex;align-items:center;gap:4px;">
+                                style="background:#e67e22;color:white;border:none;padding:5px 18px;border-radius:4px;font-size:10px;cursor:pointer;display:flex;align-items:center;gap:6px;">
                             <i class="fas fa-exclamation-triangle"></i> Adicionar Assinatura (Técnico)
                         </button>
                     ` : ''}
                     ${operacionalTemAssinatura ? `
                         <button onclick="aplicarAssinaturaSalvaCertificado('${c.id}', 'operacional')" 
-                                style="background:#1d7a6b;color:white;border:none;padding:3px 14px;border-radius:4px;font-size:7px;cursor:pointer;display:flex;align-items:center;gap:4px;">
+                                style="background:#1d7a6b;color:white;border:none;padding:5px 18px;border-radius:4px;font-size:10px;cursor:pointer;display:flex;align-items:center;gap:6px;">
                             <i class="fas fa-check-circle"></i> Aplicar Assinatura Salva (Operacional)
                         </button>
                     ` : operacionalSelecionado && operacionalSelecionado.id !== 'default_operacional' ? `
                         <button onclick="abrirGerenciadorAssinaturas()" 
-                                style="background:#e67e22;color:white;border:none;padding:3px 14px;border-radius:4px;font-size:7px;cursor:pointer;display:flex;align-items:center;gap:4px;">
+                                style="background:#e67e22;color:white;border:none;padding:5px 18px;border-radius:4px;font-size:10px;cursor:pointer;display:flex;align-items:center;gap:6px;">
                             <i class="fas fa-exclamation-triangle"></i> Adicionar Assinatura (Operacional)
                         </button>
                     ` : ''}
                     <button onclick="abrirGerenciadorAssinaturas()" 
-                            style="background:#0b2a3b;color:white;border:none;padding:3px 14px;border-radius:4px;font-size:7px;cursor:pointer;display:flex;align-items:center;gap:4px;">
+                            style="background:#0b2a3b;color:white;border:none;padding:5px 18px;border-radius:4px;font-size:10px;cursor:pointer;display:flex;align-items:center;gap:6px;">
                         <i class="fas fa-cog"></i> Gerenciar Assinaturas
                     </button>
                 </div>
             `;
 
             return `
-                <div style="font-family:Arial,sans-serif;font-size:10px;max-width:800px;margin:0 auto;padding:20px;background:white;border:1px solid #ddd;border-radius:8px;">
-                    <div style="display:flex;align-items:center;gap:16px;border-bottom:2px solid #0b2a3b;padding-bottom:12px;margin-bottom:16px;">
+                <div style="font-family:Arial,sans-serif;font-size:13px;max-width:800px;margin:0 auto;padding:24px;background:white;border:1px solid #ddd;border-radius:8px;line-height:1.6;">
+                    <div style="display:flex;align-items:center;gap:20px;border-bottom:3px solid #0b2a3b;padding-bottom:16px;margin-bottom:20px;">
                         <div style="flex-shrink:0;">
-                            <svg viewBox="0 0 100 100" width="60" height="60" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <svg viewBox="0 0 100 100" width="70" height="70" fill="none" xmlns="http://www.w3.org/2000/svg">
                                 <circle cx="50" cy="50" r="45" fill="url(#certCircleGrad)" stroke="#1d7a6b" stroke-width="1.5"/>
                                 <path d="M50 10 L82 22 L82 44 C82 63 66 77 50 83 C34 77 18 63 18 44 L18 22 L50 10Z" 
                                       fill="url(#certShieldGrad)" stroke="#7bc6a4" stroke-width="1"/>
@@ -1372,20 +1354,20 @@
                             </svg>
                         </div>
                         <div style="flex:1;">
-                            <div style="font-size:18px;font-weight:700;color:#0b2a3b;">${c.prestadora.nome}</div>
-                            <div style="font-size:9px;color:#4d687a;">
+                            <div style="font-size:24px;font-weight:700;color:#0b2a3b;">${c.prestadora.nome}</div>
+                            <div style="font-size:12px;color:#4d687a;">
                                 CNPJ: ${c.prestadora.cnpj} | Alvará Sanitário: ${c.prestadora.alvaraSanitario} | Licença Ambiental: ${c.prestadora.licencaAmbiental}
                             </div>
-                            <div style="font-size:9px;color:#4d687a;">${c.prestadora.endereco}</div>
+                            <div style="font-size:12px;color:#4d687a;">${c.prestadora.endereco}</div>
                         </div>
                     </div>
 
-                    <div style="text-align:center;font-size:16px;font-weight:700;color:#0b2a3b;margin:12px 0 8px;">
+                    <div style="text-align:center;font-size:22px;font-weight:700;color:#0b2a3b;margin:16px 0 12px;letter-spacing:2px;">
                         CERTIFICADO TÉCNICO
                     </div>
 
-                    <div style="font-size:10px;line-height:1.5;">
-                        <p style="margin:6px 0;">
+                    <div style="font-size:13px;line-height:1.7;">
+                        <p style="margin:8px 0;">
                             Certificamos que foi prestado o serviço de <strong>${this._getTipoLabel(c.tipo)}</strong> em 
                             <strong>${c.dataServico}</strong>, à empresa: <strong>${clienteNome}</strong>
                             ${clienteInfo.razaoSocial ? `(${clienteInfo.razaoSocial})` : ''},
@@ -1394,115 +1376,115 @@
                             domissanitários em conformidade com a legislação em vigor.
                         </p>
 
-                        <div style="margin:12px 0;">
-                            <div style="font-weight:700;font-size:11px;margin-bottom:4px;">Produtos utilizados:</div>
-                            <table style="width:100%;border-collapse:collapse;font-size:9px;">
+                        <div style="margin:16px 0;">
+                            <div style="font-weight:700;font-size:15px;margin-bottom:6px;color:#0b2a3b;">Produtos utilizados:</div>
+                            <table style="width:100%;border-collapse:collapse;font-size:12px;">
                                 <thead>
                                     <tr style="background:#0b2a3b;color:white;">
-                                        <th style="padding:4px 6px;border:1px solid #0b2a3b;text-align:center;">PRODUTO</th>
-                                        <th style="padding:4px 6px;border:1px solid #0b2a3b;text-align:center;">REG. MS</th>
-                                        <th style="padding:4px 6px;border:1px solid #0b2a3b;text-align:center;">GRUPO QUÍMICO</th>
-                                        <th style="padding:4px 6px;border:1px solid #0b2a3b;text-align:center;">PRINCÍPIO ATIVO</th>
-                                        <th style="padding:4px 6px;border:1px solid #0b2a3b;text-align:center;">CONCENTRAÇÃO</th>
-                                        <th style="padding:4px 6px;border:1px solid #0b2a3b;text-align:center;">TRATAMENTO</th>
+                                        <th style="padding:6px 10px;border:1px solid #0b2a3b;text-align:center;font-size:11px;">PRODUTO</th>
+                                        <th style="padding:6px 10px;border:1px solid #0b2a3b;text-align:center;font-size:11px;">REG. MS</th>
+                                        <th style="padding:6px 10px;border:1px solid #0b2a3b;text-align:center;font-size:11px;">GRUPO QUÍMICO</th>
+                                        <th style="padding:6px 10px;border:1px solid #0b2a3b;text-align:center;font-size:11px;">PRINCÍPIO ATIVO</th>
+                                        <th style="padding:6px 10px;border:1px solid #0b2a3b;text-align:center;font-size:11px;">CONCENTRAÇÃO</th>
+                                        <th style="padding:6px 10px;border:1px solid #0b2a3b;text-align:center;font-size:11px;">TRATAMENTO</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    ${produtosHtml || '<tr><td colspan="6" style="text-align:center;padding:8px;">Nenhum produto registrado</td></tr>'}
+                                    ${produtosHtml || '<tr><td colspan="6" style="text-align:center;padding:10px;font-size:12px;">Nenhum produto registrado</td></tr>'}
                                 </tbody>
                             </table>
                         </div>
 
-                        <div style="margin:10px 0;padding:8px 12px;background:#f8fbfd;border-left:3px solid #0b2a3b;border-radius:4px;">
-                            <div style="font-weight:700;font-size:10px;display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                        <div style="margin:14px 0;padding:10px 16px;background:#f8fbfd;border-left:4px solid #0b2a3b;border-radius:4px;">
+                            <div style="font-weight:700;font-size:13px;display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
                                 <span>OBSERVAÇÕES:</span>
-                                <button onclick="editarObservacaoCertificado('${c.id}')" style="background:#0b2a3b;color:white;border:none;border-radius:4px;padding:2px 12px;font-size:8px;cursor:pointer;">
+                                <button onclick="editarObservacaoCertificado('${c.id}')" style="background:#0b2a3b;color:white;border:none;border-radius:4px;padding:4px 16px;font-size:11px;cursor:pointer;">
                                     <i class="fas fa-edit"></i> Editar
                                 </button>
                             </div>
                             <div id="certObservacao_${c.id}" 
-                                 style="font-size:8px;white-space:pre-wrap;word-wrap:break-word;color:#1f3a4b;min-height:40px;max-height:200px;overflow-y:auto;padding:8px 10px;border:1px solid #dce4ec;border-radius:4px;background:white;line-height:1.6;font-family:inherit;"
+                                 style="font-size:12px;white-space:pre-wrap;word-wrap:break-word;color:#1f3a4b;min-height:50px;max-height:200px;overflow-y:auto;padding:10px 12px;border:1px solid #dce4ec;border-radius:4px;background:white;line-height:1.7;font-family:inherit;"
                                  contenteditable="true"
                                  onkeydown="handleObservacaoEnter(event, '${c.id}')"
                                  onblur="salvarObservacaoCertificado('${c.id}', this.innerHTML)">
                                 ${c.observacoes || 'Clique aqui para adicionar observações... Pressione Enter para quebrar linha.'}
                             </div>
-                            <div style="font-size:7px;color:#999;margin-top:4px;">💡 Pressione Enter para quebrar linha</div>
+                            <div style="font-size:10px;color:#999;margin-top:4px;">💡 Pressione Enter para quebrar linha</div>
                         </div>
 
-                        <div style="margin:10px 0;">
-                            <div style="font-weight:700;font-size:11px;">Métodos Empregados:</div>
-                            <div style="font-size:9px;padding:4px 8px;background:#fafcfe;border-radius:4px;border:1px solid #e8eff5;">
+                        <div style="margin:14px 0;">
+                            <div style="font-weight:700;font-size:15px;color:#0b2a3b;">Métodos Empregados:</div>
+                            <div style="font-size:12px;padding:6px 12px;background:#fafcfe;border-radius:4px;border:1px solid #e8eff5;">
                                 ${c.metodos.descricao || 'Não informado'}
-                                ${c.metodos.pragasAlvo && c.metodos.pragasAlvo.length > 0 ? 
-                                    `<br><strong>Pragas-Alvo:</strong> ${c.metodos.pragasAlvo.join(', ')}` : ''}
+                                ${c.metodos.pragasAlvo && c.metodos.pragasAlvo.length > 0 ?
+                    `<br><strong>Pragas-Alvo:</strong> ${c.metodos.pragasAlvo.join(', ')}` : ''}
                                 <br><strong>Data da Execução:</strong> ${c.dataServico} 
                                 <strong>Data de Validade:</strong> ${c.dataValidade}
                             </div>
                         </div>
 
-                        <div style="margin:10px 0;">
-                            <div style="font-weight:700;font-size:11px;margin-bottom:6px;">Responsáveis Técnicos:</div>
-                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
-                                <div style="padding:10px 12px;background:#f8fbfd;border-radius:6px;border:1px solid #e8eff5;">
-                                    <div style="font-weight:600;font-size:9px;color:#0b2a3b;margin-bottom:4px;">RESPONSÁVEL TÉCNICO</div>
+                        <div style="margin:14px 0;">
+                            <div style="font-weight:700;font-size:15px;margin-bottom:8px;color:#0b2a3b;">Responsáveis Técnicos:</div>
+                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+                                <div style="padding:12px 16px;background:#f8fbfd;border-radius:6px;border:1px solid #e8eff5;">
+                                    <div style="font-weight:600;font-size:12px;color:#0b2a3b;margin-bottom:6px;">RESPONSÁVEL TÉCNICO</div>
                                     <select id="certTecnicoSelect_${c.id}" 
-                                            style="width:100%;padding:4px 8px;border:1px solid #dce4ec;border-radius:4px;font-size:8px;background:white;margin-bottom:4px;" 
+                                            style="width:100%;padding:6px 10px;border:1px solid #dce4ec;border-radius:4px;font-size:11px;background:white;margin-bottom:6px;" 
                                             onchange="atualizarResponsavelCertificado('${c.id}', 'tecnico', this.value)">
                                         <option value="">Selecione...</option>
                                         ${tecnicoOptions}
                                     </select>
-                                    <div style="font-size:7px;color:#4d687a;margin-bottom:4px;" id="certTecnicoInfo_${c.id}">
+                                    <div style="font-size:11px;color:#4d687a;margin-bottom:6px;" id="certTecnicoInfo_${c.id}">
                                         ${tecnicoDisplay}
                                     </div>
-                                    <div style="margin:4px auto 0;width:100%;min-height:50px;border:1px solid #ccc;border-radius:4px;background:white;display:flex;align-items:center;justify-content:center;cursor:pointer;" 
+                                    <div style="margin:6px auto 0;width:100%;min-height:60px;border:1px solid #ccc;border-radius:4px;background:white;display:flex;align-items:center;justify-content:center;cursor:pointer;" 
                                          onclick="abrirAssinaturaCertificado('${c.id}', 'tecnico')">
-                                        ${c.assinaturaTecnico ? 
-                                            `<img src="${c.assinaturaTecnico}" style="max-height:45px;max-width:100%;" />` : 
-                                            '<span style="font-size:7px;color:#999;">Clique para assinar</span>'}
+                                        ${c.assinaturaTecnico ?
+                    `<img src="${c.assinaturaTecnico}" style="max-height:55px;max-width:100%;" />` :
+                    '<span style="font-size:10px;color:#999;">Clique para assinar</span>'}
                                     </div>
-                                    <div style="font-size:6px;text-align:center;color:#999;margin-top:2px;">Assinatura Digital</div>
+                                    <div style="font-size:9px;text-align:center;color:#999;margin-top:3px;">Assinatura Digital</div>
                                 </div>
 
-                                <div style="padding:10px 12px;background:#f8fbfd;border-radius:6px;border:1px solid #e8eff5;">
-                                    <div style="font-weight:600;font-size:9px;color:#0b2a3b;margin-bottom:4px;">RESPONSÁVEL OPERACIONAL</div>
+                                <div style="padding:12px 16px;background:#f8fbfd;border-radius:6px;border:1px solid #e8eff5;">
+                                    <div style="font-weight:600;font-size:12px;color:#0b2a3b;margin-bottom:6px;">RESPONSÁVEL OPERACIONAL</div>
                                     <select id="certOperacionalSelect_${c.id}" 
-                                            style="width:100%;padding:4px 8px;border:1px solid #dce4ec;border-radius:4px;font-size:8px;background:white;margin-bottom:4px;"
+                                            style="width:100%;padding:6px 10px;border:1px solid #dce4ec;border-radius:4px;font-size:11px;background:white;margin-bottom:6px;"
                                             onchange="atualizarResponsavelCertificado('${c.id}', 'operacional', this.value)">
                                         <option value="">Selecione...</option>
                                         ${operacionalOptions}
                                     </select>
-                                    <div style="font-size:7px;color:#4d687a;margin-bottom:4px;" id="certOperacionalInfo_${c.id}">
+                                    <div style="font-size:11px;color:#4d687a;margin-bottom:6px;" id="certOperacionalInfo_${c.id}">
                                         ${operacionalDisplay}
                                     </div>
-                                    <div style="margin:4px auto 0;width:100%;min-height:50px;border:1px solid #ccc;border-radius:4px;background:white;display:flex;align-items:center;justify-content:center;cursor:pointer;"
+                                    <div style="margin:6px auto 0;width:100%;min-height:60px;border:1px solid #ccc;border-radius:4px;background:white;display:flex;align-items:center;justify-content:center;cursor:pointer;"
                                          onclick="abrirAssinaturaCertificado('${c.id}', 'operacional')">
-                                        ${c.assinaturaOperacional ? 
-                                            `<img src="${c.assinaturaOperacional}" style="max-height:45px;max-width:100%;" />` : 
-                                            '<span style="font-size:7px;color:#999;">Clique para assinar</span>'}
+                                        ${c.assinaturaOperacional ?
+                    `<img src="${c.assinaturaOperacional}" style="max-height:55px;max-width:100%;" />` :
+                    '<span style="font-size:10px;color:#999;">Clique para assinar</span>'}
                                     </div>
-                                    <div style="font-size:6px;text-align:center;color:#999;margin-top:2px;">Assinatura Digital</div>
+                                    <div style="font-size:9px;text-align:center;color:#999;margin-top:3px;">Assinatura Digital</div>
                                 </div>
                                 ${botoesAssinaturaHtml}
                             </div>
                         </div>
 
-                        <div style="margin:10px 0;padding:6px 10px;background:#fde8e6;border-radius:4px;border-left:3px solid #c0392b;">
-                            <div style="font-weight:700;font-size:9px;color:#b13e3a;">Primeiros Socorros:</div>
-                            <div style="font-size:8px;">Em caso de ingestão acidental, provoque o vômito e procure imediatamente o serviço de atendimento médico.</div>
-                            <div style="font-size:8px;font-weight:600;color:#b13e3a;">Telefone de Emergência: ${c.telefoneEmergencia} (Centro de Informação Toxicológica)</div>
-                            <div style="font-size:8px;color:#b13e3a;">Atenção: O ambiente passa por manutenção a cada 30 dias.</div>
+                        <div style="margin:14px 0;padding:8px 14px;background:#fde8e6;border-radius:4px;border-left:4px solid #c0392b;">
+                            <div style="font-weight:700;font-size:12px;color:#b13e3a;">Primeiros Socorros:</div>
+                            <div style="font-size:11px;">Em caso de ingestão acidental, provoque o vômito e procure imediatamente o serviço de atendimento médico.</div>
+                            <div style="font-size:11px;font-weight:600;color:#b13e3a;">Telefone de Emergência: ${c.telefoneEmergencia} (Centro de Informação Toxicológica)</div>
+                            <div style="font-size:11px;color:#b13e3a;">Atenção: O ambiente passa por manutenção a cada 30 dias.</div>
                         </div>
 
-                        <div style="margin-top:16px;padding-top:10px;border-top:1px solid #e8eff5;text-align:center;font-size:7px;color:#6a7f8d;">
-                            Documento gerado em ${new Date(c.criadoEm).toLocaleString('pt-BR')} · Certificado Técnico
+                        <div style="margin-top:20px;padding-top:12px;border-top:2px solid #e8eff5;text-align:center;font-size:10px;color:#6a7f8d;">
+                            Certificado Técnico
                         </div>
                     </div>
                 </div>
             `;
         },
 
-        _getTipoLabel: function(tipo) {
+        _getTipoLabel: function (tipo) {
             const map = {
                 'Desinsetização': 'DESINSETIZAÇÃO',
                 'Desratização': 'DESRATIZAÇÃO',
@@ -1511,32 +1493,153 @@
             return map[tipo] || tipo.toUpperCase();
         },
 
-        gerarPDF: function(certificado) {
+        gerarPDF: function (certificado) {
             const html = this.renderizarCertificado(certificado);
-            const win = window.open('', '_blank', 'width=900,height=700');
+
+            // Cria uma janela para impressão com tamanho otimizado
+            const win = window.open('', '_blank', 'width=700,height=500');
             if (win) {
                 win.document.write(`
                     <html>
                     <head>
+                        <meta charset="UTF-8" />
                         <title>Certificado Técnico</title>
                         <style>
-                            body { margin: 0; padding: 20px; background: #f0f4f8; }
+                            * { margin: 0; padding: 0; box-sizing: border-box; }
+                            body { 
+                                margin: 0; 
+                                padding: 4px; 
+                                background: white; 
+                                font-family: Arial, sans-serif;
+                                font-size: 8pt;
+                                line-height: 1.2;
+                            }
                             @media print {
-                                body { padding: 0; background: white; }
-                                .no-print { display: none; }
+                                body { padding: 2px; }
+                                .no-print { display: none !important; }
+                            }
+                            .cert-print {
+                                font-size: 7.5pt;
+                                padding: 4px;
+                                max-width: 100%;
+                            }
+                            .cert-print .header-empresa {
+                                display: flex;
+                                align-items: center;
+                                gap: 10px;
+                                border-bottom: 2px solid #0b2a3b;
+                                padding-bottom: 4px;
+                                margin-bottom: 4px;
+                            }
+                            .cert-print .header-empresa .logo {
+                                flex-shrink: 0;
+                            }
+                            .cert-print .header-empresa .logo svg {
+                                width: 35px;
+                                height: 35px;
+                            }
+                            .cert-print .header-empresa .info h1 {
+                                font-size: 10pt;
+                                color: #0b2a3b;
+                                margin: 0;
+                            }
+                            .cert-print .header-empresa .info p {
+                                font-size: 5.5pt;
+                                color: #4d687a;
+                                margin: 1px 0;
+                            }
+                            .cert-print .titulo {
+                                text-align: center;
+                                font-size: 10pt;
+                                font-weight: bold;
+                                color: #0b2a3b;
+                                margin: 3px 0;
+                            }
+                            .cert-print .conteudo {
+                                font-size: 7pt;
+                                line-height: 1.2;
+                            }
+                            .cert-print table {
+                                width: 100%;
+                                border-collapse: collapse;
+                                font-size: 5.5pt;
+                                margin: 2px 0;
+                            }
+                            .cert-print table th {
+                                background: #0b2a3b;
+                                color: white;
+                                padding: 1px 4px;
+                                border: 1px solid #0b2a3b;
+                                font-size: 5pt;
+                            }
+                            .cert-print table td {
+                                padding: 1px 4px;
+                                border: 1px solid #ccc;
+                                text-align: center;
+                                font-size: 5pt;
+                            }
+                            .cert-print .observacoes {
+                                font-size: 5.5pt;
+                                padding: 2px 6px;
+                                margin: 2px 0;
+                                background: #f8fbfd;
+                                border-left: 3px solid #0b2a3b;
+                                white-space: pre-line;
+                            }
+                            .cert-print .responsaveis {
+                                display: grid;
+                                grid-template-columns: 1fr 1fr;
+                                gap: 6px;
+                                margin: 3px 0;
+                            }
+                            .cert-print .responsaveis .resp-item {
+                                padding: 3px 6px;
+                                background: #f8fbfd;
+                                border-radius: 3px;
+                                text-align: center;
+                                font-size: 6pt;
+                            }
+                            .cert-print .responsaveis .resp-item .nome {
+                                font-weight: bold;
+                                font-size: 6.5pt;
+                            }
+                            .cert-print .responsaveis .resp-item .cargo {
+                                font-size: 5pt;
+                                color: #4d687a;
+                            }
+                            .cert-print .primeiros-socorros {
+                                font-size: 5.5pt;
+                                padding: 2px 6px;
+                                background: #fde8e6;
+                                border-radius: 3px;
+                                border-left: 3px solid #c0392b;
+                                margin: 3px 0;
+                            }
+                            .cert-print .footer {
+                                font-size: 5pt;
+                                text-align: center;
+                                color: #6a7f8d;
+                                border-top: 1px solid #e8eff5;
+                                padding-top: 3px;
+                                margin-top: 4px;
                             }
                         </style>
                     </head>
                     <body>
-                        ${html}
-                        <div style="text-align:center;margin-top:16px;" class="no-print">
-                            <button onclick="window.print()" style="padding:10px 30px;background:#0b2a3b;color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600;">
+                        <div class="cert-print">
+                            ${html}
+                        </div>
+                        <div style="text-align:center;margin-top:6px;" class="no-print">
+                            <button onclick="window.print()" style="padding:6px 20px;background:#0b2a3b;color:white;border:none;border-radius:4px;cursor:pointer;font-weight:600;font-size:9pt;">
                                 <i class="fas fa-print"></i> Imprimir / Salvar PDF
                             </button>
-                            <button onclick="window.close()" style="padding:10px 30px;background:#e8eff5;color:#1f3a4b;border:none;border-radius:8px;cursor:pointer;font-weight:600;margin-left:10px;">
+                            <button onclick="window.close()" style="padding:6px 20px;background:#e8eff5;color:#1f3a4b;border:none;border-radius:4px;cursor:pointer;font-weight:600;font-size:9pt;margin-left:8px;">
                                 Fechar
                             </button>
                         </div>
+                        <script>
+                            window.onload = function() { window.print(); }
+                        <\/script>
                     </body>
                     </html>
                 `);
@@ -1544,9 +1647,9 @@
             }
         },
 
-        listarCertificados: function(filtro) {
+        listarCertificados: function (filtro) {
             let certificados = DB.getAll('certificados');
-            
+
             if (filtro) {
                 if (filtro.clienteId) {
                     certificados = certificados.filter(c => String(c.clienteId) === String(filtro.clienteId));
@@ -1558,11 +1661,11 @@
                     certificados = certificados.filter(c => c.status === filtro.status);
                 }
             }
-            
+
             return certificados.sort((a, b) => new Date(b.criadoEm) - new Date(a.criadoEm));
         },
 
-        getCertificado: function(id) {
+        getCertificado: function (id) {
             return DB.getById('certificados', id);
         }
     };
@@ -1574,84 +1677,67 @@
     // =============================================
 
     const AssinaturaService = {
-        /**
-         * Salva uma assinatura para um membro da equipe
-         */
-        salvarAssinaturaMembro: function(membroId, tipo, imagemData) {
+        salvarAssinaturaMembro: function (membroId, tipo, imagemData) {
             if (!membroId) return false;
-            
+
             const equipe = DB.getAll('equipe');
             const membro = equipe.find(m => String(m.id) === String(membroId));
             if (!membro) return false;
-            
+
             const campo = tipo === 'tecnico' ? 'assinaturaTecnico' : 'assinaturaOperacional';
-            
-            // Salva a assinatura no membro
+
             DB.update('equipe', membroId, {
                 [campo]: imagemData,
                 assinaturaAtualizada: new Date().toISOString()
             });
-            
-            // Atualiza cache
+
             DB.forceClearCache('equipe');
-            
+
             console.log(`✅ Assinatura salva para ${membro.nome} (${tipo})`);
             return true;
         },
-        
-        /**
-         * Obtém a assinatura salva de um membro
-         */
-        getAssinaturaMembro: function(membroId, tipo) {
+
+        getAssinaturaMembro: function (membroId, tipo) {
             if (!membroId) return null;
-            
+
             const equipe = DB.getAll('equipe');
             const membro = equipe.find(m => String(m.id) === String(membroId));
             if (!membro) return null;
-            
+
             const campo = tipo === 'tecnico' ? 'assinaturaTecnico' : 'assinaturaOperacional';
             return membro[campo] || null;
         },
-        
-        /**
-         * Verifica se um membro tem assinatura salva
-         */
-        temAssinaturaSalva: function(membroId, tipo) {
+
+        temAssinaturaSalva: function (membroId, tipo) {
             return this.getAssinaturaMembro(membroId, tipo) !== null;
         },
-        
-        /**
-         * Aplica a assinatura salva ao certificado
-         */
-        aplicarAssinaturaSalva: function(certId, tipo, membroId) {
+
+        aplicarAssinaturaSalva: function (certId, tipo, membroId) {
             if (!membroId) {
                 alert('Selecione um responsável primeiro!');
                 return false;
             }
-            
+
             const imagemData = this.getAssinaturaMembro(membroId, tipo);
             if (!imagemData) {
                 alert('Este responsável não possui uma assinatura salva. Você pode adicionar uma clicando no botão "Gerenciar Assinaturas".');
                 return false;
             }
-            
+
             const campo = tipo === 'tecnico' ? 'assinaturaTecnico' : 'assinaturaOperacional';
-            
-            // Aplica a assinatura ao certificado
+
             DB.update('certificados', certId, {
                 [campo]: imagemData
             });
-            
-            // Atualiza a visualização
+
             setTimeout(() => {
                 visualizarCertificado(certId);
             }, 100);
-            
-            // Dispara evento de atualização
+
             document.dispatchEvent(new CustomEvent('certificadoAtualizado', {
                 detail: { certificado: { id: certId }, action: 'update' }
             }));
-            
+
             console.log(`✅ Assinatura aplicada ao certificado ${certId}`);
             return true;
         }
@@ -1663,14 +1749,14 @@
     // ===== FUNÇÕES DE GERENCIAMENTO DE ASSINATURAS =====
     // =============================================
 
-    window.abrirGerenciadorAssinaturas = function() {
+    window.abrirGerenciadorAssinaturas = function () {
         const equipe = DB.getAll('equipe');
-        
+
         if (equipe.length === 0) {
             alert('Cadastre membros na equipe primeiro!');
             return;
         }
-        
+
         const html = `
             <div style="margin-bottom:16px;">
                 <p style="color:#4d687a;font-size:0.9rem;">
@@ -1692,10 +1778,10 @@
                         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;">
                             <div style="background:white;border-radius:8px;padding:8px;border:1px solid #e8eff5;text-align:center;">
                                 <div style="font-size:0.7rem;font-weight:600;color:#0b2a3b;margin-bottom:4px;">Assinatura Técnico</div>
-                                ${m.assinaturaTecnico ? 
-                                    `<img src="${m.assinaturaTecnico}" style="max-width:100%;max-height:50px;border:1px solid #e8eff5;border-radius:4px;margin:4px 0;" />` :
-                                    '<span style="font-size:0.7rem;color:#999;">Não definida</span>'
-                                }
+                                ${m.assinaturaTecnico ?
+                `<img src="${m.assinaturaTecnico}" style="max-width:100%;max-height:50px;border:1px solid #e8eff5;border-radius:4px;margin:4px 0;" />` :
+                '<span style="font-size:0.7rem;color:#999;">Não definida</span>'
+            }
                                 <div style="margin-top:4px;display:flex;gap:4px;justify-content:center;flex-wrap:wrap;">
                                     <button onclick="abrirUploadAssinatura(${m.id}, 'tecnico')" style="background:#0b2a3b;color:white;border:none;padding:2px 10px;border-radius:4px;font-size:0.7rem;cursor:pointer;">
                                         ${m.assinaturaTecnico ? '🔄' : '📤'} ${m.assinaturaTecnico ? 'Trocar' : 'Upload'}
@@ -1705,10 +1791,10 @@
                             </div>
                             <div style="background:white;border-radius:8px;padding:8px;border:1px solid #e8eff5;text-align:center;">
                                 <div style="font-size:0.7rem;font-weight:600;color:#0b2a3b;margin-bottom:4px;">Assinatura Operacional</div>
-                                ${m.assinaturaOperacional ? 
-                                    `<img src="${m.assinaturaOperacional}" style="max-width:100%;max-height:50px;border:1px solid #e8eff5;border-radius:4px;margin:4px 0;" />` :
-                                    '<span style="font-size:0.7rem;color:#999;">Não definida</span>'
-                                }
+                                ${m.assinaturaOperacional ?
+                `<img src="${m.assinaturaOperacional}" style="max-width:100%;max-height:50px;border:1px solid #e8eff5;border-radius:4px;margin:4px 0;" />` :
+                '<span style="font-size:0.7rem;color:#999;">Não definida</span>'
+            }
                                 <div style="margin-top:4px;display:flex;gap:4px;justify-content:center;flex-wrap:wrap;">
                                     <button onclick="abrirUploadAssinatura(${m.id}, 'operacional')" style="background:#0b2a3b;color:white;border:none;padding:2px 10px;border-radius:4px;font-size:0.7rem;cursor:pointer;">
                                         ${m.assinaturaOperacional ? '🔄' : '📤'} ${m.assinaturaOperacional ? 'Trocar' : 'Upload'}
@@ -1732,21 +1818,21 @@
                 </button>
             </div>
         `;
-        
+
         abrirModal('📝 Gerenciar Assinaturas da Equipe', html);
     };
 
-    window.abrirUploadAssinatura = function(membroId, tipo) {
+    window.abrirUploadAssinatura = function (membroId, tipo) {
         const equipe = DB.getAll('equipe');
         const membro = equipe.find(m => String(m.id) === String(membroId));
         if (!membro) {
             alert('Membro não encontrado!');
             return;
         }
-        
+
         const tipoLabel = tipo === 'tecnico' ? 'Técnico' : 'Operacional';
         const hasExisting = tipo === 'tecnico' ? membro.assinaturaTecnico : membro.assinaturaOperacional;
-        
+
         abrirModal(`📤 Upload Assinatura - ${membro.nome} (${tipoLabel})`, `
             <div style="text-align:center;padding:8px 0;">
                 <div style="font-size:3rem;">✍️</div>
@@ -1786,27 +1872,26 @@
                 </button>
             </div>
         `);
-        
-        // Preview da imagem selecionada
+
         setTimeout(() => {
             const input = document.getElementById('uploadAssinaturaInput');
             if (input) {
-                input.addEventListener('change', function(e) {
+                input.addEventListener('change', function (e) {
                     const preview = document.getElementById('uploadAssinaturaPreview');
                     if (!preview) return;
-                    
+
                     const file = this.files[0];
                     if (!file) {
                         preview.innerHTML = '';
                         return;
                     }
-                    
+
                     const reader = new FileReader();
-                    reader.onload = function(e) {
+                    reader.onload = function (e) {
                         preview.innerHTML = `
                             <div style="display:inline-block;border:2px solid #1d7a6b;border-radius:8px;padding:8px;background:white;">
                                 <img src="${e.target.result}" style="max-width:200px;max-height:80px;object-fit:contain;" />
-                                <div style="font-size:0.7rem;color:#999;margin-top:4px;">${file.name} (${(file.size/1024).toFixed(1)} KB)</div>
+                                <div style="font-size:0.7rem;color:#999;margin-top:4px;">${file.name} (${(file.size / 1024).toFixed(1)} KB)</div>
                             </div>
                         `;
                     };
@@ -1816,74 +1901,71 @@
         }, 100);
     };
 
-    window.salvarUploadAssinatura = function(membroId, tipo) {
+    window.salvarUploadAssinatura = function (membroId, tipo) {
         const input = document.getElementById('uploadAssinaturaInput');
         if (!input || !input.files || !input.files[0]) {
             alert('Selecione uma imagem da assinatura!');
             return;
         }
-        
+
         const file = input.files[0];
         const reader = new FileReader();
-        
-        reader.onload = function(e) {
+
+        reader.onload = function (e) {
             const imagemData = e.target.result;
-            
-            // Salva a assinatura
+
             const result = AssinaturaService.salvarAssinaturaMembro(membroId, tipo, imagemData);
-            
+
             if (result) {
                 fecharModal();
-                
-                // Recarrega o gerenciador se estiver aberto
+
                 setTimeout(() => {
                     abrirGerenciadorAssinaturas();
                 }, 200);
-                
+
                 alert('✅ Assinatura salva com sucesso!');
             } else {
                 alert('❌ Erro ao salvar assinatura.');
             }
         };
-        
+
         reader.readAsDataURL(file);
     };
 
-    window.removerAssinaturaMembro = function(membroId, tipo) {
+    window.removerAssinaturaMembro = function (membroId, tipo) {
         if (!confirm('Tem certeza que deseja remover esta assinatura?')) {
             return;
         }
-        
+
         const campo = tipo === 'tecnico' ? 'assinaturaTecnico' : 'assinaturaOperacional';
         const updateData = {};
         updateData[campo] = null;
-        
+
         DB.update('equipe', membroId, updateData);
         DB.forceClearCache('equipe');
-        
-        // Recarrega o gerenciador
+
         setTimeout(() => {
             abrirGerenciadorAssinaturas();
         }, 100);
-        
+
         alert('Assinatura removida com sucesso!');
     };
 
-    window.aplicarAssinaturaSalvaCertificado = function(certId, tipo) {
+    window.aplicarAssinaturaSalvaCertificado = function (certId, tipo) {
         const certificado = CertificadoService.getCertificado(certId);
         if (!certificado) {
             alert('Certificado não encontrado!');
             return;
         }
-        
+
         const campo = tipo === 'tecnico' ? 'tecnico' : 'operacional';
         const responsavel = certificado.responsaveis?.[campo];
-        
+
         if (!responsavel || !responsavel.id || responsavel.id === 'default_tecnico' || responsavel.id === 'default_operacional') {
             alert('Selecione um responsável válido no certificado primeiro!');
             return;
         }
-        
+
         const imagemData = AssinaturaService.getAssinaturaMembro(responsavel.id, tipo);
         if (!imagemData) {
             if (confirm(`O responsável "${responsavel.nome}" não possui uma assinatura salva. Deseja abrir o gerenciador para adicionar uma?`)) {
@@ -1891,23 +1973,20 @@
             }
             return;
         }
-        
-        // Aplica ao certificado
+
         const campoAssinatura = tipo === 'tecnico' ? 'assinaturaTecnico' : 'assinaturaOperacional';
         DB.update('certificados', certId, {
             [campoAssinatura]: imagemData
         });
-        
-        // Atualiza a visualização
+
         setTimeout(() => {
             visualizarCertificado(certId);
         }, 100);
-        
-        // Dispara evento
+
         document.dispatchEvent(new CustomEvent('certificadoAtualizado', {
             detail: { certificado: { id: certId }, action: 'update' }
         }));
-        
+
         alert('✅ Assinatura aplicada ao certificado com sucesso!');
     };
 
@@ -1915,14 +1994,14 @@
     // ===== FUNÇÕES AUXILIARES DO CERTIFICADO =====
     // =============================================
 
-    window.handleObservacaoEnter = function(event, certId) {
+    window.handleObservacaoEnter = function (event, certId) {
         if (event.key === 'Enter') {
             event.preventDefault();
             document.execCommand('insertLineBreak');
         }
     };
 
-    window.salvarObservacaoCertificado = function(certId, conteudo) {
+    window.salvarObservacaoCertificado = function (certId, conteudo) {
         const texto = conteudo
             .replace(/<br\s*\/?>/gi, '\n')
             .replace(/<div>/gi, '\n')
@@ -1931,22 +2010,22 @@
             .replace(/<\/p>/gi, '\n')
             .replace(/&nbsp;/g, ' ')
             .trim();
-        
+
         if (texto !== '') {
             DB.update('certificados', certId, { observacoes: texto });
         }
     };
 
-    window.atualizarResponsavelCertificado = function(certId, tipo, membroId) {
+    window.atualizarResponsavelCertificado = function (certId, tipo, membroId) {
         console.log('🔄 Atualizando responsável:', { certId, tipo, membroId });
-        
+
         if (!membroId || membroId === '' || membroId === 'default_tecnico' || membroId === 'default_operacional') {
             console.warn('⚠️ Nenhum membro selecionado - resetando');
             const infoEl = document.getElementById('cert' + (tipo === 'tecnico' ? 'Tecnico' : 'Operacional') + 'Info_' + certId);
             if (infoEl) {
                 infoEl.textContent = 'Nenhum ' + (tipo === 'tecnico' ? 'técnico' : 'operacional') + ' selecionado';
             }
-            
+
             const updateData = {};
             const campo = tipo === 'tecnico' ? 'tecnico' : 'operacional';
             updateData['responsaveis.' + campo] = {
@@ -1956,21 +2035,21 @@
                 atuacao: ''
             };
             DB.update('certificados', certId, updateData);
-            
-            setTimeout(function() {
+
+            setTimeout(function () {
                 visualizarCertificado(certId);
             }, 150);
             return;
         }
-        
+
         const equipe = DB.getAll('equipe');
-        const membro = equipe.find(function(m) {
+        const membro = equipe.find(function (m) {
             return String(m.id) === String(membroId);
         });
-        
+
         if (!membro) {
             console.warn('⚠️ Membro não encontrado:', membroId);
-            const membroByName = equipe.find(function(m) {
+            const membroByName = equipe.find(function (m) {
                 return m.nome && m.nome.toLowerCase() === String(membroId).toLowerCase();
             });
             if (membroByName) {
@@ -1979,31 +2058,31 @@
             }
             return;
         }
-        
+
         console.log('📌 Membro encontrado:', membro);
-        
+
         const certificado = CertificadoService.getCertificado(certId);
         if (!certificado) {
             console.warn('⚠️ Certificado não encontrado:', certId);
             return;
         }
-        
+
         const updateData = {};
         const campo = tipo === 'tecnico' ? 'tecnico' : 'operacional';
-        
+
         const responsavelData = {
             id: membro.id,
             nome: membro.nome,
             registro: membro.registro || '',
             atuacao: membro.cargo || ''
         };
-        
+
         updateData['responsaveis.' + campo] = responsavelData;
-        
+
         console.log('📝 Atualizando dados:', JSON.stringify(updateData));
-        
+
         DB.update('certificados', certId, updateData);
-        
+
         if (typeof FirestoreService !== 'undefined') {
             try {
                 const certAtualizado = CertificadoService.getCertificado(certId);
@@ -2016,18 +2095,18 @@
                 console.warn('⚠️ Erro na sincronização Firestore:', e);
             }
         }
-        
+
         const infoEl = document.getElementById('cert' + (tipo === 'tecnico' ? 'Tecnico' : 'Operacional') + 'Info_' + certId);
         if (infoEl) {
             infoEl.textContent = membro.nome + (membro.registro ? ' - ' + membro.registro : '');
         }
-        
+
         const selectEl = document.getElementById('cert' + (tipo === 'tecnico' ? 'Tecnico' : 'Operacional') + 'Select_' + certId);
         if (selectEl) {
             selectEl.value = membroId;
         }
-        
-        setTimeout(function() {
+
+        setTimeout(function () {
             const certVerificado = CertificadoService.getCertificado(certId);
             if (certVerificado) {
                 const responsavelSalvo = certVerificado.responsaveis?.[campo];
@@ -2042,23 +2121,23 @@
         }, 300);
     };
 
-    window.editarObservacaoCertificado = function(certId) {
+    window.editarObservacaoCertificado = function (certId) {
         const certificado = CertificadoService.getCertificado(certId);
         if (!certificado) return;
-        
+
         const novaObs = prompt('Edite as observações do certificado:', certificado.observacoes || '');
         if (novaObs !== null) {
             DB.update('certificados', certId, { observacoes: novaObs });
-            setTimeout(function() {
+            setTimeout(function () {
                 visualizarCertificado(certId);
             }, 100);
         }
     };
 
-    window.abrirAssinaturaCertificado = function(certId, tipo) {
+    window.abrirAssinaturaCertificado = function (certId, tipo) {
         const certificado = CertificadoService.getCertificado(certId);
         if (!certificado) return;
-        
+
         abrirModal('Assinatura Digital - ' + (tipo === 'tecnico' ? 'Responsável Técnico' : 'Responsável Operacional'), `
             <div style="text-align:center;margin-bottom:12px;">
                 <p style="font-size:0.9rem;color:#4d687a;">Desenhe sua assinatura abaixo</p>
@@ -2074,8 +2153,8 @@
                 <button class="btn-secondary" onclick="fecharModal()">Cancelar</button>
             </div>
         `);
-        
-        setTimeout(function() {
+
+        setTimeout(function () {
             const targetCanvas = document.getElementById('sigCanvasCert');
             if (targetCanvas) {
                 const targetCtx = targetCanvas.getContext('2d');
@@ -2088,18 +2167,18 @@
                 targetCtx.lineTo(targetCanvas.width - 40, 80);
                 targetCtx.stroke();
                 targetCtx.setLineDash([]);
-                
+
                 let drawing = false;
                 let lastX = 0, lastY = 0;
-                
-                targetCanvas.addEventListener('mousedown', function(e) {
+
+                targetCanvas.addEventListener('mousedown', function (e) {
                     drawing = true;
                     const rect = targetCanvas.getBoundingClientRect();
                     lastX = (e.clientX - rect.left) * (targetCanvas.width / rect.width);
                     lastY = (e.clientY - rect.top) * (targetCanvas.height / rect.height);
                 });
-                
-                targetCanvas.addEventListener('mousemove', function(e) {
+
+                targetCanvas.addEventListener('mousemove', function (e) {
                     if (!drawing) return;
                     const rect = targetCanvas.getBoundingClientRect();
                     const x = (e.clientX - rect.left) * (targetCanvas.width / rect.width);
@@ -2113,11 +2192,11 @@
                     lastX = x;
                     lastY = y;
                 });
-                
-                targetCanvas.addEventListener('mouseup', function() { drawing = false; });
-                targetCanvas.addEventListener('mouseleave', function() { drawing = false; });
-                
-                targetCanvas.addEventListener('touchstart', function(e) {
+
+                targetCanvas.addEventListener('mouseup', function () { drawing = false; });
+                targetCanvas.addEventListener('mouseleave', function () { drawing = false; });
+
+                targetCanvas.addEventListener('touchstart', function (e) {
                     e.preventDefault();
                     const touch = e.touches[0];
                     const rect = targetCanvas.getBoundingClientRect();
@@ -2125,8 +2204,8 @@
                     lastY = (touch.clientY - rect.top) * (targetCanvas.height / rect.height);
                     drawing = true;
                 });
-                
-                targetCanvas.addEventListener('touchmove', function(e) {
+
+                targetCanvas.addEventListener('touchmove', function (e) {
                     e.preventDefault();
                     if (!drawing) return;
                     const touch = e.touches[0];
@@ -2142,8 +2221,8 @@
                     lastX = x;
                     lastY = y;
                 });
-                
-                targetCanvas.addEventListener('touchend', function(e) {
+
+                targetCanvas.addEventListener('touchend', function (e) {
                     e.preventDefault();
                     drawing = false;
                 });
@@ -2151,7 +2230,7 @@
         }, 100);
     };
 
-    window.limparAssinaturaCert = function() {
+    window.limparAssinaturaCert = function () {
         const canvas = document.getElementById('sigCanvasCert');
         if (!canvas) return;
         const ctx = canvas.getContext('2d');
@@ -2167,19 +2246,19 @@
         ctx.setLineDash([]);
     };
 
-    window.confirmarAssinaturaCert = function(certId, tipo) {
+    window.confirmarAssinaturaCert = function (certId, tipo) {
         const canvas = document.getElementById('sigCanvasCert');
         if (!canvas) return;
-        
+
         const imageData = canvas.toDataURL('image/png');
         const img = new Image();
-        img.onload = function() {
+        img.onload = function () {
             const tempCanvas = document.createElement('canvas');
             tempCanvas.width = canvas.width;
             tempCanvas.height = canvas.height;
             const tempCtx = tempCanvas.getContext('2d');
             tempCtx.drawImage(img, 0, 0);
-            
+
             const pixelData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height).data;
             let hasDrawing = false;
             for (let i = 0; i < pixelData.length; i += 4) {
@@ -2191,17 +2270,17 @@
                     break;
                 }
             }
-            
+
             if (!hasDrawing) {
                 alert('Por favor, desenhe a assinatura antes de confirmar!');
                 return;
             }
-            
+
             const campo = tipo === 'tecnico' ? 'assinaturaTecnico' : 'assinaturaOperacional';
             DB.update('certificados', certId, { [campo]: imageData });
-            
+
             fecharModal();
-            setTimeout(function() {
+            setTimeout(function () {
                 visualizarCertificado(certId);
             }, 100);
             alert('Assinatura salva com sucesso!');
@@ -2219,15 +2298,15 @@
         if (_isRendering) {
             console.log('⏳ Renderização já em andamento, agendando...');
             if (_renderTimeout) clearTimeout(_renderTimeout);
-            _renderTimeout = setTimeout(function() {
+            _renderTimeout = setTimeout(function () {
                 _renderTimeout = null;
                 renderAll();
             }, 100);
             return;
         }
-        
+
         _isRendering = true;
-        
+
         try {
             renderDashboard();
             renderOrdens();
@@ -2269,43 +2348,43 @@
                 if (typeof FirestoreService !== 'undefined') {
                     FirestoreService.pararObservadores();
                 }
-                
+
                 DB.limparDados();
-                
+
                 if (typeof FirestoreService !== 'undefined' && typeof db !== 'undefined') {
                     var empresaId = EmpresaManager.getEmpresaAtual();
-                    var collections = ['clientes', 'servicos', 'ordens', 'agenda', 'equipe', 
-                                      'pontosIscas', 'relatorios', 'modelos', 'estoque', 
-                                      'movimentacoes', 'orcamentos', 'configuracoes', 'certificados'];
-                    
-                    collections.forEach(function(col) {
-                        db.collection(col).where('empresaId', '==', empresaId).get().then(function(snapshot) {
+                    var collections = ['clientes', 'servicos', 'ordens', 'agenda', 'equipe',
+                        'pontosIscas', 'relatorios', 'modelos', 'estoque',
+                        'movimentacoes', 'orcamentos', 'configuracoes', 'certificados'];
+
+                    collections.forEach(function (col) {
+                        db.collection(col).where('empresaId', '==', empresaId).get().then(function (snapshot) {
                             if (snapshot.size > 0) {
                                 var batch = db.batch();
-                                snapshot.forEach(function(doc) {
+                                snapshot.forEach(function (doc) {
                                     batch.delete(doc.ref);
                                 });
-                                batch.commit().catch(function(e) {
+                                batch.commit().catch(function (e) {
                                     console.warn('Erro ao deletar ' + col + ':', e);
                                 });
                             }
-                        }).catch(function(e) {
+                        }).catch(function (e) {
                             console.warn('Erro ao buscar ' + col + ':', e);
                         });
                     });
                 }
-                
+
                 renderAll();
                 alert('✅ Todos os dados foram resetados! O sistema está completamente limpo.');
             }
         }
     };
 
-    window.forcarSincronizacao = function() {
+    window.forcarSincronizacao = function () {
         if (typeof DB !== 'undefined' && DB.forcarSincronizacao) {
-            DB.forcarSincronizacao().then(function(total) {
+            DB.forcarSincronizacao().then(function (total) {
                 alert('✅ Dados sincronizados com o servidor! ' + total + ' itens atualizados.');
-            }).catch(function(err) {
+            }).catch(function (err) {
                 console.error('❌ Erro na sincronização:', err);
                 alert('❌ Erro ao sincronizar dados. Verifique sua conexão.\n\nErro: ' + err);
             });
@@ -2314,22 +2393,22 @@
         }
     };
 
-    window.forcarCarregamentoFirestore = function() {
+    window.forcarCarregamentoFirestore = function () {
         if (typeof FirestoreService !== 'undefined') {
             var empresaId = EmpresaManager.getEmpresaAtual();
             console.log('🔄 Forçando carregamento dos dados do Firestore...');
-            
+
             if (typeof DB !== 'undefined') {
                 DB._clearAllCaches();
             }
-            
-            FirestoreService.sincronizarDadosEmpresa(empresaId).then(function(total) {
+
+            FirestoreService.sincronizarDadosEmpresa(empresaId).then(function (total) {
                 console.log('✅ Dados carregados: ' + total + ' itens');
                 if (typeof renderAll !== 'undefined') {
                     renderAll();
                 }
                 alert('✅ Dados recarregados do servidor! ' + total + ' itens carregados.');
-            }).catch(function(err) {
+            }).catch(function (err) {
                 console.error('❌ Erro ao carregar dados:', err);
                 alert('❌ Erro ao carregar dados do servidor.\n\nErro: ' + err);
             });
@@ -2347,7 +2426,7 @@
         var idStr = String(id);
         var cliente = clientes.find(function (c) { return String(c.id) === idStr; });
         if (!cliente) return 'Cliente #' + id;
-        
+
         if (cliente.tipoCliente === 'cnpj') {
             return cliente.nomeFantasia || cliente.nome || cliente.razaoSocial || 'Cliente #' + id;
         }
@@ -2700,7 +2779,8 @@
                 itens.push({
                     descricao: servico.tipo || 'Serviço',
                     quantidade: 1,
-                    valorUnitario: valorServico                });
+                    valorUnitario: valorServico
+                });
             }
 
             DB.add('ordens', {
@@ -2716,7 +2796,7 @@
                 dataEntrega: '',
                 assinaturaOperador: null,
                 assinaturaCliente: null,
-                garantia: '', // Campo de garantia vazio inicialmente
+                garantia: '',
                 criadoEm: new Date().toISOString(),
                 atualizadoEm: new Date().toISOString()
             });
@@ -2864,11 +2944,11 @@
     // =============================================
     function verificarCertificadoAutomatico(servico) {
         if (!servico) return;
-        
+
         if (servico.status === 'Concluído' || servico.status === 'Concluida' || servico.status === 'Concluída') {
             const certificados = CertificadoService.listarCertificados();
             const existe = certificados.some(c => String(c.servicoId) === String(servico.id));
-            
+
             if (!existe) {
                 try {
                     const certificado = CertificadoService.gerarCertificado(servico.id, servico.tipo);
@@ -2885,7 +2965,7 @@
     // =============================================
     // ===== FUNÇÕES DE RENDERIZAÇÃO =====
     // =============================================
-    
+
     // =============================================
     // ===== RENDER DASHBOARD =====
     // =============================================
@@ -3295,7 +3375,7 @@
     // =============================================
     function carregarConfiguracoes() {
         var config = DB.getConfig();
-        
+
         if (!config) {
             config = JSON.parse(JSON.stringify(CONFIG_PADRAO));
         }
@@ -3315,7 +3395,6 @@
         var elSubtitulo = document.getElementById('configRelatorioSubtitulo');
         var elCor = document.getElementById('configRelatorioCor');
         var elRodape = document.getElementById('configRelatorioRodape');
-        // Campo 'garantia' removido - agora gerenciado por OS
         var elLogo = document.getElementById('logoPreview');
 
         if (elNome) elNome.value = config.empresa.nome || '';
@@ -3327,7 +3406,6 @@
         if (elSubtitulo) elSubtitulo.value = config.relatorio.subtitulo || '';
         if (elCor) elCor.value = config.relatorio.cor || '#0b2a3b';
         if (elRodape) elRodape.value = config.relatorio.rodape || '';
-        // Garantia removida das configurações
 
         if (elLogo && config.empresa.logo) {
             elLogo.innerHTML = '<img src="' + config.empresa.logo + '" alt="Logo" />';
@@ -3352,7 +3430,6 @@
             subtitulo: document.getElementById('configRelatorioSubtitulo')?.value || '',
             cor: document.getElementById('configRelatorioCor')?.value || '#0b2a3b',
             rodape: document.getElementById('configRelatorioRodape')?.value || ''
-            // Campo 'garantia' removido - agora gerenciado por OS
         };
 
         var inputLogo = document.getElementById('configEmpresaLogo');
@@ -3398,7 +3475,7 @@
     // =============================================
     function renderClientes() {
         DB.forceClearCache('clientes');
-        
+
         var clientes = DB.getAll('clientes', true);
         var tbody = document.getElementById('tabelaClientes');
         if (!tbody) return;
@@ -3410,12 +3487,12 @@
         tbody.innerHTML = clientes.map(function (c) {
             var tipoLabel = c.tipoCliente === 'cnpj' ? '🏢 CNPJ' : '👤 CPF';
             var tipoClass = c.tipoCliente === 'cnpj' ? 'cnpj' : 'cpf';
-            
+
             var nomeExibido = c.nome || c.nomeFantasia || c.nome;
             if (c.tipoCliente === 'cnpj' && c.nomeFantasia) {
                 nomeExibido = c.nomeFantasia + (c.razaoSocial ? ' <small style="color:#999;font-size:0.7rem;">(' + c.razaoSocial + ')</small>' : '');
             }
-            
+
             return '<tr>' +
                 '<td><strong>' + nomeExibido + '</strong></td>' +
                 '<td>' + (c.documento || 'N/A') + '</td>' +
@@ -3455,17 +3532,14 @@
         return 'Serviço #' + String(servico.id).padStart(3, '0') + ': ' + servico.tipo + ' - ' + statusInfo.emoji + ' ' + statusInfo.label + ' (R$ ' + valorFormatado + ')';
     }
 
-    // 🔥 CORREÇÃO: renderMapaIscas agora força recarregamento dos dados
     function renderMapaIscas(filtro) {
-        // Força limpeza do cache para garantir dados atualizados
         DB.forceClearCache('pontosIscas');
-        
+
         if (filtro) {
             filtrosMapa.busca = filtro.toLowerCase();
             document.getElementById('filtroMapaBusca').value = filtro;
         }
-        
-        // Reaplica os filtros e renderiza
+
         renderMapaComFiltros();
     }
 
@@ -3625,19 +3699,19 @@
         }
     }
 
-    window.aplicarFiltrosCertificados = function() {
+    window.aplicarFiltrosCertificados = function () {
         renderCertificados();
     };
 
-    window.limparFiltrosCertificados = function() {
+    window.limparFiltrosCertificados = function () {
         document.getElementById('filtroCertCliente').value = '';
         document.getElementById('filtroCertTipo').value = '';
         document.getElementById('filtroCertStatus').value = '';
         renderCertificados();
     };
 
-    window.abrirNovoCertificado = function() {
-        const servicos = DB.getAll('servicos').filter(s => 
+    window.abrirNovoCertificado = function () {
+        const servicos = DB.getAll('servicos').filter(s =>
             s.status === 'Concluído' || s.status === 'Concluida' || s.status === 'Concluída'
         );
 
@@ -3651,10 +3725,10 @@
                 <label>Serviço Concluído *</label>
                 <select id="modalCertServico" style="width:100%;padding:12px 16px;border:1px solid #dce4ec;border-radius:12px;font-size:0.95rem;outline:none;">
                     ${servicos.map(s => {
-                        const cliente = getCliente(s.clienteId);
-                        const clienteNome = cliente ? cliente.nome : 'Cliente #' + s.clienteId;
-                        return `<option value="${s.id}">#${String(s.id).padStart(3,'0')} - ${s.tipo} - ${clienteNome} (${s.data})</option>`;
-                    }).join('')}
+            const cliente = getCliente(s.clienteId);
+            const clienteNome = cliente ? cliente.nome : 'Cliente #' + s.clienteId;
+            return `<option value="${s.id}">#${String(s.id).padStart(3, '0')} - ${s.tipo} - ${clienteNome} (${s.data})</option>`;
+        }).join('')}
                 </select>
                 <small style="color:#4d687a;display:block;margin-top:4px;">Selecione um serviço concluído para gerar o certificado</small>
             </div>
@@ -3684,7 +3758,7 @@
         const selectServico = document.getElementById('modalCertServico');
         const selectTipo = document.getElementById('modalCertTipo');
         if (selectServico && selectTipo) {
-            selectServico.addEventListener('change', function() {
+            selectServico.addEventListener('change', function () {
                 const servicoId = parseInt(this.value);
                 if (servicoId) {
                     const servico = DB.getById('servicos', servicoId);
@@ -3696,7 +3770,7 @@
         }
     };
 
-    window.criarCertificado = function() {
+    window.criarCertificado = function () {
         const servicoId = parseInt(document.getElementById('modalCertServico')?.value || '0');
         const tipo = document.getElementById('modalCertTipo')?.value || 'Desinsetização';
 
@@ -3708,24 +3782,24 @@
         try {
             const certificado = CertificadoService.gerarCertificado(servicoId, tipo);
             fecharModal();
-            
+
             console.log('✅ Certificado criado:', certificado.id);
-            
+
             renderCertificados();
             preencherFiltroCertificados();
-            
+
             if (typeof renderAll === 'function') {
                 renderAll();
             }
-            
-            setTimeout(function() {
+
+            setTimeout(function () {
                 const card = document.getElementById('certificado-card-' + certificado.id);
                 if (card) {
                     console.log('✅ Card do certificado encontrado na DOM');
                     card.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     card.style.transition = 'all 0.5s ease';
                     card.style.boxShadow = '0 0 0 3px #1d7a6b, 0 8px 30px rgba(29,122,107,0.3)';
-                    setTimeout(function() {
+                    setTimeout(function () {
                         card.style.boxShadow = '';
                     }, 3000);
                 } else {
@@ -3733,9 +3807,9 @@
                     renderCertificados();
                 }
             }, 300);
-            
+
             alert('✅ Certificado gerado com sucesso!');
-            
+
             if (confirm('Deseja visualizar o certificado agora?')) {
                 visualizarCertificado(certificado.id);
             }
@@ -3744,8 +3818,7 @@
         }
     };
 
-    // 🔥 CORREÇÃO: Função visualizarCertificado com atualização imediata
-    window.visualizarCertificado = function(id) {
+    window.visualizarCertificado = function (id) {
         const certificado = CertificadoService.getCertificado(id);
         if (!certificado) {
             alert('Certificado não encontrado!');
@@ -3753,11 +3826,11 @@
         }
 
         const html = CertificadoService.renderizarCertificado(certificado);
-        
+
         const overlay = document.getElementById('modalOSOverlay');
         const titleEl = document.getElementById('modalOSTitle');
         const bodyEl = document.getElementById('modalOSBody');
-        
+
         if (titleEl) titleEl.textContent = 'Certificado Técnico - ' + certificado.tipo;
         if (bodyEl) {
             bodyEl.innerHTML = `
@@ -3777,7 +3850,7 @@
         if (overlay) overlay.classList.remove('active');
     };
 
-    window.imprimirCertificado = function(id) {
+    window.imprimirCertificado = function (id) {
         const certificado = CertificadoService.getCertificado(id);
         if (!certificado) {
             alert('Certificado não encontrado!');
@@ -3786,7 +3859,7 @@
         CertificadoService.gerarPDF(certificado);
     };
 
-    window.baixarPDFCertificado = function(id) {
+    window.baixarPDFCertificado = function (id) {
         const certificado = CertificadoService.getCertificado(id);
         if (!certificado) {
             alert('Certificado não encontrado!');
@@ -3795,7 +3868,7 @@
         CertificadoService.gerarPDF(certificado);
     };
 
-    window.excluirCertificado = function(id) {
+    window.excluirCertificado = function (id) {
         if (!confirm('Tem certeza que deseja excluir este certificado?')) {
             return;
         }
@@ -3804,7 +3877,7 @@
         alert('Certificado excluído com sucesso!');
     };
 
-    window.exportarCertificadosExcel = function() {
+    window.exportarCertificadosExcel = function () {
         const filtros = {
             clienteId: document.getElementById('filtroCertCliente')?.value || '',
             tipo: document.getElementById('filtroCertTipo')?.value || '',
@@ -3830,7 +3903,7 @@
         XLSX.writeFile(wb, 'certificados_' + new Date().toISOString().split('T')[0] + '.xlsx');
     };
 
-    window.exportarCertificadosPDF = function() {
+    window.exportarCertificadosPDF = function () {
         const doc = new window.jspdf.jsPDF('p', 'mm', 'a4');
         doc.setFontSize(14);
         doc.text('Relatório de Certificados Técnicos', 105, 20, { align: 'center' });
@@ -3873,12 +3946,12 @@
     // =============================================
     // ===== FUNÇÃO TOGGLE PARA CAMPOS DE CNPJ =====
     // =============================================
-    window.toggleCamposCnpj = function() {
+    window.toggleCamposCnpj = function () {
         var tipo = document.getElementById('modalTipoCliente')?.value || 'cpf';
         var camposCnpj = document.getElementById('camposCnpj');
         var labelNome = document.getElementById('labelNome');
         var inputNome = document.getElementById('modalNome');
-        
+
         if (tipo === 'cnpj') {
             if (camposCnpj) camposCnpj.style.display = 'block';
             if (labelNome) labelNome.textContent = 'Nome Fantasia *';
@@ -3909,7 +3982,7 @@
             input.maxLength = tipo === 'cpf' ? 14 : 18;
             input.value = '';
         }
-        
+
         toggleCamposCnpj();
     };
 
@@ -4339,7 +4412,7 @@
             });
         }
 
-        // Botão Novo Ponto
+        // Botão Novo Ponto - CORRIGIDO com checkboxes
         var btnNovoPonto = document.getElementById('btnNovoPonto');
         if (btnNovoPonto) {
             btnNovoPonto.addEventListener('click', function () {
@@ -4358,8 +4431,8 @@
                         </select>
                     </div>
                     <div class="form-group">
-                        <label>Nome do Ponto</label>
-                        <input type="text" id="modalPontoNome" placeholder="Ex: Porta Isca - Cozinha" />
+                        <label>Número do Ponto *</label>
+                        <input type="text" id="modalPontoNome" placeholder="Ex: P-001, T-001" />
                     </div>
                     <div class="form-group">
                         <label>Cliente</label>
@@ -4368,23 +4441,32 @@
                         </select>
                     </div>
                     <div class="form-group">
-                        <label>Endereço</label>
-                        <input type="text" id="modalPontoEndereco" placeholder="Endereço completo do ponto" />
-                    </div>
-                    <div class="form-group">
-                        <label>Posição</label>
-                        <input type="text" id="modalPontoPosicao" placeholder="Ex: Canto esquerdo da parede" />
+                        <label>Localização *</label>
+                        <input type="text" id="modalPontoPosicao" placeholder="Ex: Canto esquerdo da parede, Prateleira A1" />
                     </div>
                     <div class="form-row">
                         <div class="form-group"><label>Data de Instalação</label><input type="date" id="modalPontoInstalacao" /></div>
-                        <div class="form-group"><label>Última Manutenção</label><input type="date" id="modalPontoManutencao" /></div>
                     </div>
+                    
+                    <!-- Checkboxes de Manutenção e Instalação -->
+                    <div class="form-row" style="margin-top:8px;">
+                        <div class="form-group" style="display:flex;align-items:center;gap:8px;">
+                            <input type="checkbox" id="modalPontoManutencaoCheck" style="width:20px;height:20px;cursor:pointer;" />
+                            <label for="modalPontoManutencaoCheck" style="margin:0;font-weight:500;cursor:pointer;">🔧 Manutenção</label>
+                        </div>
+                        <div class="form-group" style="display:flex;align-items:center;gap:8px;">
+                            <input type="checkbox" id="modalPontoInstalacaoCheck" style="width:20px;height:20px;cursor:pointer;" />
+                            <label for="modalPontoInstalacaoCheck" style="margin:0;font-weight:500;cursor:pointer;">📦 Instalação</label>
+                        </div>
+                    </div>
+                    
                     <div class="form-group">
                         <label>Status</label>
                         <select id="modalPontoStatus">
-                            <option value="ativo">Ativo</option>
-                            <option value="inativo">Inativo</option>
-                            <option value="manutencao">Manutenção</option>
+                            <option value="ok">✅ Ok</option>
+                            <option value="consumo">📦 Consumo</option>
+                            <option value="danificado">⚠️ Danificado</option>
+                            <option value="substituido">🔄 Substituído</option>
                         </select>
                     </div>
                     <div class="form-group">
@@ -4399,7 +4481,7 @@
             });
         }
 
-        // Botão Nova OS
+        // Botão Nova OS - CORRIGIDO para mostrar TODOS os produtos
         var btnNovaOS = document.getElementById('btnNovaOS');
         if (btnNovaOS) {
             btnNovaOS.addEventListener('click', function () {
@@ -4412,14 +4494,15 @@
                 var numero = gerarNumeroOS();
                 var hoje = new Date().toISOString().split('T')[0];
                 var produtos = DB.getAll('estoque');
-                var inseticidas = produtos.filter(function (p) { return p.categoria === 'Inseticidas' && p.quantidade > 0; });
+
+                var inseticidas = produtos.filter(function (p) { return p.quantidade > 0; });
 
                 var servicosHtml = gerarCheckboxes(SERVICOS_LIST, [], 'servico-check', false);
                 var pragasHtml = gerarCheckboxes(PRAGAS_LIST, [], 'praga-check', false);
                 var metodosHtml = gerarCheckboxes(METODOS_LIST, [], 'metodo-check', false);
 
                 var inseticidasOptions = inseticidas.map(function (p) {
-                    return '<option value="' + p.id + '">' + p.nome + ' (' + p.quantidade + ' ' + p.unidade + ')</option>';
+                    return '<option value="' + p.id + '">' + p.nome + ' (' + p.categoria + ' - ' + p.quantidade + ' ' + p.unidade + ')</option>';
                 }).join('');
 
                 abrirModal('Nova Ordem de Serviço', `
@@ -4807,7 +4890,7 @@
                             aplicarMascaraDocumento(e.target);
                         });
                     }
-                    
+
                     toggleCamposCnpj();
                 }, 100);
             });
@@ -4992,17 +5075,14 @@
             btnNovoCert.addEventListener('click', abrirNovoCertificado);
         }
 
-        // NOTA: O botão "Gerenciar Assinaturas" é adicionado dinamicamente
-        // via DOMContentLoaded para evitar duplicação com o HTML.
-
         // Botão Logout
         var logoutBtn = document.getElementById('logoutBtn');
         if (logoutBtn) {
-            logoutBtn.addEventListener('click', function() {
+            logoutBtn.addEventListener('click', function () {
                 if (confirm('Deseja realmente sair?')) {
                     if (this._loggingOut) return;
                     this._loggingOut = true;
-                    
+
                     try {
                         if (typeof AuthService !== 'undefined') {
                             const empresaAtual = AuthService.getEmpresaAtual();
@@ -5037,11 +5117,9 @@
     // ===== BOTÃO GERENCIAR ASSINATURAS (ADICIONADO) =====
     // =============================================
 
-    document.addEventListener('DOMContentLoaded', function() {
-        // Adiciona o botão "Gerenciar Assinaturas" na página de certificados
+    document.addEventListener('DOMContentLoaded', function () {
         const toolbarCert = document.querySelector('#page-certificados .toolbar');
         if (toolbarCert) {
-            // Verifica se o botão já existe para evitar duplicação
             const existingBtn = toolbarCert.querySelector('.btn-gerenciar-assinaturas');
             if (!existingBtn) {
                 const btnGerenciarAssinaturas = document.createElement('button');
@@ -5172,7 +5250,7 @@
         atualizarDashboardEstoque();
         atualizarGraficosEstoque();
 
-        setTimeout(function() {
+        setTimeout(function () {
             renderAll();
         }, 50);
 
@@ -5185,42 +5263,43 @@
 
     window.criarNovoPonto = function () {
         var tipo = document.getElementById('modalPontoTipo')?.value || 'porta-isca';
-        var nome = document.getElementById('modalPontoNome')?.value || '';
+        var numero = document.getElementById('modalPontoNome')?.value || '';
         var clienteId = parseInt(document.getElementById('modalPontoCliente')?.value || '0');
-        var endereco = document.getElementById('modalPontoEndereco')?.value || '';
-        var posicao = document.getElementById('modalPontoPosicao')?.value || '';
+        var localizacao = document.getElementById('modalPontoPosicao')?.value || '';
         var dataInstalacao = document.getElementById('modalPontoInstalacao')?.value?.split('-').reverse().join('/') || '';
-        var ultimaManutencao = document.getElementById('modalPontoManutencao')?.value?.split('-').reverse().join('/') || '';
-        var status = document.getElementById('modalPontoStatus')?.value || 'ativo';
+        var status = document.getElementById('modalPontoStatus')?.value || 'ok';
         var observacoes = document.getElementById('modalPontoObs')?.value || '';
 
-        if (!nome || !endereco) {
-            alert('Nome e endereço são obrigatórios!');
+        var manutencao = document.getElementById('modalPontoManutencaoCheck')?.checked || false;
+        var instalacao = document.getElementById('modalPontoInstalacaoCheck')?.checked || false;
+
+        if (!numero || !localizacao) {
+            alert('Número do Ponto e Localização são obrigatórios!');
             return;
         }
 
         var newPonto = DB.add('pontosIscas', {
-            tipo: tipo, 
-            nome: nome, 
-            clienteId: clienteId, 
-            endereco: endereco, 
-            posicao: posicao,
-            dataInstalacao: dataInstalacao, 
-            ultimaManutencao: ultimaManutencao, 
-            status: status, 
-            observacoes: observacoes
+            tipo: tipo,
+            numero: numero,
+            clienteId: clienteId,
+            localizacao: localizacao,
+            dataInstalacao: dataInstalacao,
+            status: status,
+            observacoes: observacoes,
+            manutencao: manutencao,
+            instalacao: instalacao
         });
-        
+
         fecharModal();
-        
+
         DB.forceClearCache('pontosIscas');
         renderMapaComFiltros();
         preencherFiltrosClientesMapa();
-        
-        document.dispatchEvent(new CustomEvent('pontoIscaAtualizado', { 
-            detail: { item: newPonto, action: 'add' } 
+
+        document.dispatchEvent(new CustomEvent('pontoIscaAtualizado', {
+            detail: { item: newPonto, action: 'add' }
         }));
-        
+
         alert('Ponto de isca criado com sucesso!');
     };
 
@@ -5229,6 +5308,10 @@
         if (!p) return;
 
         var clientes = DB.getAll('clientes');
+
+        var manutencaoChecked = p.manutencao ? 'checked' : '';
+        var instalacaoChecked = p.instalacao ? 'checked' : '';
+
         abrirModal('Editar Ponto de Isca', `
             <div class="form-group">
                 <label>Tipo</label>
@@ -5238,8 +5321,8 @@
                 </select>
             </div>
             <div class="form-group">
-                <label>Nome do Ponto</label>
-                <input type="text" id="modalPontoNome" value="${p.nome}" />
+                <label>Número do Ponto *</label>
+                <input type="text" id="modalPontoNome" value="${p.numero || p.nome || ''}" />
             </div>
             <div class="form-group">
                 <label>Cliente</label>
@@ -5248,23 +5331,34 @@
                 </select>
             </div>
             <div class="form-group">
-                <label>Endereço</label>
-                <input type="text" id="modalPontoEndereco" value="${p.endereco}" />
-            </div>
-            <div class="form-group">
-                <label>Posição</label>
-                <input type="text" id="modalPontoPosicao" value="${p.posicao}" />
+                <label>Localização *</label>
+                <input type="text" id="modalPontoPosicao" value="${p.localizacao || p.posicao || ''}" />
             </div>
             <div class="form-row">
-                <div class="form-group"><label>Data de Instalação</label><input type="date" id="modalPontoInstalacao" value="${p.dataInstalacao.split('/').reverse().join('-')}" /></div>
-                <div class="form-group"><label>Última Manutenção</label><input type="date" id="modalPontoManutencao" value="${p.ultimaManutencao.split('/').reverse().join('-')}" /></div>
+                <div class="form-group">
+                    <label>Data de Instalação</label>
+                    <input type="date" id="modalPontoInstalacao" value="${p.dataInstalacao ? p.dataInstalacao.split('/').reverse().join('-') : ''}" />
+                </div>
             </div>
+            
+            <div class="form-row" style="margin-top:8px;">
+                <div class="form-group" style="display:flex;align-items:center;gap:8px;">
+                    <input type="checkbox" id="modalPontoManutencaoCheck" ${manutencaoChecked} style="width:20px;height:20px;cursor:pointer;" />
+                    <label for="modalPontoManutencaoCheck" style="margin:0;font-weight:500;cursor:pointer;">🔧 Manutenção</label>
+                </div>
+                <div class="form-group" style="display:flex;align-items:center;gap:8px;">
+                    <input type="checkbox" id="modalPontoInstalacaoCheck" ${instalacaoChecked} style="width:20px;height:20px;cursor:pointer;" />
+                    <label for="modalPontoInstalacaoCheck" style="margin:0;font-weight:500;cursor:pointer;">📦 Instalação</label>
+                </div>
+            </div>
+            
             <div class="form-group">
                 <label>Status</label>
                 <select id="modalPontoStatus">
-                    <option value="ativo" ${p.status === 'ativo' ? 'selected' : ''}>Ativo</option>
-                    <option value="inativo" ${p.status === 'inativo' ? 'selected' : ''}>Inativo</option>
-                    <option value="manutencao" ${p.status === 'manutencao' ? 'selected' : ''}>Manutenção</option>
+                    <option value="ok" ${p.status === 'ok' ? 'selected' : ''}>✅ Ok</option>
+                    <option value="consumo" ${p.status === 'consumo' ? 'selected' : ''}>📦 Consumo</option>
+                    <option value="danificado" ${p.status === 'danificado' ? 'selected' : ''}>⚠️ Danificado</option>
+                    <option value="substituido" ${p.status === 'substituido' ? 'selected' : ''}>🔄 Substituído</option>
                 </select>
             </div>
             <div class="form-group">
@@ -5280,38 +5374,39 @@
 
     window.salvarEdicaoPonto = function (id) {
         var tipo = document.getElementById('modalPontoTipo')?.value || 'porta-isca';
-        var nome = document.getElementById('modalPontoNome')?.value || '';
+        var numero = document.getElementById('modalPontoNome')?.value || '';
         var clienteId = parseInt(document.getElementById('modalPontoCliente')?.value || '0');
-        var endereco = document.getElementById('modalPontoEndereco')?.value || '';
-        var posicao = document.getElementById('modalPontoPosicao')?.value || '';
+        var localizacao = document.getElementById('modalPontoPosicao')?.value || '';
         var dataInstalacao = document.getElementById('modalPontoInstalacao')?.value?.split('-').reverse().join('/') || '';
-        var ultimaManutencao = document.getElementById('modalPontoManutencao')?.value?.split('-').reverse().join('/') || '';
-        var status = document.getElementById('modalPontoStatus')?.value || 'ativo';
+        var status = document.getElementById('modalPontoStatus')?.value || 'ok';
         var observacoes = document.getElementById('modalPontoObs')?.value || '';
 
-        if (!nome || !endereco) {
-            alert('Nome e endereço são obrigatórios!');
+        var manutencao = document.getElementById('modalPontoManutencaoCheck')?.checked || false;
+        var instalacao = document.getElementById('modalPontoInstalacaoCheck')?.checked || false;
+
+        if (!numero || !localizacao) {
+            alert('Número do Ponto e Localização são obrigatórios!');
             return;
         }
 
-        DB.update('pontosIscas', id, { 
-            tipo: tipo, 
-            nome: nome, 
-            clienteId: clienteId, 
-            endereco: endereco, 
-            posicao: posicao, 
-            dataInstalacao: dataInstalacao, 
-            ultimaManutencao: ultimaManutencao, 
-            status: status, 
-            observacoes: observacoes 
+        DB.update('pontosIscas', id, {
+            tipo: tipo,
+            numero: numero,
+            clienteId: clienteId,
+            localizacao: localizacao,
+            dataInstalacao: dataInstalacao,
+            status: status,
+            observacoes: observacoes,
+            manutencao: manutencao,
+            instalacao: instalacao
         });
-        
+
         fecharModal();
-        
+
         DB.forceClearCache('pontosIscas');
         renderMapaComFiltros();
         preencherFiltrosClientesMapa();
-        
+
         alert('Ponto atualizado com sucesso!');
     };
 
@@ -5327,8 +5422,15 @@
     window.alternarStatusPonto = function (id) {
         var p = DB.getById('pontosIscas', id);
         if (!p) return;
-        var statusMap = { 'ativo': 'manutencao', 'manutencao': 'inativo', 'inativo': 'ativo' };
-        var novoStatus = statusMap[p.status] || 'ativo';
+
+        var statusMap = {
+            'ok': 'consumo',
+            'consumo': 'danificado',
+            'danificado': 'substituido',
+            'substituido': 'ok'
+        };
+        var novoStatus = statusMap[p.status] || 'ok';
+
         DB.update('pontosIscas', id, { status: novoStatus });
         DB.forceClearCache('pontosIscas');
         renderMapaComFiltros();
@@ -5384,10 +5486,9 @@
         renderMapaComFiltros();
     };
 
-    // 🔥 CORREÇÃO: renderMapaComFiltros agora força recarregamento dos dados
     function renderMapaComFiltros() {
         DB.forceClearCache('pontosIscas');
-        
+
         var pontos = DB.getAll('pontosIscas', true);
         var container = document.getElementById('mapaGrid');
         if (!container) return;
@@ -5415,9 +5516,8 @@
                 var cliente = getCliente(p.clienteId);
                 var clienteNome = cliente ? cliente.nome.toLowerCase() : '';
                 var searchFields = [
-                    p.nome.toLowerCase(),
-                    p.endereco.toLowerCase(),
-                    p.posicao.toLowerCase(),
+                    (p.numero || p.nome || '').toLowerCase(),
+                    (p.localizacao || p.posicao || '').toLowerCase(),
                     clienteNome,
                     (p.observacoes || '').toLowerCase()
                 ];
@@ -5438,9 +5538,23 @@
             return;
         }
 
+        var statusMap = {
+            'ok': { label: '✅ Ok', class: 'ok' },
+            'consumo': { label: '📦 Consumo', class: 'consumo' },
+            'danificado': { label: '⚠️ Danificado', class: 'danificado' },
+            'substituido': { label: '🔄 Substituído', class: 'substituido' }
+        };
+
         container.innerHTML = resultados.map(function (p) {
             var cliente = getCliente(p.clienteId);
-            var statusClass = p.status === 'ativo' ? 'ativo' : p.status === 'inativo' ? 'inativo' : 'manutencao';
+            var statusInfo = statusMap[p.status] || statusMap['ok'];
+            var numeroDisplay = p.numero || p.nome || 'N/A';
+            var localizacaoDisplay = p.localizacao || p.posicao || 'N/A';
+
+            var manutencaoIcon = p.manutencao ? '🔧' : '';
+            var instalacaoIcon = p.instalacao ? '📦' : '';
+            var statusIcons = [manutencaoIcon, instalacaoIcon].filter(icon => icon).join(' ');
+
             return '<div class="mapa-card">' +
                 '<div class="card-header">' +
                 '<div class="info">' +
@@ -5448,20 +5562,20 @@
                 getTipoIcon(p.tipo) +
                 '<span style="font-size:0.8rem;color:#4d687a;margin-left:4px;">' + (p.tipo === 'porta-isca' ? 'Porta Isca' : 'Túnel') + '</span>' +
                 '</div>' +
-                '<h3>' + p.nome + '</h3>' +
-                '<div class="endereco"><i class="fas fa-map-pin" style="color:#1d7a6b;"></i> ' + p.endereco + '</div>' +
+                '<h3>#' + numeroDisplay + ' ' + statusIcons + '</h3>' +
+                '<div class="localizacao"><i class="fas fa-map-pin" style="color:#1d7a6b;"></i> ' + localizacaoDisplay + '</div>' +
                 '<div style="font-size:0.85rem;color:#4d687a;margin-top:4px;">' +
                 '<i class="fas fa-user"></i> ' + (cliente ? cliente.nome : 'N/A') +
                 '</div>' +
                 '</div>' +
                 '<div class="status-badge">' +
-                '<span class="' + statusClass + '">' + (p.status === 'ativo' ? '✅ Ativo' : p.status === 'inativo' ? '❌ Inativo' : '🔧 Manutenção') + '</span>' +
+                '<span class="' + statusInfo.class + '">' + statusInfo.label + '</span>' +
                 '</div>' +
                 '</div>' +
                 '<div class="card-body">' +
-                '<div class="detalhe"><i class="fas fa-arrows-alt"></i> ' + p.posicao + '</div>' +
-                '<div class="detalhe"><i class="fas fa-calendar-plus"></i> Inst: ' + p.dataInstalacao + '</div>' +
-                '<div class="detalhe"><i class="fas fa-tools"></i> Manut: ' + p.ultimaManutencao + '</div>' +
+                '<div class="detalhe"><i class="fas fa-calendar-plus"></i> Inst: ' + (p.dataInstalacao || 'N/A') + '</div>' +
+                (p.manutencao ? '<div class="detalhe" style="background:#fff2d0;"><i class="fas fa-tools"></i> Manutenção</div>' : '') +
+                (p.instalacao ? '<div class="detalhe" style="background:#d1f0e5;"><i class="fas fa-box"></i> Instalação</div>' : '') +
                 '</div>' +
                 (p.observacoes ? '<div style="margin-top:8px;font-size:0.85rem;color:#4d687a;background:#f8fbfd;padding:8px 12px;border-radius:8px;"><i class="fas fa-comment"></i> ' + p.observacoes + '</div>' : '') +
                 '<div class="card-actions">' +
@@ -5913,16 +6027,16 @@
 
         DB.add('orcamentos', orcamento);
         DB.forceClearCache('orcamentos');
-        
+
         if (typeof FirestoreService !== 'undefined') {
             try {
                 FirestoreService._clearLocalCache('orcamentos');
-            } catch (e) {}
+            } catch (e) { }
         }
 
         fecharModal();
-        
-        setTimeout(function() {
+
+        setTimeout(function () {
             renderAll();
             console.log('🔄 Proposta ' + numero + ' criada e interface atualizada!');
         }, 150);
@@ -6076,8 +6190,8 @@
 
         DB.forceClearCache('orcamentos');
         fecharModal();
-        
-        setTimeout(function() {
+
+        setTimeout(function () {
             renderAll();
             console.log('🔄 Proposta ' + numero + ' atualizada e interface atualizada!');
         }, 150);
@@ -6200,7 +6314,6 @@
                     
                     <div style="margin-top:20px;text-align:center;font-size:0.8rem;color:#6a7f8d;border-top:1px solid #e8eff5;padding-top:16px;">
                         <p>${config.relatorio.rodape || 'Esta Proposta é de propriedade da empresa e tem validade de ' + (o.validade || 15) + ' dias.'}</p>
-                        <p>Documento gerado em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}</p>
                     </div>
                     
                     <div class="modal-footer" style="margin-top:16px;">
@@ -6241,10 +6354,10 @@
         var itensHtml = o.itens.map(function (item) {
             var subtotal = item.quantidade * (item.valorUnitario || 0);
             return '<tr>' +
-                '<td style="padding:6px 10px;border-bottom:1px solid #e8eff5;font-size:10px;">' + item.descricao + '</td>' +
-                '<td style="padding:6px 10px;border-bottom:1px solid #e8eff5;text-align:center;font-size:10px;">' + item.quantidade + '</td>' +
-                '<td style="padding:6px 10px;border-bottom:1px solid #e8eff5;text-align:right;font-size:10px;">' + formatCurrency(item.valorUnitario || 0) + '</td>' +
-                '<td style="padding:6px 10px;border-bottom:1px solid #e8eff5;text-align:right;font-size:10px;font-weight:600;">' + formatCurrency(subtotal) + '</td>' +
+                '<td style="padding:8px 12px;border-bottom:1px solid #e8eff5;font-size:12px;">' + item.descricao + '</td>' +
+                '<td style="padding:8px 12px;border-bottom:1px solid #e8eff5;text-align:center;font-size:12px;">' + item.quantidade + '</td>' +
+                '<td style="padding:8px 12px;border-bottom:1px solid #e8eff5;text-align:right;font-size:12px;">' + formatCurrency(item.valorUnitario || 0) + '</td>' +
+                '<td style="padding:8px 12px;border-bottom:1px solid #e8eff5;text-align:right;font-size:12px;font-weight:600;">' + formatCurrency(subtotal) + '</td>' +
                 '</tr>';
         }).join('');
 
@@ -6252,39 +6365,39 @@
         var totalFinal = o.totalFinal || total;
 
         var logoHtml = config.empresa.logo ?
-            '<img src="' + config.empresa.logo + '" style="max-height:50px;max-width:150px;object-fit:contain;" />' : '';
+            '<img src="' + config.empresa.logo + '" style="max-height:60px;max-width:180px;object-fit:contain;" />' : '';
 
         var conteudo = `
             <html>
             <head>
                 <title>Proposta ${o.numero}</title>
                 <style>
-                    body { font-family: Arial, sans-serif; padding: 30px; max-width: 800px; margin: auto; font-size: 11px; line-height: 1.5; }
-                    .header { text-align: center; border-bottom: 3px solid ${cor}; padding-bottom: 12px; margin-bottom: 16px; }
-                    .header .logo-container { display: flex; align-items: center; justify-content: center; gap: 16px; flex-wrap: wrap; }
-                    .header .logo-container img { max-height: 50px; max-width: 150px; }
-                    .header h1 { color: #0b2a3b; font-size: 1.6rem; margin: 0; }
-                    .header .sub { color: #4d687a; font-size: 0.8rem; }
-                    .info { display: flex; justify-content: space-between; margin-bottom: 12px; }
-                    .info .cliente { background: #f5f9fc; padding: 10px 14px; border-radius: 6px; flex: 1; }
-                    .info .cliente p { margin: 2px 0; }
-                    .info .dados { text-align: right; }
-                    .info .dados p { margin: 2px 0; }
-                    table { width: 100%; border-collapse: collapse; margin: 12px 0; }
-                    th { background: ${cor}; color: white; padding: 8px 10px; text-align: left; font-size: 10px; }
-                    td { padding: 6px 10px; border-bottom: 1px solid #e8eff5; font-size: 10px; }
+                    body { font-family: Arial, sans-serif; padding: 40px; max-width: 800px; margin: auto; font-size: 13px; line-height: 1.6; color: #1f3542; }
+                    .header { text-align: center; border-bottom: 4px solid ${cor}; padding-bottom: 16px; margin-bottom: 20px; }
+                    .header .logo-container { display: flex; align-items: center; justify-content: center; gap: 20px; flex-wrap: wrap; }
+                    .header .logo-container img { max-height: 60px; max-width: 180px; }
+                    .header h1 { color: #0b2a3b; font-size: 24px; margin: 0; }
+                    .header .sub { color: #4d687a; font-size: 12px; }
+                    .info { display: flex; justify-content: space-between; margin-bottom: 16px; }
+                    .info .cliente { background: #f5f9fc; padding: 14px 18px; border-radius: 6px; flex: 1; }
+                    .info .cliente p { margin: 3px 0; font-size: 12px; }
+                    .info .dados { text-align: right; font-size: 12px; }
+                    .info .dados p { margin: 3px 0; }
+                    table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+                    th { background: ${cor}; color: white; padding: 10px 12px; text-align: left; font-size: 11px; }
+                    td { padding: 8px 12px; border-bottom: 1px solid #e8eff5; font-size: 12px; }
                     .total-row { font-weight: bold; }
-                    .total-final { font-size: 1.2rem; color: ${cor}; }
-                    .footer { margin-top: 20px; text-align: center; color: #6a7f8d; font-size: 9px; border-top: 1px solid #e8eff5; padding-top: 16px; }
-                    .mensagem { background: #f0f7fc; padding: 8px 14px; border-radius: 6px; border-left: 3px solid #1d7a6b; margin: 8px 0; font-style: italic; }
-                    .obs { background: #f8fbfd; padding: 8px 14px; border-radius: 6px; border-left: 3px solid ${cor}; margin: 8px 0; }
-                    .badge { padding: 2px 10px; border-radius: 20px; font-size: 9px; display: inline-block; }
+                    .total-final { font-size: 18px; color: ${cor}; }
+                    .footer { margin-top: 24px; text-align: center; color: #6a7f8d; font-size: 11px; border-top: 2px solid #e8eff5; padding-top: 20px; }
+                    .mensagem { background: #f0f7fc; padding: 10px 16px; border-radius: 6px; border-left: 4px solid #1d7a6b; margin: 10px 0; font-style: italic; font-size: 12px; }
+                    .obs { background: #f8fbfd; padding: 10px 16px; border-radius: 6px; border-left: 4px solid ${cor}; margin: 10px 0; font-size: 12px; }
+                    .badge { padding: 3px 14px; border-radius: 20px; font-size: 11px; display: inline-block; font-weight: 600; }
                     .badge.success { background: #d1f0e5; color: #006b4f; }
                     .badge.warning { background: #fff2d0; color: #8e6100; }
                     .badge.danger { background: #fde2e0; color: #b13e3a; }
                     .badge.info { background: #d6eaf8; color: #1a5276; }
                     @media print {
-                        body { padding: 10px; }
+                        body { padding: 20px; }
                     }
                 </style>
             </head>
@@ -6298,7 +6411,7 @@
                             <div class="sub">${config.empresa.cnpj ? 'CNPJ: ' + config.empresa.cnpj : ''} ${config.empresa.email ? ' - ' + config.empresa.email : ''}</div>
                         </div>
                     </div>
-                    <h2 style="margin:8px 0 0;color:#0b2a3b;">${o.titulo || 'Proposta Comercial'}</h2>
+                    <h2 style="margin:12px 0 0;color:#0b2a3b;font-size:20px;">${o.titulo || 'Proposta Comercial'}</h2>
                 </div>
 
                 <div class="info">
@@ -6332,22 +6445,22 @@
                     </tbody>
                     <tfoot>
                         <tr>
-                            <td colspan="3" style="text-align:right;font-weight:600;padding:6px 10px;">Total</td>
-                            <td style="text-align:right;font-weight:600;padding:6px 10px;">${formatCurrency(total)}</td>
+                            <td colspan="3" style="text-align:right;font-weight:600;padding:8px 12px;font-size:12px;">Total</td>
+                            <td style="text-align:right;font-weight:600;padding:8px 12px;font-size:12px;">${formatCurrency(total)}</td>
                         </tr>
                         ${o.desconto > 0 ? `
                         <tr>
-                            <td colspan="3" style="text-align:right;color:#b13e3a;padding:4px 10px;">Desconto</td>
-                            <td style="text-align:right;color:#b13e3a;padding:4px 10px;">- ${formatCurrency(o.desconto)}</td>
+                            <td colspan="3" style="text-align:right;color:#b13e3a;padding:6px 12px;font-size:12px;">Desconto</td>
+                            <td style="text-align:right;color:#b13e3a;padding:6px 12px;font-size:12px;">- ${formatCurrency(o.desconto)}</td>
                         </tr>` : ''}
                         ${o.taxa > 0 ? `
                         <tr>
-                            <td colspan="3" style="text-align:right;color:#1d7a6b;padding:4px 10px;">Taxa Adicional</td>
-                            <td style="text-align:right;color:#1d7a6b;padding:4px 10px;">+ ${formatCurrency(o.taxa)}</td>
+                            <td colspan="3" style="text-align:right;color:#1d7a6b;padding:6px 12px;font-size:12px;">Taxa Adicional</td>
+                            <td style="text-align:right;color:#1d7a6b;padding:6px 12px;font-size:12px;">+ ${formatCurrency(o.taxa)}</td>
                         </tr>` : ''}
-                        <tr style="border-top:2px solid ${cor};">
-                            <td colspan="3" style="text-align:right;font-weight:700;font-size:1.2rem;padding:8px 10px;">TOTAL FINAL</td>
-                            <td style="text-align:right;font-weight:700;font-size:1.2rem;color:${cor};padding:8px 10px;">${formatCurrency(totalFinal)}</td>
+                        <tr style="border-top:3px solid ${cor};">
+                            <td colspan="3" style="text-align:right;font-weight:700;font-size:18px;padding:12px 12px;">TOTAL FINAL</td>
+                            <td style="text-align:right;font-weight:700;font-size:18px;color:${cor};padding:12px 12px;">${formatCurrency(totalFinal)}</td>
                         </tr>
                     </tfoot>
                 </table>
@@ -6356,7 +6469,6 @@
 
                 <div class="footer">
                     <p>${config.relatorio.rodape || 'Esta Proposta é de propriedade da empresa e tem validade de ' + (o.validade || 15) + ' dias.'}</p>
-                    <p>Documento gerado em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}</p>
                 </div>
 
                 <script>
@@ -6801,21 +6913,20 @@
         }
     }
 
-    // ===== CRIAR NOVO CLIENTE COM RAZÃO SOCIAL E NOME FANTASIA =====
     window.criarNovoCliente = function () {
         var tipoCliente = document.getElementById('modalTipoCliente')?.value || 'cpf';
         var nome = document.getElementById('modalNome')?.value || '';
         var documento = document.getElementById('modalDocumento')?.value || '';
         var telefone = document.getElementById('modalTelefone')?.value || '';
         var endereco = document.getElementById('modalEndereco')?.value || '';
-        
+
         var razaoSocial = '';
         var nomeFantasia = '';
 
         if (tipoCliente === 'cnpj') {
             razaoSocial = document.getElementById('modalRazaoSocial')?.value || '';
             nomeFantasia = document.getElementById('modalNomeFantasia')?.value || '';
-            
+
             if (!razaoSocial) {
                 alert('Razão Social é obrigatória para Pessoa Jurídica!');
                 return;
@@ -6826,13 +6937,13 @@
             }
         }
 
-        if (!nome) { 
-            alert(tipoCliente === 'cnpj' ? 'Nome Fantasia é obrigatório' : 'Nome é obrigatório'); 
-            return; 
+        if (!nome) {
+            alert(tipoCliente === 'cnpj' ? 'Nome Fantasia é obrigatório' : 'Nome é obrigatório');
+            return;
         }
-        if (!documento) { 
-            alert(tipoCliente === 'cnpj' ? 'CNPJ é obrigatório' : 'CPF é obrigatório'); 
-            return; 
+        if (!documento) {
+            alert(tipoCliente === 'cnpj' ? 'CNPJ é obrigatório' : 'CPF é obrigatório');
+            return;
         }
 
         var clienteData = {
@@ -6850,21 +6961,20 @@
         }
 
         DB.add('clientes', clienteData);
-        
+
         DB.forceClearCache('clientes');
-        
+
         fecharModal();
-        
+
         renderAll();
-        
-        setTimeout(function() {
+
+        setTimeout(function () {
             renderAll();
         }, 100);
-        
+
         alert('Cliente adicionado com sucesso!');
     };
 
-    // ===== EDITAR CLIENTE COM RAZÃO SOCIAL E NOME FANTASIA =====
     window.editarCliente = function (id) {
         var c = DB.getById('clientes', id);
         if (!c) return;
@@ -6925,21 +7035,20 @@
         }, 100);
     };
 
-    // ===== SALVAR EDIÇÃO CLIENTE COM CNPJ =====
     window.salvarEdicaoCliente = function (id) {
         var tipoCliente = document.getElementById('modalTipoCliente')?.value || 'cpf';
         var nome = document.getElementById('modalNome')?.value || '';
         var documento = document.getElementById('modalDocumento')?.value || '';
         var telefone = document.getElementById('modalTelefone')?.value || '';
         var endereco = document.getElementById('modalEndereco')?.value || '';
-        
+
         var razaoSocial = '';
         var nomeFantasia = '';
 
         if (tipoCliente === 'cnpj') {
             razaoSocial = document.getElementById('modalRazaoSocial')?.value || '';
             nomeFantasia = document.getElementById('modalNomeFantasia')?.value || '';
-            
+
             if (!razaoSocial) {
                 alert('Razão Social é obrigatória para Pessoa Jurídica!');
                 return;
@@ -6950,13 +7059,13 @@
             }
         }
 
-        if (!nome) { 
-            alert(tipoCliente === 'cnpj' ? 'Nome Fantasia é obrigatório' : 'Nome é obrigatório'); 
-            return; 
+        if (!nome) {
+            alert(tipoCliente === 'cnpj' ? 'Nome Fantasia é obrigatório' : 'Nome é obrigatório');
+            return;
         }
-        if (!documento) { 
-            alert(tipoCliente === 'cnpj' ? 'CNPJ é obrigatório' : 'CPF é obrigatório'); 
-            return; 
+        if (!documento) {
+            alert(tipoCliente === 'cnpj' ? 'CNPJ é obrigatório' : 'CPF é obrigatório');
+            return;
         }
 
         var updateData = {
@@ -6976,9 +7085,9 @@
         }
 
         DB.update('clientes', id, updateData);
-        
+
         DB.forceClearCache('clientes');
-        
+
         fecharModal();
         renderAll();
         alert('Cliente atualizado com sucesso!');
@@ -7013,9 +7122,8 @@
                 var cliente = getCliente(p.clienteId);
                 var clienteNome = cliente ? cliente.nome.toLowerCase() : '';
                 var searchFields = [
-                    p.nome.toLowerCase(),
-                    p.endereco.toLowerCase(),
-                    p.posicao.toLowerCase(),
+                    (p.numero || p.nome || '').toLowerCase(),
+                    (p.localizacao || p.posicao || '').toLowerCase(),
                     clienteNome,
                     (p.observacoes || '').toLowerCase()
                 ];
@@ -7027,17 +7135,24 @@
             return true;
         });
 
+        var statusLabels = {
+            'ok': 'Ok',
+            'consumo': 'Consumo',
+            'danificado': 'Danificado',
+            'substituido': 'Substituído'
+        };
+
         var data = filtrados.map(function (p) {
             var cliente = getCliente(p.clienteId);
             return {
-                'Nome': p.nome,
+                'Número': p.numero || p.nome || 'N/A',
                 'Cliente': cliente ? cliente.nome : 'N/A',
                 'Tipo': p.tipo === 'porta-isca' ? 'Porta Isca' : 'Túnel',
-                'Endereço': p.endereco,
-                'Posição': p.posicao,
-                'Status': p.status === 'ativo' ? 'Ativo' : p.status === 'inativo' ? 'Inativo' : 'Manutenção',
-                'Data Instalação': p.dataInstalacao,
-                'Última Manutenção': p.ultimaManutencao,
+                'Localização': p.localizacao || p.posicao || 'N/A',
+                'Status': statusLabels[p.status] || p.status || 'N/A',
+                'Data Instalação': p.dataInstalacao || 'N/A',
+                'Manutenção': p.manutencao ? 'Sim' : 'Não',
+                'Instalação': p.instalacao ? 'Sim' : 'Não',
                 'Observações': p.observacoes || ''
             };
         });
@@ -7071,9 +7186,8 @@
                 var cliente = getCliente(p.clienteId);
                 var clienteNome = cliente ? cliente.nome.toLowerCase() : '';
                 var searchFields = [
-                    p.nome.toLowerCase(),
-                    p.endereco.toLowerCase(),
-                    p.posicao.toLowerCase(),
+                    (p.numero || p.nome || '').toLowerCase(),
+                    (p.localizacao || p.posicao || '').toLowerCase(),
                     clienteNome,
                     (p.observacoes || '').toLowerCase()
                 ];
@@ -7085,14 +7199,25 @@
             return true;
         });
 
+        var statusLabels = {
+            'ok': 'Ok',
+            'consumo': 'Consumo',
+            'danificado': 'Danificado',
+            'substituido': 'Substituído'
+        };
+
         var data = filtrados.map(function (p) {
             var cliente = getCliente(p.clienteId);
+            var manutencaoStr = p.manutencao ? '🔧 Sim' : 'Não';
+            var instalacaoStr = p.instalacao ? '📦 Sim' : 'Não';
             return [
-                p.nome,
+                p.numero || p.nome || 'N/A',
                 cliente ? cliente.nome : 'N/A',
                 p.tipo === 'porta-isca' ? 'Porta Isca' : 'Túnel',
-                p.status === 'ativo' ? 'Ativo' : p.status === 'inativo' ? 'Inativo' : 'Manutenção',
-                p.endereco
+                statusLabels[p.status] || p.status || 'N/A',
+                p.localizacao || p.posicao || 'N/A',
+                manutencaoStr,
+                instalacaoStr
             ];
         });
 
@@ -7101,13 +7226,13 @@
         } else {
             doc.autoTable({
                 startY: 35,
-                head: [['Nome', 'Cliente', 'Tipo', 'Status', 'Endereço']],
+                head: [['Número', 'Cliente', 'Tipo', 'Status', 'Localização', 'Manutenção', 'Instalação']],
                 body: data,
                 theme: 'striped',
                 headStyles: { fillColor: [11, 42, 59] },
-                styles: { fontSize: 8 },
+                styles: { fontSize: 7 },
                 columnStyles: {
-                    4: { cellWidth: 60 }
+                    4: { cellWidth: 50 }
                 }
             });
         }
@@ -8025,9 +8150,9 @@
         var container = document.getElementById('inseticidasContainer');
         if (!container) return;
 
-        var produtos = DB.getAll('estoque').filter(function (p) { return p.categoria === 'Inseticidas' && p.quantidade > 0; });
+        var produtos = DB.getAll('estoque').filter(function (p) { return p.quantidade > 0; });
         var options = produtos.map(function (p) {
-            return '<option value="' + p.id + '">' + p.nome + ' (' + p.quantidade + ' ' + p.unidade + ')</option>';
+            return '<option value="' + p.id + '">' + p.nome + ' (' + p.categoria + ' - ' + p.quantidade + ' ' + p.unidade + ')</option>';
         }).join('');
 
         var div = document.createElement('div');
@@ -8226,36 +8351,32 @@
 
         console.log('🔄 Criando novo serviço - Status: ' + status);
 
-        // 🔥 VERIFICA SE JÁ EXISTE UM SERVIÇO COM OS MESMOS DADOS (evita duplicação)
         var servicosExistentes = DB.getAll('servicos');
-        var servicoExistente = servicosExistentes.find(function(s) {
-            return String(s.clienteId) === String(clienteId) && 
-                   s.data === data && 
-                   s.tipo === tipo &&
-                   (s.status === status || s.status === 'Agendado');
+        var servicoExistente = servicosExistentes.find(function (s) {
+            return String(s.clienteId) === String(clienteId) &&
+                s.data === data &&
+                s.tipo === tipo &&
+                (s.status === status || s.status === 'Agendado');
         });
 
         if (servicoExistente) {
             console.warn('⚠️ Serviço já existe, atualizando em vez de criar novo:', servicoExistente.id);
-            // Atualiza o serviço existente
             DB.update('servicos', servicoExistente.id, {
                 status: status,
                 valor: valor,
                 horario: horario,
                 atualizadoEm: new Date().toISOString()
             });
-            
-            // Atualiza a agenda
+
             sincronizarServicoComAgenda(servicoExistente, 'update');
             sincronizarServicoComOS(servicoExistente, 'update');
-            
+
             fecharModal();
             renderAll();
             alert('✅ Serviço #' + String(servicoExistente.id).padStart(3, '0') + ' atualizado para: ' + status);
             return;
         }
 
-        // Cria o serviço apenas se não existir
         var servico = DB.add('servicos', {
             clienteId: clienteId,
             tipo: tipo,
@@ -8287,16 +8408,15 @@
         var valorFormatado = valor ? valor.toFixed(2).replace('.', ',') : '0,00';
         var descricao = 'Serviço #' + String(servico.id).padStart(3, '0') + ': ' + tipo + ' - ' + statusInfo.emoji + ' ' + statusInfo.label + ' (R$ ' + valorFormatado + ')';
 
-        // 🔥 VERIFICA SE JÁ EXISTE AGENDAMENTO PARA ESTE SERVIÇO
         var agendaKey = DB.getFullKey('agenda');
         var agendaItems = JSON.parse(localStorage.getItem(agendaKey) || '[]');
-        var agendamentoExistente = agendaItems.find(function(a) {
+        var agendamentoExistente = agendaItems.find(function (a) {
             return a.servicoId === servico.id;
         });
 
         if (agendamentoExistente) {
             console.warn('⚠️ Agendamento já existe para o serviço #' + servico.id + ', atualizando...');
-            var index = agendaItems.findIndex(function(a) { return a.id === agendamentoExistente.id; });
+            var index = agendaItems.findIndex(function (a) { return a.id === agendamentoExistente.id; });
             if (index !== -1) {
                 agendaItems[index] = {
                     ...agendamentoExistente,
@@ -8311,8 +8431,7 @@
                 localStorage.setItem(agendaKey, JSON.stringify(agendaItems));
             }
         } else {
-            // Cria novo agendamento apenas se não existir
-            var maxId = agendaItems.reduce(function(max, a) {
+            var maxId = agendaItems.reduce(function (max, a) {
                 var id = typeof a.id === 'number' ? a.id : parseInt(a.id) || 0;
                 return Math.max(max, id);
             }, 0);
@@ -8339,11 +8458,11 @@
         }
 
         sincronizarServicoComOS(servico, 'add');
-        
+
         if (status === 'Concluído' || status === 'Concluida' || status === 'Concluída') {
             verificarCertificadoAutomatico(servico);
         }
-        
+
         DB.forceClearCache('agenda');
         DB._clearAllCaches();
 
@@ -8438,11 +8557,11 @@
         }
 
         sincronizarServicoComOS(servicoAtualizado, 'update');
-        
+
         if (status === 'Concluído' || status === 'Concluida' || status === 'Concluída') {
             verificarCertificadoAutomatico(servicoAtualizado);
         }
-        
+
         DB.forceClearCache('agenda');
         DB._clearAllCaches();
 
@@ -9048,7 +9167,6 @@
         }).join('');
     }
 
-    // ===== CRIAR RELATÓRIO (CORRIGIDO - COM DISPARO DE EVENTO) =====
     window.criarRelatorio = function () {
         var titulo = document.getElementById('modalRelatorioTitulo')?.value || '';
         var clienteId = parseInt(document.getElementById('modalRelatorioCliente')?.value || '0');
@@ -9091,25 +9209,24 @@
         }
 
         function finalizarCriacao() {
-            var novoRelatorio = DB.add('relatorios', { 
-                modeloId: modeloId, 
-                clienteId: clienteId, 
-                titulo: titulo, 
-                data: data, 
-                status: status, 
-                gravidade: gravidade, 
-                observacoes: observacoes, 
-                campos: campos, 
-                imagens: imagens 
+            var novoRelatorio = DB.add('relatorios', {
+                modeloId: modeloId,
+                clienteId: clienteId,
+                titulo: titulo,
+                data: data,
+                status: status,
+                gravidade: gravidade,
+                observacoes: observacoes,
+                campos: campos,
+                imagens: imagens
             });
-            
+
             fecharModal();
-            
-            // 🔥 DISPARA EVENTO PARA ATUALIZAR INTERFACE
-            document.dispatchEvent(new CustomEvent('relatorioAtualizado', { 
-                detail: { relatorio: novoRelatorio, action: 'add' } 
+
+            document.dispatchEvent(new CustomEvent('relatorioAtualizado', {
+                detail: { relatorio: novoRelatorio, action: 'add' }
             }));
-            
+
             renderAll();
             alert('Relatório criado com sucesso!');
         }
@@ -9296,11 +9413,9 @@
         editarRelatorio(id);
     };
 
-    // ===== VISUALIZAR RELATÓRIO (CORRIGIDO - GUARDA ID PARA ATUALIZAÇÃO) =====
     window.visualizarRelatorio = function (id) {
-        // GUARDA O ID PARA ATUALIZAÇÃO AUTOMÁTICA
         window._relatorioVisualizandoId = id;
-        
+
         var r = DB.getById('relatorios', id);
         if (!r) {
             alert('Relatório não encontrado!');
@@ -9410,7 +9525,6 @@
                     
                     <div class="footer">
                         <p>${config.relatorio.rodape || 'Relatório técnico - Controle de Pragas'}</p>
-                        <p style="margin-top:4px;">Documento gerado em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}</p>
                     </div>
                     <div style="margin-top:20px;display:flex;gap:12px;justify-content:flex-end;border-top:1px solid #e8eff5;padding-top:20px;">
                         <button class="btn-secondary" onclick="fecharModalRelatorio()">Fechar</button>
@@ -9436,11 +9550,9 @@
         DB.update('relatorios', id, { campos: campos });
     };
 
-    // ===== FECHAR MODAL RELATÓRIO (CORRIGIDO - LIMPA ID) =====
     window.fecharModalRelatorio = function () {
         var overlay = document.getElementById('modalRelatorioOverlay');
         if (overlay) overlay.classList.remove('active');
-        // LIMPA O ID
         window._relatorioVisualizandoId = null;
     };
 
@@ -9453,6 +9565,9 @@
         });
     }
 
+    // =============================================
+    // ===== IMPRIMIR RELATÓRIO (OTIMIZADO) =====
+    // =============================================
     window.imprimirRelatorio = function (id) {
         var r = DB.getById('relatorios', id);
         if (!r) return;
@@ -9468,54 +9583,151 @@
 
         var camposHtml = r.campos.map(function (campo) {
             return '<tr>' +
-                '<td style="font-weight:600;color:#0b2a3b;padding:8px 12px;border-bottom:1px solid #e8eff5;">' + campo.label + '</td>' +
-                '<td style="color:#4d687a;padding:8px 12px;border-bottom:1px solid #e8eff5;">' + (campo.valor || '(vazio)') + '</td>' +
+                '<td style="font-weight:600;color:#0b2a3b;padding:2px 6px;border-bottom:1px solid #e8eff5;font-size:6.5pt;">' + campo.label + '</td>' +
+                '<td style="color:#4d687a;padding:2px 6px;border-bottom:1px solid #e8eff5;font-size:6.5pt;">' + (campo.valor || '(vazio)') + '</td>' +
                 '</tr>';
         }).join('');
 
         var imagensHtml = r.imagens && r.imagens.length > 0 ?
             r.imagens.map(function (img) {
-                return '<div style="display:inline-block;width:200px;margin:8px;border:1px solid #e8eff5;border-radius:8px;overflow:hidden;">' +
-                    '<img src="' + img + '" style="width:100%;height:150px;object-fit:cover;" />' +
+                return '<div style="display:inline-block;width:100px;margin:4px;border:1px solid #e8eff5;border-radius:4px;overflow:hidden;">' +
+                    '<img src="' + img + '" style="width:100%;height:80px;object-fit:cover;" />' +
                     '</div>';
             }).join('') : '';
 
         var logoHtml = config.empresa.logo ?
-            '<img src="' + config.empresa.logo + '" style="max-height:60px;max-width:150px;object-fit:contain;" />' : '';
+            '<img src="' + config.empresa.logo + '" style="max-height:40px;max-width:120px;object-fit:contain;" />' : '';
 
         var conteudo = `
+            <!DOCTYPE html>
             <html>
-            <head><title>${r.titulo}</title>
-            <style>
-                body { font-family: Arial, sans-serif; padding: 40px; max-width: 900px; margin: auto; }
-                .header { text-align: center; border-bottom: 3px solid ${cor}; padding-bottom: 16px; margin-bottom: 20px; }
-                .header .logo-container { display: flex; align-items: center; justify-content: center; gap: 20px; flex-wrap: wrap; }
-                .header h1 { color: ${cor}; margin: 0; font-size: 1.6rem; }
-                .header .sub { color: #4d687a; font-size: 0.9rem; }
-                .header .detalhes { font-size: 0.8rem; color: #4d687a; margin-top: 4px; }
-                .header .titulo { margin-top: 12px; padding-top: 12px; border-top: 2px dashed #e8eff5; }
-                .header .titulo h2 { color: ${cor}; font-size: 1.3rem; margin: 0; }
-                .info { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; background: #f5f9fc; padding: 16px; border-radius: 8px; margin-bottom: 24px; }
-                .info .label { font-size: 12px; color: #6a7f8d; text-transform: uppercase; }
-                .info .value { font-weight: 600; color: #0b2a3b; }
-                .cliente-tipo { font-size: 0.85rem; color: #1d7a6b; }
-                table { width: 100%; border-collapse: collapse; margin: 16px 0; }
-                th { background: ${cor}; color: white; padding: 10px 12px; text-align: left; }
-                td { padding: 8px 12px; border-bottom: 1px solid #e8eff5; }
-                .imagens { text-align: center; margin: 16px 0; }
-                .imagens .img-container { display: inline-block; margin: 8px; border: 1px solid #e8eff5; border-radius: 8px; overflow: hidden; }
-                .imagens .img-container img { max-width: 200px; max-height: 150px; object-fit: cover; }
-                .obs { margin-top: 16px; padding: 12px 16px; background: #f8fbfd; border-radius: 8px; }
-                .footer { margin-top: 40px; text-align: center; color: #6a7f8d; font-size: 12px; border-top: 1px solid #e8eff5; padding-top: 20px; }
-                .badge { padding: 2px 12px; border-radius: 20px; font-size: 0.8rem; display: inline-block; }
-                .badge.success { background: #d1f0e5; color: #006b4f; }
-                .badge.warning { background: #fff2d0; color: #8e6100; }
-                .badge.danger { background: #fde2e0; color: #b13e3a; }
-                .badge.info { background: #d6eaf8; color: #1a5276; }
-                @media print {
-                    .no-print { display: none; }
-                }
-            </style>
+            <head>
+                <meta charset="UTF-8" />
+                <title>${r.titulo}</title>
+                <style>
+                    * { margin: 0; padding: 0; box-sizing: border-box; }
+                    body { 
+                        font-family: Arial, sans-serif; 
+                        padding: 4px; 
+                        max-width: 100%; 
+                        margin: 0; 
+                        font-size: 8pt; 
+                        line-height: 1.2; 
+                        color: #1f3542;
+                        background: white;
+                    }
+                    .header { 
+                        text-align: center; 
+                        border-bottom: 3px solid ${cor}; 
+                        padding-bottom: 4px; 
+                        margin-bottom: 4px; 
+                    }
+                    .header .logo-container { 
+                        display: flex; 
+                        align-items: center; 
+                        justify-content: center; 
+                        gap: 10px; 
+                        flex-wrap: wrap; 
+                    }
+                    .header h1 { 
+                        color: ${cor}; 
+                        margin: 0; 
+                        font-size: 11pt; 
+                    }
+                    .header .sub { 
+                        color: #4d687a; 
+                        font-size: 6.5pt; 
+                    }
+                    .header .detalhes { 
+                        font-size: 5.5pt; 
+                        color: #4d687a; 
+                        margin-top: 2px; 
+                    }
+                    .header .titulo { 
+                        margin-top: 4px; 
+                        padding-top: 4px; 
+                        border-top: 1px dashed #e8eff5; 
+                    }
+                    .header .titulo h2 { 
+                        color: ${cor}; 
+                        font-size: 10pt; 
+                        margin: 0; 
+                    }
+                    .info { 
+                        display: grid; 
+                        grid-template-columns: 1fr 1fr 1fr; 
+                        gap: 4px; 
+                        background: #f5f9fc; 
+                        padding: 6px 10px; 
+                        border-radius: 4px; 
+                        margin-bottom: 4px; 
+                        font-size: 6.5pt;
+                    }
+                    .info .label { 
+                        font-size: 5pt; 
+                        color: #6a7f8d; 
+                        text-transform: uppercase; 
+                        font-weight: bold; 
+                    }
+                    .info .value { 
+                        font-weight: 600; 
+                        color: #0b2a3b; 
+                        font-size: 6.5pt; 
+                    }
+                    table { 
+                        width: 100%; 
+                        border-collapse: collapse; 
+                        margin: 3px 0; 
+                        font-size: 6.5pt;
+                    }
+                    th { 
+                        background: ${cor}; 
+                        color: white; 
+                        padding: 2px 6px; 
+                        text-align: left; 
+                        font-size: 5.5pt;
+                    }
+                    td { 
+                        padding: 2px 6px; 
+                        border-bottom: 1px solid #e8eff5; 
+                        font-size: 6pt; 
+                    }
+                    .imagens { 
+                        text-align: center; 
+                        margin: 4px 0; 
+                    }
+                    .obs { 
+                        margin-top: 4px; 
+                        padding: 4px 10px; 
+                        background: #f8fbfd; 
+                        border-radius: 4px; 
+                        border-left: 3px solid ${cor}; 
+                        font-size: 6.5pt;
+                    }
+                    .footer { 
+                        margin-top: 6px; 
+                        text-align: center; 
+                        color: #6a7f8d; 
+                        font-size: 5pt; 
+                        border-top: 1px solid #e8eff5; 
+                        padding-top: 4px; 
+                    }
+                    .badge { 
+                        padding: 1px 8px; 
+                        border-radius: 12px; 
+                        font-size: 5.5pt; 
+                        display: inline-block; 
+                        font-weight: 600; 
+                    }
+                    .badge.success { background: #d1f0e5; color: #006b4f; }
+                    .badge.warning { background: #fff2d0; color: #8e6100; }
+                    .badge.danger { background: #fde2e0; color: #b13e3a; }
+                    .badge.info { background: #d6eaf8; color: #1a5276; }
+                    @media print {
+                        body { padding: 2px; }
+                        .no-print { display: none !important; }
+                    }
+                </style>
             </head>
             <body>
                 <div class="header">
@@ -9533,14 +9745,15 @@
                     </div>
                     <div class="titulo">
                         <h2>${r.titulo}</h2>
-                        <div style="color:#4d687a;font-size:0.9rem;">${modelo ? modelo.nome : 'Modelo não encontrado'} • ${r.data}</div>
+                        <div style="color:#4d687a;font-size:6.5pt;">${modelo ? modelo.nome : 'Modelo não encontrado'} • ${r.data}</div>
                     </div>
                 </div>
+
                 <div class="info">
                     <div>
                         <span class="label">Cliente</span>
                         <div class="value">${clienteNome}</div>
-                        <div class="cliente-tipo">${clienteTipo}</div>
+                        <div style="font-size:5.5pt;color:#1d7a6b;">${clienteTipo}</div>
                     </div>
                     <div>
                         <span class="label">${cliente && cliente.tipoCliente === 'cnpj' ? 'CNPJ' : 'CPF'}</span>
@@ -9563,36 +9776,36 @@
                         <div class="value">${cliente ? cliente.endereco : 'N/A'}</div>
                     </div>
                 </div>
-                
-                <h3>Campos do Relatório</h3>
+
+                <h3 style="color:#0b2a3b;font-size:8pt;margin:3px 0;">Campos do Relatório</h3>
                 <table>
-                    <thead><tr><th>Campo</th><th>Valor</th></tr></thead>
+                    <thead><tr><th style="font-size:5.5pt;">Campo</th><th style="font-size:5.5pt;">Valor</th></tr></thead>
                     <tbody>${camposHtml}</tbody>
                 </table>
-                
+
                 ${r.imagens && r.imagens.length > 0 ? `
-                    <h3>Imagens Anexadas (${r.imagens.length})</h3>
+                    <h3 style="color:#0b2a3b;font-size:8pt;margin:3px 0;">Imagens Anexadas (${r.imagens.length})</h3>
                     <div class="imagens">
                         ${r.imagens.map(img => `
-                            <div class="img-container">
-                                <img src="${img}" alt="Imagem do relatório" />
+                            <div style="display:inline-block;width:80px;margin:3px;border:1px solid #e8eff5;border-radius:4px;overflow:hidden;">
+                                <img src="${img}" style="width:100%;height:60px;object-fit:cover;" />
                             </div>
                         `).join('')}
                     </div>
                 ` : ''}
-                
+
                 ${r.observacoes ? `
                     <div class="obs">
-                        <strong>Observações:</strong>
-                        <p style="margin: 4px 0 0;">${r.observacoes}</p>
+                        <strong style="font-size:6.5pt;">Observações:</strong>
+                        <p style="margin: 2px 0 0;font-size:6pt;">${r.observacoes}</p>
                     </div>
                 ` : ''}
-                
+
                 <div class="footer">
                     <p>${config.relatorio.rodape || 'Relatório técnico - Controle de Pragas'}</p>
-                    <p style="margin-top:4px;">Documento gerado em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}</p>
                     <p>${config.empresa.nome || 'Click Saúde Ambiental'} - ${config.empresa.cnpj ? 'CNPJ: ' + config.empresa.cnpj : ''}</p>
                 </div>
+
                 <script>
                     window.onload = function() { window.print(); }
                 <\/script>
@@ -9600,7 +9813,7 @@
             </html>
         `;
 
-        var win = window.open('', '_blank', 'width=900,height=700');
+        var win = window.open('', '_blank', 'width=700,height=500');
         if (win) {
             win.document.write(conteudo);
             win.document.close();
@@ -9644,7 +9857,6 @@
         }
         conteudo += '\n============================================\n';
         conteudo += (config.relatorio.rodape || 'Relatório técnico - Controle de Pragas') + '\n';
-        conteudo += 'Documento gerado em ' + new Date().toLocaleString('pt-BR') + '\n';
         conteudo += '============================================\n';
 
         var blob = new Blob([conteudo], { type: 'text/plain;charset=utf-8' });
@@ -9709,7 +9921,8 @@
 
         var clientes = DB.getAll('clientes');
         var produtos = DB.getAll('estoque');
-        var inseticidas = produtos.filter(function (p) { return p.categoria === 'Inseticidas' && p.quantidade > 0; });
+
+        var inseticidas = produtos.filter(function (p) { return p.quantidade > 0; });
 
         var servicosHtml = gerarCheckboxes(SERVICOS_LIST, os.servicosExecutados || [], 'servico-check', false);
         var pragasHtml = gerarCheckboxes(PRAGAS_LIST, os.pragasAlvo || [], 'praga-check', false);
@@ -9722,7 +9935,9 @@
                 '<select class="ins-produto">' +
                 '<option value="">Selecione...</option>' +
                 inseticidas.map(function (p) {
-                    return '<option value="' + p.id + '" ' + (p.id === ins.id ? 'selected' : '') + '>' + p.nome + ' (' + p.quantidade + ' ' + p.unidade + ')</option>';
+                    return '<option value="' + p.id + '" ' + (p.id === ins.id ? 'selected' : '') + '>' +
+                        p.nome + ' (' + p.categoria + ' - ' + p.quantidade + ' ' + p.unidade + ')' +
+                        '</option>';
                 }).join('') +
                 '</select>' +
                 '</div>' +
@@ -9956,6 +10171,9 @@
         alert('OS ' + numeroOS + ' atualizada com sucesso! Estoque atualizado (' + movimentacoesRegistradas.length + ' produto(s) baixado(s)).');
     };
 
+    // =============================================
+    // ===== IMPRIMIR OS (OTIMIZADO E LEGÍVEL) =====
+    // =============================================
     window.imprimirOS = function (id) {
         var os = DB.getById('ordens', id);
         if (!os) return;
@@ -9971,7 +10189,6 @@
         var assinaturaOperador = os.assinaturaOperador || '';
         var assinaturaCliente = os.assinaturaCliente || '';
 
-        // Usa a garantia salva na OS, ou fallback para a configuração
         var garantiaTexto = os.garantia || config.relatorio.garantia || 'Garantia do serviço: 90 dias a partir da data do primeiro serviço\nOBS: Reentrada no local só será permitida após 06 horas da aplicação líquida, mediante o ambiente arejado, e todo objeto encontrado no chão que não puder ser descartado deverá ser higienizado antes do uso.';
         var garantiaLinhas = garantiaTexto.split('\n');
 
@@ -9979,341 +10196,354 @@
         if (inseticidasUtilizados.length > 0) {
             inseticidasUtilizados.forEach(function (ins) {
                 inseticidasHtml += '<tr>' +
-                    '<td style="padding:2px 6px;border:1px solid #ccc;text-align:center;font-size:7px;">' + ins.nome + '</td>' +
-                    '<td style="padding:2px 6px;border:1px solid #ccc;text-align:center;font-size:7px;">' + (ins.registro || 'N/A') + '</td>' +
-                    '<td style="padding:2px 6px;border:1px solid #ccc;text-align:center;font-size:7px;">' + (ins.gQuimico || '-') + '</td>' +
-                    '<td style="padding:2px 6px;border:1px solid #ccc;text-align:center;font-size:7px;">' + (ins.pAtivo || '-') + '</td>' +
-                    '<td style="padding:2px 6px;border:1px solid #ccc;text-align:center;font-size:7px;">' + (ins.porcentagem || '-') + '</td>' +
-                    '<td style="padding:2px 6px;border:1px solid #ccc;text-align:center;font-size:7px;">' + ins.quantidade + ' ' + (ins.unidade || '') + '</td>' +
-                    '<td style="padding:2px 6px;border:1px solid #ccc;text-align:center;font-size:7px;">' + (ins.tratamento || 'Aplicação') + '</td>' +
+                    '<td style="padding:4px 6px;border:1px solid #ccc;text-align:center;font-size:9pt;">' + ins.nome + '</td>' +
+                    '<td style="padding:4px 6px;border:1px solid #ccc;text-align:center;font-size:9pt;">' + (ins.registro || 'N/A') + '</td>' +
+                    '<td style="padding:4px 6px;border:1px solid #ccc;text-align:center;font-size:9pt;">' + (ins.gQuimico || '-') + '</td>' +
+                    '<td style="padding:4px 6px;border:1px solid #ccc;text-align:center;font-size:9pt;">' + (ins.pAtivo || '-') + '</td>' +
+                    '<td style="padding:4px 6px;border:1px solid #ccc;text-align:center;font-size:9pt;">' + (ins.porcentagem || '-') + '</td>' +
+                    '<td style="padding:4px 6px;border:1px solid #ccc;text-align:center;font-size:9pt;">' + ins.quantidade + ' ' + (ins.unidade || '') + '</td>' +
+                    '<td style="padding:4px 6px;border:1px solid #ccc;text-align:center;font-size:9pt;">' + (ins.tratamento || 'Aplicação') + '</td>' +
                     '</tr>';
             });
         } else {
             inseticidasHtml = '<tr>' +
-                '<td colspan="7" style="padding:4px;text-align:center;color:#999;font-size:7px;">Nenhum inseticida registrado</td>' +
+                '<td colspan="7" style="padding:4px;text-align:center;color:#999;font-size:9pt;">Nenhum inseticida registrado</td>' +
                 '</tr>';
         }
 
-        var dataAtendimento = os.data || new Date().toLocaleDateString('pt-BR');
-        var numeroChamado = os.numero || 'N/A';
-
-        function gerarCheckboxCompacto(lista, selecionados, cols) {
-            cols = cols || 3;
-            var html = '<div style="display:grid;grid-template-columns:repeat(' + cols + ',1fr);gap:2px 8px;font-size:7px;">';
+        // Função para gerar checkboxes com tamanho adequado
+        function gerarCheckboxImpressao(lista, selecionados, cols) {
+            cols = cols || 4;
+            var html = '<div style="display:grid;grid-template-columns:repeat(' + cols + ',1fr);gap:2px 8px;font-size:9pt;">';
             lista.forEach(function (item) {
                 var checked = selecionados.indexOf(item) !== -1 ? 'checked' : '';
-                html += '<div style="display:flex;align-items:center;gap:3px;padding:1px 0;">' +
-                    '<input type="checkbox" ' + checked + ' style="width:9px;height:9px;margin:0;flex-shrink:0;" />' +
-                    '<span>' + item + '</span>' +
+                html += '<div style="display:flex;align-items:center;gap:4px;padding:2px 0;">' +
+                    '<input type="checkbox" ' + checked + ' style="width:12px;height:12px;margin:0;flex-shrink:0;" />' +
+                    '<span style="font-size:9pt;">' + item + '</span>' +
                     '</div>';
             });
             html += '</div>';
             return html;
         }
 
+        var dataAtendimento = os.data || new Date().toLocaleDateString('pt-BR');
+        var numeroChamado = os.numero || 'N/A';
+
         var conteudo = `
-            <html>
-            <head>
-                <title>OS ${os.numero}</title>
-                <style>
-                    * { margin: 0; padding: 0; box-sizing: border-box; }
-                    body { 
-                        font-family: Arial, sans-serif; 
-                        padding: 8px; 
-                        max-width: 900px; 
-                        margin: auto; 
-                        font-size: 9px; 
-                        line-height: 1.25;
-                    }
-                    .header-empresa { 
-                        text-align: center; 
-                        border-bottom: 2px solid #0b2a3b; 
-                        padding-bottom: 5px; 
-                        margin-bottom: 5px; 
-                    }
-                    .header-empresa h1 { font-size: 14px; color: #0b2a3b; margin: 0; }
-                    .header-empresa p { margin: 1px 0; color: #4d687a; font-size: 7px; }
-                    .header-empresa .dados-empresa { font-size: 7px; }
-                    .titulo-os { text-align: center; font-size: 12px; font-weight: bold; margin: 3px 0; }
-                    .info-cliente { 
-                        border: 1px solid #ccc; 
-                        padding: 3px 8px; 
-                        margin: 3px 0; 
-                        border-radius: 3px; 
-                        background: #f9f9f9;
-                        display: grid;
-                        grid-template-columns: 1fr 1fr;
-                        gap: 1px 12px;
-                    }
-                    .info-cliente .row { display: flex; margin: 1px 0; font-size: 7px; }
-                    .info-cliente .label { font-weight: bold; width: 70px; flex-shrink: 0; }
-                    .info-cliente .value { flex: 1; }
-                    .section-title { 
-                        font-weight: bold; 
-                        font-size: 8px; 
-                        margin: 3px 0 1px 0;
-                        padding: 1px 6px;
-                        background: #eef4f8;
-                        border-radius: 3px;
-                    }
-                    .servicos-grid { margin: 1px 0 2px 0; }
-                    table { width: 100%; border-collapse: collapse; margin: 2px 0; font-size: 7px; }
-                    th { 
-                        background: #0b2a3b; 
-                        color: white; 
-                        padding: 2px 4px; 
-                        text-align: center; 
-                        border: 1px solid #0b2a3b; 
-                        font-size: 6px;
-                    }
-                    td { padding: 2px 4px; border: 1px solid #ccc; text-align: center; font-size: 6px; }
-                    .footer { 
-                        margin-top: 4px; 
-                        text-align: center; 
-                        color: #6a7f8d; 
-                        font-size: 6px; 
-                        border-top: 1px solid #e8eff5; 
-                        padding-top: 4px; 
-                    }
-                    .garantia { 
-                        background: #f0f7fc; 
-                        padding: 3px 8px; 
-                        border-radius: 3px; 
-                        margin: 3px 0; 
-                        font-size: 6px;
-                        border-left: 3px solid #0b2a3b;
-                        white-space: pre-line;
-                        line-height: 1.3;
-                    }
-                    .garantia strong { font-size: 6px; }
-                    .obs { 
-                        margin: 2px 0; 
-                        padding: 2px 8px; 
-                        background: #f8fbfd; 
-                        border-radius: 3px; 
-                        border-left: 3px solid #0b2a3b; 
-                        font-size: 7px;
-                        min-height: 12px;
-                    }
-                    .linha-assinatura { 
-                        display: flex; 
-                        justify-content: space-around; 
-                        margin-top: 12px; 
-                        padding-top: 8px; 
-                        border-top: 1px solid #ccc; 
-                    }
-                    .campo-assinatura { 
-                        text-align: center; 
-                        flex: 1; 
-                        padding: 0 10px;
-                    }
-                    .campo-assinatura .linha { 
-                        border-bottom: 1px solid #000; 
-                        width: 90%; 
-                        margin: 0 auto; 
-                        height: 30px;
-                        min-height: 30px;
-                    }
-                    .campo-assinatura .legenda { 
-                        font-size: 7px; 
-                        color: #4d687a; 
-                        margin-top: 3px;
-                        font-weight: bold;
-                    }
-                    .header-info { 
-                        display: flex; 
-                        justify-content: space-between; 
-                        margin: 2px 0; 
-                        font-size: 7px;
-                        padding: 2px 4px;
-                        background: #f5f9fc;
-                        border-radius: 3px;
-                    }
-                    .area-comentarios {
-                        display: flex;
-                        flex-direction: column;
-                        gap: 6px;
-                        margin: 3px 0;
-                    }
-                    .area-comentarios .area-row {
-                        display: flex;
-                        flex-direction: column;
-                        gap: 2px;
-                    }
-                    .area-comentarios .area-label { 
-                        font-weight: bold; 
-                        font-size: 7px; 
-                        color: #0b2a3b;
-                    }
-                    .area-comentarios .area-box { 
-                        border: 1px solid #999; 
-                        min-height: 30px;
-                        max-height: 80px;
-                        padding: 4px 6px; 
-                        font-size: 7px;
-                        border-radius: 2px;
-                        overflow-y: auto;
-                        word-wrap: break-word;
-                        white-space: pre-wrap;
-                    }
-                    .area-comentarios .coment-box { 
-                        border: 1px solid #999; 
-                        min-height: 40px;
-                        max-height: 80px;
-                        padding: 4px 6px; 
-                        font-size: 7px;
-                        border-radius: 2px;
-                        overflow-y: auto;
-                        word-wrap: break-word;
-                        white-space: pre-wrap;
-                    }
-                    .assinatura-digital {
-                        display: grid;
-                        grid-template-columns: 1fr 1fr;
-                        gap: 16px;
-                        margin: 8px 0;
-                        padding: 8px;
-                        background: #f5f9fc;
-                        border-radius: 4px;
-                        border: 1px solid #e8eff5;
-                    }
-                    .assinatura-digital .sig-item {
-                        text-align: center;
-                    }
-                    .assinatura-digital .sig-item img {
-                        max-width: 180px;
-                        max-height: 60px;
-                        border: 1px solid #ddd;
-                        border-radius: 4px;
-                        background: white;
-                    }
-                    .assinatura-digital .sig-item .sig-label {
-                        font-size: 6px;
-                        font-weight: bold;
-                        color: #0b2a3b;
-                        margin-bottom: 4px;
-                    }
-                    @media print {
-                        body { padding: 4px; }
-                        .no-print { display: none; }
-                    }
-                </style>
-            </head>
-            <body>
-                <div class="header-empresa">
-                    <h1>${config.empresa.nome || 'CLICK SAÚDE AMBIENTAL'}</h1>
-                    <p class="dados-empresa">${config.empresa.endereco || 'Rua D. Rosa da Fonseca, 154, Prado -- CEP 57010-130 - Maceió -- AL'}</p>
-                    <p class="dados-empresa">${config.empresa.telefone ? 'Tel: ' + config.empresa.telefone : 'Tel: (82) 21408745 -- 996734573 -- 998351439'}</p>
-                    ${config.empresa.cnpj ? '<p class="dados-empresa">CNPJ: ' + config.empresa.cnpj + '</p>' : ''}
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8" />
+            <title>OS ${os.numero}</title>
+            <style>
+                * { margin: 0; padding: 0; box-sizing: border-box; }
+                body { 
+                    font-family: Arial, sans-serif; 
+                    padding: 8px; 
+                    max-width: 100%; 
+                    margin: 0; 
+                    font-size: 10pt; 
+                    line-height: 1.4;
+                    color: #1f3542;
+                    background: white;
+                }
+                .header-empresa { 
+                    text-align: center; 
+                    border-bottom: 2px solid #0b2a3b; 
+                    padding-bottom: 8px; 
+                    margin-bottom: 8px; 
+                }
+                .header-empresa h1 { 
+                    font-size: 16pt; 
+                    color: #0b2a3b; 
+                    margin: 0; 
+                    letter-spacing: 1px;
+                }
+                .header-empresa p { 
+                    margin: 2px 0; 
+                    color: #4d687a; 
+                    font-size: 9pt; 
+                }
+                .titulo-os { 
+                    text-align: center; 
+                    font-size: 14pt; 
+                    font-weight: bold; 
+                    margin: 4px 0; 
+                    color: #0b2a3b; 
+                    letter-spacing: 2px;
+                }
+                .info-cliente { 
+                    border: 1px solid #ccc; 
+                    padding: 6px 12px; 
+                    margin: 6px 0; 
+                    border-radius: 4px; 
+                    background: #f9f9f9;
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 2px 16px;
+                }
+                .info-cliente .row { 
+                    display: flex; 
+                    margin: 2px 0; 
+                    font-size: 9pt; 
+                }
+                .info-cliente .label { 
+                    font-weight: bold; 
+                    width: 80px; 
+                    flex-shrink: 0; 
+                    color: #0b2a3b; 
+                }
+                .info-cliente .value { 
+                    flex: 1; 
+                    color: #1f3542; 
+                }
+                .header-info { 
+                    display: flex; 
+                    justify-content: space-between; 
+                    margin: 4px 0; 
+                    font-size: 9pt;
+                    padding: 4px 10px;
+                    background: #f5f9fc;
+                    border-radius: 4px;
+                    border: 1px solid #e8eff5;
+                }
+                .section-title { 
+                    font-weight: bold; 
+                    font-size: 10pt; 
+                    margin: 6px 0 4px 0;
+                    padding: 4px 10px;
+                    background: #eef4f8;
+                    border-radius: 4px;
+                    color: #0b2a3b;
+                }
+                .servicos-grid { margin: 2px 0 4px 0; }
+                table { 
+                    width: 100%; 
+                    border-collapse: collapse; 
+                    margin: 4px 0; 
+                    font-size: 9pt; 
+                }
+                th { 
+                    background: #0b2a3b; 
+                    color: white; 
+                    padding: 4px 6px; 
+                    text-align: center; 
+                    border: 1px solid #0b2a3b; 
+                    font-size: 8pt;
+                }
+                td { 
+                    padding: 3px 6px; 
+                    border: 1px solid #ccc; 
+                    text-align: center; 
+                    font-size: 8.5pt;
+                }
+                .garantia { 
+                    background: #f0f7fc; 
+                    padding: 6px 12px; 
+                    border-radius: 4px; 
+                    margin: 6px 0; 
+                    font-size: 8.5pt;
+                    border-left: 4px solid #0b2a3b;
+                    white-space: pre-line;
+                    line-height: 1.5;
+                }
+                .garantia strong { 
+                    font-size: 8.5pt; 
+                    color: #0b2a3b; 
+                }
+                .area-comentarios { margin: 4px 0; }
+                .area-comentarios .area-box,
+                .area-comentarios .coment-box { 
+                    border: 1px solid #999; 
+                    min-height: 24px;
+                    padding: 4px 8px; 
+                    font-size: 8.5pt;
+                    border-radius: 3px;
+                    overflow-y: auto;
+                    word-wrap: break-word;
+                    white-space: pre-wrap;
+                    background: white;
+                    margin: 2px 0;
+                }
+                .assinatura-digital {
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 12px;
+                    margin: 6px 0;
+                    padding: 6px 12px;
+                    background: #f5f9fc;
+                    border-radius: 4px;
+                    border: 1px solid #e8eff5;
+                }
+                .assinatura-digital .sig-item { text-align: center; }
+                .assinatura-digital .sig-item img {
+                    max-width: 120px;
+                    max-height: 40px;
+                    border: 1px solid #ddd;
+                    border-radius: 3px;
+                    background: white;
+                }
+                .assinatura-digital .sig-item .sig-label {
+                    font-size: 8pt;
+                    font-weight: bold;
+                    color: #0b2a3b;
+                    margin-bottom: 3px;
+                }
+                .linha-assinatura { 
+                    display: flex; 
+                    justify-content: space-around; 
+                    margin-top: 8px; 
+                    padding-top: 8px; 
+                    border-top: 2px solid #ccc; 
+                }
+                .campo-assinatura { 
+                    text-align: center; 
+                    flex: 1; 
+                    padding: 0 12px;
+                }
+                .campo-assinatura .linha { 
+                    border-bottom: 2px solid #000; 
+                    width: 80%; 
+                    margin: 0 auto; 
+                    height: 30px;
+                    min-height: 30px;
+                }
+                .campo-assinatura .legenda { 
+                    font-size: 8pt; 
+                    color: #4d687a; 
+                    margin-top: 4px;
+                    font-weight: bold;
+                }
+                .footer { 
+                    margin-top: 6px; 
+                    text-align: center; 
+                    color: #6a7f8d; 
+                    font-size: 7pt; 
+                    border-top: 1px solid #e8eff5; 
+                    padding-top: 4px; 
+                }
+                .no-print { display: none; }
+                @media print {
+                    body { padding: 4px; }
+                    .no-print { display: none !important; }
+                    .campo-assinatura .linha { height: 30px; min-height: 30px; }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="header-empresa">
+                <h1>${config.empresa.nome || 'CLICK SAÚDE AMBIENTAL'}</h1>
+                <p>${config.empresa.endereco || 'Rua D. Rosa da Fonseca, 154, Prado -- CEP 57010-130 - Maceió -- AL'}</p>
+                <p>${config.empresa.telefone ? 'Tel: ' + config.empresa.telefone : 'Tel: (82) 21408745 -- 996734573 -- 998351439'}</p>
+                ${config.empresa.cnpj ? '<p>CNPJ: ' + config.empresa.cnpj + '</p>' : ''}
+            </div>
+
+            <div class="titulo-os">ORDEM DE SERVIÇO</div>
+
+            <div class="header-info">
+                <span><strong>Data:</strong> ${dataAtendimento}</span>
+                <span><strong>N°:</strong> ${numeroChamado}</span>
+                <span><strong>Status:</strong> ${os.status || 'Pendente'}</span>
+            </div>
+
+            <div class="info-cliente">
+                <div class="row">
+                    <span class="label">Razão social:</span>
+                    <span class="value">${cliente ? cliente.nome : 'N/A'}</span>
                 </div>
-
-                <div class="titulo-os">ORDEM DE SERVIÇO</div>
-
-                <div class="header-info">
-                    <span><strong>Data de atendimento:</strong> ${dataAtendimento}</span>
-                    <span><strong>N° do chamado:</strong> ${numeroChamado}</span>
-                    <span><strong>Status:</strong> ${os.status || 'Pendente'}</span>
+                <div class="row">
+                    <span class="label">${cliente && cliente.tipoCliente === 'cnpj' ? 'CNPJ' : 'CPF'}:</span>
+                    <span class="value">${cliente ? cliente.documento || 'N/A' : 'N/A'}</span>
                 </div>
-
-                <div class="info-cliente">
-                    <div class="row">
-                        <span class="label">Razão social:</span>
-                        <span class="value">${cliente ? cliente.nome : 'N/A'}</span>
-                    </div>
-                    <div class="row">
-                        <span class="label">${cliente && cliente.tipoCliente === 'cnpj' ? 'CNPJ' : 'CPF'}:</span>
-                        <span class="value">${cliente ? cliente.documento || 'N/A' : 'N/A'}</span>
-                    </div>
-                    <div class="row">
-                        <span class="label">Endereço:</span>
-                        <span class="value">${cliente ? cliente.endereco : 'N/A'}</span>
-                    </div>
-                    <div class="row">
-                        <span class="label">Contato:</span>
-                        <span class="value">${cliente ? 'Sr(a). ' + cliente.nome + ' - Cel: ' + (cliente.telefone || 'N/A') : 'N/A'}</span>
-                    </div>
+                <div class="row">
+                    <span class="label">Endereço:</span>
+                    <span class="value">${cliente ? cliente.endereco : 'N/A'}</span>
                 </div>
-
-                <div class="section-title">SERVIÇOS EXECUTADOS</div>
-                <div class="servicos-grid">${gerarCheckboxCompacto(SERVICOS_LIST, servicosExecutados, 4)}</div>
-
-                <div class="section-title">PRAGAS ALVO</div>
-                <div class="servicos-grid">${gerarCheckboxCompacto(PRAGAS_LIST, pragasAlvo, 4)}</div>
-
-                <div class="section-title">MÉTODO EMPREGADO</div>
-                <div class="servicos-grid">${gerarCheckboxCompacto(METODOS_LIST, metodosEmpregados, 3)}</div>
-
-                <div class="section-title">INSETICIDAS UTILIZADOS</div>
-                <table>
-                    <thead>
-                        <tr>
-                            <th style="width:15%;">Produto</th>
-                            <th style="width:10%;">Reg. MS</th>
-                            <th style="width:10%;">G. Químico</th>
-                            <th style="width:12%;">P. Ativo</th>
-                            <th style="width:6%;">%</th>
-                            <th style="width:10%;">Qtd.</th>
-                            <th style="width:15%;">Tratamento</th>
-                        </tr>
-                    </thead>
-                    <tbody>${inseticidasHtml}</tbody>
-                </table>
-
-                <div class="area-comentarios">
-                    <div class="area-row">
-                        <div class="area-label">ÁREA LIBERADA:</div>
-                        <div class="area-box">${areaLiberada || ''}</div>
-                    </div>
-                    <div class="area-row">
-                        <div class="area-label">COMENTÁRIOS / OBSERVAÇÕES:</div>
-                        <div class="coment-box">${os.observacoes || ''}</div>
-                    </div>
+                <div class="row">
+                    <span class="label">Contato:</span>
+                    <span class="value">${cliente ? 'Sr(a). ' + cliente.nome + ' - Cel: ' + (cliente.telefone || 'N/A') : 'N/A'}</span>
                 </div>
+            </div>
 
-                <div class="assinatura-digital">
-                    <div class="sig-item">
-                        <div class="sig-label">ASSINATURA DO OPERADOR</div>
-                        ${assinaturaOperador ?
+            <div class="section-title">SERVIÇOS EXECUTADOS</div>
+            <div class="servicos-grid">${gerarCheckboxImpressao(SERVICOS_LIST, servicosExecutados, 4)}</div>
+
+            <div class="section-title">PRAGAS ALVO</div>
+            <div class="servicos-grid">${gerarCheckboxImpressao(PRAGAS_LIST, pragasAlvo, 4)}</div>
+
+            <div class="section-title">MÉTODO EMPREGADO</div>
+            <div class="servicos-grid">${gerarCheckboxImpressao(METODOS_LIST, metodosEmpregados, 3)}</div>
+
+            <div class="section-title">INSETICIDAS UTILIZADOS</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:14%;">Produto</th>
+                        <th style="width:10%;">Reg. MS</th>
+                        <th style="width:10%;">G. Químico</th>
+                        <th style="width:12%;">P. Ativo</th>
+                        <th style="width:7%;">%</th>
+                        <th style="width:10%;">Qtd.</th>
+                        <th style="width:14%;">Tratamento</th>
+                    </tr>
+                </thead>
+                <tbody>${inseticidasHtml}</tbody>
+            </table>
+
+            <div class="area-comentarios">
+                <div style="margin:2px 0;">
+                    <div style="font-weight:bold;font-size:8.5pt;color:#0b2a3b;">ÁREA LIBERADA:</div>
+                    <div class="area-box">${areaLiberada || ''}</div>
+                </div>
+                <div style="margin:2px 0;">
+                    <div style="font-weight:bold;font-size:8.5pt;color:#0b2a3b;">OBSERVAÇÕES:</div>
+                    <div class="coment-box">${os.observacoes || ''}</div>
+                </div>
+            </div>
+
+            <div class="assinatura-digital">
+                <div class="sig-item">
+                    <div class="sig-label">ASSINATURA DO OPERADOR</div>
+                    ${assinaturaOperador ?
                 '<img src="' + assinaturaOperador + '" alt="Assinatura Operador" />' :
-                '<span style="font-size:7px;color:#999;">Não assinado digitalmente</span>'
+                '<span style="font-size:8pt;color:#999;">Não assinado</span>'
             }
-                    </div>
-                    <div class="sig-item">
-                        <div class="sig-label">ASSINATURA DO CLIENTE</div>
-                        ${assinaturaCliente ?
+                </div>
+                <div class="sig-item">
+                    <div class="sig-label">ASSINATURA DO CLIENTE</div>
+                    ${assinaturaCliente ?
                 '<img src="' + assinaturaCliente + '" alt="Assinatura Cliente" />' :
-                '<span style="font-size:7px;color:#999;">Não assinado digitalmente</span>'
+                '<span style="font-size:8pt;color:#999;">Não assinado</span>'
             }
-                    </div>
                 </div>
+            </div>
 
-                <div class="linha-assinatura no-print">
-                    <div class="campo-assinatura">
-                        <div class="linha"></div>
-                        <div class="legenda">ASSINATURA DO OPERADOR (FÍSICA)</div>
-                    </div>
-                    <div class="campo-assinatura">
-                        <div class="linha"></div>
-                        <div class="legenda">ASSINATURA DO CLIENTE (FÍSICA)</div>
-                    </div>
+            <div class="linha-assinatura no-print">
+                <div class="campo-assinatura">
+                    <div class="linha"></div>
+                    <div class="legenda">ASSINATURA DO OPERADOR</div>
                 </div>
-
-                <div class="garantia">
-                    <strong>Garantia do serviço:</strong><br>
-                    ${garantiaLinhas.map(function (line) { return line.trim(); }).join('<br>')}
+                <div class="campo-assinatura">
+                    <div class="linha"></div>
+                    <div class="legenda">ASSINATURA DO CLIENTE</div>
                 </div>
+            </div>
 
-                <div class="footer">
-                    <p>Documento gerado em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}</p>
-                    <p>${config.empresa.nome || 'Click Saúde Ambiental'} - ${config.empresa.cnpj || ''}</p>
-                </div>
+            <div class="garantia">
+                <strong>Garantia do serviço:</strong><br>
+                ${garantiaLinhas.map(function (line) { return line.trim(); }).join('<br>')}
+            </div>
 
-                <script>
-                    window.onload = function() { window.print(); }
-                <\/script>
-            </body>
-            </html>
-        `;
+            <div class="footer">
+                ${config.empresa.nome || ''} - ${config.empresa.cnpj || ''}
+            </div>
+
+            <script>
+                window.onload = function() { window.print(); }
+            <\/script>
+        </body>
+        </html>
+    `;
 
         var win = window.open('', '_blank', 'width=900,height=700');
         if (win) {
@@ -10339,28 +10569,28 @@
     window.criarNovoMembro = function () {
         var nome = document.getElementById('modalNomeMembro')?.value || '';
         var cargo = document.getElementById('modalCargoMembro')?.value || 'Técnico';
-        if (!nome) { 
-            alert('Nome é obrigatório'); 
-            return; 
+        if (!nome) {
+            alert('Nome é obrigatório');
+            return;
         }
-        
+
         DB.add('equipe', { nome: nome, cargo: cargo });
         DB.forceClearCache('equipe');
         fecharModal();
-        
+
         renderAll();
-        
-        setTimeout(function() {
+
+        setTimeout(function () {
             renderAll();
         }, 50);
-        
+
         alert('Membro adicionado!');
     };
 
     // =============================================
     // ===== FUNÇÕES DE ESTOQUE (continuação) =====
     // =============================================
-    
+
     function atualizarDashboardEstoque() {
         var produtos = DB.getAll('estoque');
         var movimentacoes = DB.getAll('movimentacoes');
@@ -10677,44 +10907,38 @@
         try {
             const empresaId = EmpresaManager.getEmpresaAtual();
             if (typeof PlanService === 'undefined') return;
-            
+
             const resumo = PlanService.getResumoPlano(empresaId);
             const empresa = EmpresaManager.getEmpresa(empresaId);
-            
-            // Atualiza cards
+
             const elTotalAdmins = document.getElementById('adminTotalAdmins');
             const elPlanoAtual = document.getElementById('adminPlanoAtual');
             const elLimiteUso = document.getElementById('adminLimiteUso');
             const elVagasRestantes = document.getElementById('adminVagasRestantes');
-            
+
             if (elTotalAdmins) elTotalAdmins.textContent = resumo.adminsAtuais;
             if (elPlanoAtual) elPlanoAtual.textContent = resumo.planoNome;
             if (elLimiteUso) elLimiteUso.textContent = resumo.porcentagemUso + '%';
             if (elVagasRestantes) elVagasRestantes.textContent = Math.max(0, resumo.limiteAdmins - resumo.adminsAtuais);
-            
-            // Informações da empresa
+
             const elEmpresaNome = document.getElementById('adminEmpresaNome');
             const elEmpresaId = document.getElementById('adminEmpresaId');
             const elTotalUsuarios = document.getElementById('adminTotalUsuarios');
-            
+
             if (elEmpresaNome) elEmpresaNome.textContent = empresa ? empresa.nome : 'N/A';
             if (elEmpresaId) elEmpresaId.textContent = empresaId;
             if (elTotalUsuarios) elTotalUsuarios.textContent = resumo.adminsAtuais;
-            
-            // Status do banco
+
             const dbStatus = document.getElementById('adminDbStatus');
             if (dbStatus) {
                 const isAvailable = typeof FirestoreService !== 'undefined' && FirestoreService._isFirestoreAvailable();
                 dbStatus.textContent = isAvailable ? 'Firestore ✅' : 'Local ⚠️';
                 dbStatus.style.color = isAvailable ? '#1d7a6b' : '#e67e22';
             }
-            
-            // Preenche informações do plano
+
             preencherInfoPlanoAdmin();
-            
-            // Carrega lista de administradores
             carregarListaAdmins();
-            
+
         } catch (e) {
             console.warn('Erro ao carregar informações de administração:', e);
         }
@@ -10724,11 +10948,11 @@
         try {
             const empresaId = EmpresaManager.getEmpresaAtual();
             if (typeof PlanService === 'undefined') return;
-            
+
             const resumo = PlanService.getResumoPlano(empresaId);
             const container = document.getElementById('planoInfoContainer');
             if (!container) return;
-            
+
             const cores = {
                 'Grátis': '#1d7a6b',
                 'Básico': '#3498db',
@@ -10736,11 +10960,11 @@
                 'Empresarial': '#e67e22',
                 'Personalizado': '#c0392b'
             };
-            
+
             const cor = cores[resumo.planoNome] || '#0b2a3b';
             const estaLimite = resumo.estaLimite;
             const estaProximo = resumo.estaProximo;
-            
+
             container.innerHTML = `
                 <div style="background:#f8fbfd;padding:16px;border-radius:12px;border-left:4px solid ${cor};">
                     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
@@ -10766,9 +10990,9 @@
                         <div style="height:100%;width:${Math.min(resumo.porcentagemUso, 100)}%;background:${estaLimite ? '#b13e3a' : estaProximo ? '#e67e22' : '#1d7a6b'};border-radius:3px;transition:width 0.5s ease;"></div>
                     </div>
                     <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
-                        ${resumo.features.slice(0, 6).map(f => 
-                            `<span style="background:#e8eff5;padding:2px 12px;border-radius:12px;font-size:0.75rem;color:#1f3a4b;">${f}</span>`
-                        ).join('')}
+                        ${resumo.features.slice(0, 6).map(f =>
+                `<span style="background:#e8eff5;padding:2px 12px;border-radius:12px;font-size:0.75rem;color:#1f3a4b;">${f}</span>`
+            ).join('')}
                         ${resumo.features.length > 6 ? `<span style="background:#e8eff5;padding:2px 12px;border-radius:12px;font-size:0.75rem;color:#1f3a4b;">+${resumo.features.length - 6} mais</span>` : ''}
                     </div>
                     ${estaLimite ? `
@@ -10802,14 +11026,14 @@
             const empresaId = EmpresaManager.getEmpresaAtual();
             const empresa = EmpresaManager.getEmpresa(empresaId);
             const tbody = document.getElementById('tabelaAdmins');
-            
+
             if (!tbody) return;
-            
+
             if (!empresa || !empresa.admins || empresa.admins.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#999;padding:20px;">Nenhum administrador cadastrado</td></tr>';
                 return;
             }
-            
+
             tbody.innerHTML = empresa.admins.map((admin, index) => {
                 const dataAdicionado = admin.adicionadoEm ? new Date(admin.adicionadoEm).toLocaleDateString('pt-BR') : 'N/A';
                 const isCurrentUser = admin.usuarioId === EmpresaManager.getUsuarioAtual();
@@ -10819,8 +11043,8 @@
                         <td>${admin.email || 'N/A'}</td>
                         <td>${dataAdicionado}</td>
                         <td>
-                            ${!isCurrentUser ? `<i class="fas fa-trash" onclick="removerAdmin('${admin.usuarioId}')" title="Remover" style="color:#b13e3a;cursor:pointer;"></i>` : 
-                            `<span style="color:#999;font-size:0.7rem;">Admin atual</span>`}
+                            ${!isCurrentUser ? `<i class="fas fa-trash" onclick="removerAdmin('${admin.usuarioId}')" title="Remover" style="color:#b13e3a;cursor:pointer;"></i>` :
+                        `<span style="color:#999;font-size:0.7rem;">Admin atual</span>`}
                         </td>
                     </tr>
                 `;
@@ -10830,38 +11054,33 @@
         }
     }
 
-    window.removerAdmin = function(usuarioId) {
+    window.removerAdmin = function (usuarioId) {
         if (!confirm('Tem certeza que deseja remover este administrador?')) {
             return;
         }
-        
+
         try {
             const empresaId = EmpresaManager.getEmpresaAtual();
             const empresa = EmpresaManager.getEmpresa(empresaId);
-            
+
             if (!empresa) return;
-            
-            // Remove o admin
+
             empresa.admins = empresa.admins.filter(a => a.usuarioId !== usuarioId);
-            
-            // Salva a empresa
+
             const empresas = JSON.parse(localStorage.getItem('dedetiza_empresas') || '{}');
             empresas[empresaId] = empresa;
             localStorage.setItem('dedetiza_empresas', JSON.stringify(empresas));
-            
-            // Atualiza cache
+
             EmpresaManager._empresas[empresaId] = empresa;
-            
-            // Remove sessão do usuário
+
             const sessoes = JSON.parse(localStorage.getItem('dedetiza_sessoes') || '{}');
             const key = empresaId + '_' + usuarioId;
             delete sessoes[key];
             localStorage.setItem('dedetiza_sessoes', JSON.stringify(sessoes));
-            
-            // Recarrega informações
+
             carregarListaAdmins();
             carregarInfoAdministracao();
-            
+
             alert('✅ Administrador removido com sucesso!');
         } catch (e) {
             console.warn('Erro ao remover administrador:', e);
@@ -10869,7 +11088,7 @@
         }
     };
 
-    window.abrirUpgradeModal = function() {
+    window.abrirUpgradeModal = function () {
         const empresaId = EmpresaManager.getEmpresaAtual();
         if (typeof PlanService === 'undefined') {
             alert('Serviço de planos não disponível.');
@@ -10879,7 +11098,7 @@
         abrirModal('📊 Upgrade de Plano', modalHtml);
     };
 
-    window.recarregarInfoPlano = function() {
+    window.recarregarInfoPlano = function () {
         carregarInfoAdministracao();
         alert('✅ Informações atualizadas!');
     };
@@ -10892,14 +11111,12 @@
         try {
             const empresaId = EmpresaManager.getEmpresaAtual();
             if (typeof PlanService === 'undefined') return;
-            
+
             const resumo = PlanService.getResumoPlano(empresaId);
-            
-            // Remove indicador existente
+
             const existing = document.querySelector('.topbar-plano');
             if (existing) existing.remove();
-            
-            // Cria indicador
+
             const planoIndicator = document.createElement('span');
             planoIndicator.className = 'topbar-plano';
             planoIndicator.style.cssText = `
@@ -10921,8 +11138,7 @@
             `;
             planoIndicator.title = `${resumo.adminsAtuais}/${resumo.limiteAdmins} administradores • ${resumo.porcentagemUso}% usado`;
             planoIndicator.onclick = () => abrirUpgradeModal();
-            
-            // Insere no topbar
+
             const topbarUser = document.querySelector('.topbar-user');
             if (topbarUser) {
                 topbarUser.insertBefore(planoIndicator, topbarUser.firstChild);
@@ -10936,25 +11152,24 @@
     // ===== BOTÃO NOVO ADMIN =====
     // =============================================
 
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function () {
         const btnNovoAdmin = document.getElementById('btnNovoAdmin');
         if (btnNovoAdmin) {
-            btnNovoAdmin.addEventListener('click', function() {
-                // Verifica se pode adicionar mais admins
+            btnNovoAdmin.addEventListener('click', function () {
                 const empresaId = EmpresaManager.getEmpresaAtual();
                 if (typeof PlanService === 'undefined') {
                     alert('Serviço de planos não disponível.');
                     return;
                 }
-                
+
                 const verificacao = PlanService.verificarCadastroAdmin(empresaId);
-                
+
                 if (!verificacao.permitido) {
                     const modalHtml = PlanService.gerarModalUpgrade(empresaId);
                     abrirModal('🔒 Limite de Administradores Atingido', modalHtml);
                     return;
                 }
-                
+
                 abrirModal('Novo Administrador', `
                     <div class="form-group">
                         <label>Nome Completo *</label>
@@ -10992,31 +11207,30 @@
         }
     });
 
-    window.criarNovoAdmin = function() {
+    window.criarNovoAdmin = function () {
         const nome = document.getElementById('modalAdminNome')?.value || '';
         const usuario = document.getElementById('modalAdminUsuario')?.value || '';
         const email = document.getElementById('modalAdminEmail')?.value || '';
         const senha = document.getElementById('modalAdminSenha')?.value || '';
         const confirm = document.getElementById('modalAdminConfirm')?.value || '';
-        
+
         if (!nome || !usuario || !email || !senha || !confirm) {
             alert('Preencha todos os campos!');
             return;
         }
-        
+
         if (senha !== confirm) {
             alert('As senhas não coincidem!');
             return;
         }
-        
+
         if (senha.length < 6) {
             alert('A senha deve ter pelo menos 6 caracteres!');
             return;
         }
-        
+
         const empresaId = EmpresaManager.getEmpresaAtual();
-        
-        // Verifica novamente o limite
+
         if (typeof PlanService !== 'undefined') {
             const verificacao = PlanService.verificarCadastroAdmin(empresaId);
             if (!verificacao.permitido) {
@@ -11025,13 +11239,12 @@
                 return;
             }
         }
-        
-        // Chama o AuthService para cadastrar
+
         if (typeof AuthService === 'undefined') {
             alert('Serviço de autenticação não disponível.');
             return;
         }
-        
+
         AuthService.cadastrar(email, senha, nome, usuario, empresaId).then(result => {
             if (result.success) {
                 fecharModal();
@@ -11050,23 +11263,20 @@
     // ===== INICIALIZAÇÃO DA PÁGINA ADMIN =====
     // =============================================
 
-    // Carrega informações quando a página admin é ativada
-    document.addEventListener('DOMContentLoaded', function() {
-        // Observa mudanças de página
-        const observer = new MutationObserver(function() {
+    document.addEventListener('DOMContentLoaded', function () {
+        const observer = new MutationObserver(function () {
             const adminPage = document.getElementById('page-admin');
             if (adminPage && adminPage.classList.contains('active')) {
                 carregarInfoAdministracao();
             }
         });
-        
+
         observer.observe(document.body, {
             attributes: true,
             attributeFilter: ['class'],
             subtree: true
         });
-        
-        // Carrega se já estiver ativa
+
         setTimeout(() => {
             const adminPage = document.getElementById('page-admin');
             if (adminPage && adminPage.classList.contains('active')) {
@@ -11083,12 +11293,10 @@
     DB.init();
     carregarDadosUsuario().catch(function (err) { console.warn('Erro ao carregar dados do usuário:', err); });
     inicializarEventListeners();
-    
-    // Renderização inicial
+
     renderAll();
-    
-    // Adiciona indicador de plano após renderização
-    setTimeout(function() {
+
+    setTimeout(function () {
         adicionarIndicadorPlano();
     }, 500);
 
@@ -11127,4 +11335,14 @@
     console.log('  ✅ Gerenciador de assinaturas com upload de imagens');
     console.log('  ✅ Aplicação automática de assinaturas salvas em certificados');
     console.log('  ✅ Duplicação do botão "Gerenciar Assinaturas" removida');
+    console.log('  ✅ Mapa de Iscas: campo "nome" alterado para "numero"');
+    console.log('  ✅ Mapa de Iscas: campo "posicao" alterado para "localizacao"');
+    console.log('  ✅ Mapa de Iscas: campo "endereco" removido');
+    console.log('  ✅ Mapa de Iscas: status alterados para ok, consumo, danificado, substituido');
+    console.log('  ✅ Mapa de Iscas: campo "Última Manutenção" removido e substituído por checkboxes');
+    console.log('  ✅ Tamanhos de fonte para impressão ajustados para melhor visualização');
+    console.log('  ✅ Removido "Documento gerado em..." dos arquivos impressos');
+    console.log('  ✅ Estoque: TODOS os produtos (qualquer categoria) aparecem na OS');
+    console.log('  ✅ Estoque: TODOS os produtos aparecem ao adicionar novo item na OS');
+    console.log('  ✅ Impressão otimizada para uma única página com fontes padronizadas');
 })();

@@ -2734,3 +2734,1164 @@ td i:hover { background: #e8eff5; }
     font-size: 7px;
     color: #0b2a3b;
 }
+
+/* Status do Mapa de Iscas - Novos status */
+.mapa-card .status-badge .ok { 
+    color: #1d7a6b; 
+    background: #d1f0e5;
+    padding: 2px 12px;
+    border-radius: 20px;
+}
+.mapa-card .status-badge .consumo { 
+    color: #e67e22; 
+    background: #fff2d0;
+    padding: 2px 12px;
+    border-radius: 20px;
+}
+.mapa-card .status-badge .danificado { 
+    color: #b13e3a; 
+    background: #fde2e0;
+    padding: 2px 12px;
+    border-radius: 20px;
+}
+.mapa-card .status-badge .substituido { 
+    color: #2c5c6b; 
+    background: #d6eaf8;
+    padding: 2px 12px;
+    border-radius: 20px;
+}
+
+/* Adicione ao final do style.css */
+
+/* =============================================
+   ===== AJUSTES PARA CERTIFICADO UMA PÁGINA =====
+   ============================================= */
+
+/* Estilos para impressão do certificado - UMA PÁGINA */
+@media print {
+    .certificado-print-content {
+        font-size: 9px !important;
+        line-height: 1.3 !important;
+        padding: 8px !important;
+        max-width: 100% !important;
+    }
+    
+    .certificado-print-content .header-empresa {
+        padding-bottom: 6px !important;
+        margin-bottom: 6px !important;
+    }
+    
+    .certificado-print-content .header-empresa h1 {
+        font-size: 14px !important;
+        margin: 0 !important;
+    }
+    
+    .certificado-print-content .header-empresa .sub {
+        font-size: 8px !important;
+    }
+    
+    .certificado-print-content .header-empresa .empresa-detalhes {
+        font-size: 7px !important;
+    }
+    
+    .certificado-print-content .titulo-certificado {
+        font-size: 14px !important;
+        margin: 4px 0 !important;
+        padding: 4px 0 !important;
+    }
+    
+    .certificado-print-content .info-grid {
+        grid-template-columns: 1fr 1fr 1fr !important;
+        gap: 4px !important;
+        padding: 6px 10px !important;
+        margin: 4px 0 !important;
+    }
+    
+    .certificado-print-content .info-grid .item .label {
+        font-size: 6px !important;
+    }
+    
+    .certificado-print-content .info-grid .item .value {
+        font-size: 8px !important;
+    }
+    
+    .certificado-print-content table {
+        font-size: 7px !important;
+    }
+    
+    .certificado-print-content table th,
+    .certificado-print-content table td {
+        padding: 3px 5px !important;
+        font-size: 6.5px !important;
+    }
+    
+    .certificado-print-content .observacoes-area {
+        font-size: 7px !important;
+        padding: 4px 8px !important;
+        margin: 4px 0 !important;
+        max-height: 60px !important;
+        min-height: 30px !important;
+    }
+    
+    .certificado-print-content .metodos-area {
+        font-size: 7px !important;
+        padding: 4px 8px !important;
+        margin: 4px 0 !important;
+    }
+    
+    .certificado-print-content .responsaveis-area {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 8px !important;
+        margin: 4px 0 !important;
+        padding: 6px 8px !important;
+    }
+    
+    .certificado-print-content .responsaveis-area .resp-item {
+        padding: 4px 8px !important;
+        font-size: 7px !important;
+    }
+    
+    .certificado-print-content .responsaveis-area .resp-item .nome {
+        font-size: 8px !important;
+    }
+    
+    .certificado-print-content .responsaveis-area .resp-item .cargo {
+        font-size: 6.5px !important;
+    }
+    
+    .certificado-print-content .assinaturas-area {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 12px !important;
+        margin: 6px 0 !important;
+        padding: 6px 8px !important;
+    }
+    
+    .certificado-print-content .assinaturas-area .assinatura-item {
+        text-align: center !important;
+    }
+    
+    .certificado-print-content .assinaturas-area .assinatura-item .label {
+        font-size: 6.5px !important;
+    }
+    
+    .certificado-print-content .assinaturas-area .assinatura-item img {
+        max-height: 35px !important;
+        max-width: 120px !important;
+    }
+    
+    .certificado-print-content .primeiros-socorros {
+        font-size: 6.5px !important;
+        padding: 3px 8px !important;
+        margin: 4px 0 !important;
+    }
+    
+    .certificado-print-content .primeiros-socorros strong {
+        font-size: 6.5px !important;
+    }
+    
+    .certificado-print-content .footer {
+        font-size: 6px !important;
+        padding: 4px 0 !important;
+        margin-top: 4px !important;
+    }
+    
+    .certificado-print-content .logo-svg {
+        width: 40px !important;
+        height: 40px !important;
+    }
+    
+    /* Garante que o conteúdo não ultrapasse uma página */
+    .certificado-print-wrapper {
+        max-height: 100vh !important;
+        overflow: hidden !important;
+        page-break-after: avoid !important;
+    }
+}
+
+/* Estilos para visualização do certificado no modal */
+.certificado-view-content {
+    font-size: 11px !important;
+    line-height: 1.4 !important;
+    padding: 16px !important;
+    max-width: 800px !important;
+    margin: 0 auto !important;
+}
+
+.certificado-view-content .header-empresa h1 {
+    font-size: 18px !important;
+}
+
+.certificado-view-content .titulo-certificado {
+    font-size: 18px !important;
+}
+
+.certificado-view-content table th,
+.certificado-view-content table td {
+    padding: 4px 8px !important;
+    font-size: 10px !important;
+}
+
+.certificado-view-content .responsaveis-area .resp-item {
+    padding: 6px 12px !important;
+}
+
+.certificado-view-content .assinaturas-area .assinatura-item img {
+    max-height: 50px !important;
+    max-width: 160px !important;
+}
+
+/* =============================================
+   ===== PADRÃO ÚNICO DE IMPRESSÃO =====
+   ============================================= */
+
+/* Estilos base para impressão - UNIFORMIDADE TOTAL */
+@media print {
+    /* Reset completo */
+    * {
+        margin: 0 !important;
+        padding: 0 !important;
+        box-sizing: border-box !important;
+        font-family: 'Arial', 'Helvetica', sans-serif !important;
+    }
+    
+    body {
+        background: white !important;
+        padding: 6px !important;
+        margin: 0 !important;
+        font-family: 'Arial', 'Helvetica', sans-serif !important;
+        font-size: 8pt !important;
+        line-height: 1.2 !important;
+        color: #1a1a1a !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+    
+    /* Remove elementos não imprimíveis */
+    .no-print, .sidebar, .topbar, .toolbar, .menu-toggle, 
+    .sidebar-overlay, .modal-header, .modal-footer,
+    .btn, .btn-primary, .btn-secondary, .btn-success,
+    .btn-danger, .btn-warning, button,
+    .filtros-container, .dashboard-filters,
+    .kpi-grid, .chart-area, .chart-box {
+        display: none !important;
+    }
+    
+    /* Conteúdo principal */
+    .main-content {
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+    
+    .page-content {
+        padding: 2px !important;
+        margin: 0 !important;
+        max-width: 100% !important;
+        overflow: visible !important;
+    }
+    
+    .page {
+        display: block !important;
+        opacity: 1 !important;
+        visibility: visible !important;
+        animation: none !important;
+        page-break-after: avoid !important;
+        page-break-inside: avoid !important;
+        padding: 2px !important;
+    }
+    
+    /* Oculta páginas não ativas */
+    .page:not(#page-ordens):not(#page-relatorios):not(#page-certificados) {
+        display: none !important;
+    }
+    
+    /* =============================================
+       ===== ORDEM DE SERVIÇO - PADRÃO ÚNICO =====
+       ============================================= */
+    #page-ordens {
+        display: block !important;
+        padding: 2px !important;
+        font-size: 8pt !important;
+    }
+    
+    #page-ordens .table-wrapper {
+        border: none !important;
+        box-shadow: none !important;
+        overflow: visible !important;
+        background: transparent !important;
+        padding: 0 !important;
+    }
+    
+    #page-ordens table {
+        width: 100% !important;
+        font-size: 7.5pt !important;
+        border-collapse: collapse !important;
+        margin: 0 !important;
+    }
+    
+    #page-ordens table th,
+    #page-ordens table td {
+        padding: 2px 4px !important;
+        font-size: 7pt !important;
+        border: 1px solid #ccc !important;
+        text-align: center !important;
+    }
+    
+    #page-ordens table th {
+        background: #0b2a3b !important;
+        color: white !important;
+        font-size: 6.5pt !important;
+        font-weight: bold !important;
+        padding: 2px 4px !important;
+    }
+    
+    /* Cabeçalho da OS */
+    .os-header-empresa {
+        text-align: center !important;
+        border-bottom: 2px solid #0b2a3b !important;
+        padding: 2px 0 4px 0 !important;
+        margin: 0 0 3px 0 !important;
+    }
+    
+    .os-header-empresa h1 {
+        font-size: 11pt !important;
+        font-weight: bold !important;
+        color: #0b2a3b !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        letter-spacing: 1px !important;
+    }
+    
+    .os-header-empresa p {
+        font-size: 6.5pt !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        color: #333 !important;
+    }
+    
+    .os-titulo {
+        text-align: center !important;
+        font-size: 10pt !important;
+        font-weight: bold !important;
+        color: #0b2a3b !important;
+        margin: 2px 0 !important;
+        padding: 2px 0 !important;
+        letter-spacing: 2px !important;
+    }
+    
+    .os-info-header {
+        display: flex !important;
+        justify-content: space-between !important;
+        font-size: 7pt !important;
+        padding: 2px 6px !important;
+        margin: 2px 0 !important;
+        background: #f5f5f5 !important;
+        border: 1px solid #ddd !important;
+        border-radius: 2px !important;
+    }
+    
+    .os-info-header span {
+        font-size: 7pt !important;
+    }
+    
+    /* Cliente */
+    .os-info-cliente {
+        border: 1px solid #ccc !important;
+        padding: 3px 6px !important;
+        margin: 3px 0 !important;
+        background: #fafafa !important;
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 1px 8px !important;
+        font-size: 7pt !important;
+    }
+    
+    .os-info-cliente .row {
+        display: flex !important;
+        font-size: 7pt !important;
+        padding: 1px 0 !important;
+        margin: 0 !important;
+    }
+    
+    .os-info-cliente .label {
+        font-weight: bold !important;
+        width: 65px !important;
+        flex-shrink: 0 !important;
+        color: #0b2a3b !important;
+        font-size: 7pt !important;
+    }
+    
+    .os-info-cliente .value {
+        flex: 1 !important;
+        color: #1a1a1a !important;
+        font-size: 7pt !important;
+    }
+    
+    /* Seções */
+    .os-section-title {
+        font-weight: bold !important;
+        font-size: 8pt !important;
+        padding: 2px 6px !important;
+        margin: 3px 0 2px 0 !important;
+        background: #eef4f8 !important;
+        color: #0b2a3b !important;
+        border-radius: 2px !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.5px !important;
+    }
+    
+    /* Checkboxes */
+    .os-checkbox-grid {
+        display: grid !important;
+        grid-template-columns: repeat(4, 1fr) !important;
+        gap: 1px 4px !important;
+        font-size: 6.5pt !important;
+        padding: 2px 0 !important;
+        margin: 0 !important;
+    }
+    
+    .os-checkbox-grid .os-check-item {
+        display: flex !important;
+        align-items: center !important;
+        gap: 2px !important;
+        padding: 1px 0 !important;
+        font-size: 6.5pt !important;
+    }
+    
+    .os-checkbox-grid .os-check-item input[type="checkbox"] {
+        width: 7px !important;
+        height: 7px !important;
+        margin: 0 2px 0 0 !important;
+        padding: 0 !important;
+        flex-shrink: 0 !important;
+    }
+    
+    .os-checkbox-grid .os-check-item label,
+    .os-checkbox-grid .os-check-item span {
+        font-size: 6.5pt !important;
+        cursor: default !important;
+    }
+    
+    /* Tabela de inseticidas */
+    .os-table-inseticidas {
+        width: 100% !important;
+        font-size: 6.5pt !important;
+        border-collapse: collapse !important;
+        margin: 2px 0 !important;
+    }
+    
+    .os-table-inseticidas th,
+    .os-table-inseticidas td {
+        padding: 1px 3px !important;
+        font-size: 6pt !important;
+        border: 1px solid #ccc !important;
+        text-align: center !important;
+    }
+    
+    .os-table-inseticidas th {
+        background: #0b2a3b !important;
+        color: white !important;
+        font-size: 5.5pt !important;
+        font-weight: bold !important;
+    }
+    
+    /* Área de comentários */
+    .os-comentarios {
+        margin: 2px 0 !important;
+    }
+    
+    .os-comentarios .os-area-label {
+        font-weight: bold !important;
+        font-size: 6.5pt !important;
+        color: #0b2a3b !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    .os-comentarios .os-area-box {
+        border: 1px solid #999 !important;
+        padding: 2px 4px !important;
+        font-size: 6.5pt !important;
+        min-height: 15px !important;
+        max-height: 40px !important;
+        overflow-y: auto !important;
+        background: white !important;
+        margin: 1px 0 !important;
+        border-radius: 2px !important;
+        word-wrap: break-word !important;
+        white-space: pre-wrap !important;
+    }
+    
+    /* Assinaturas */
+    .os-assinaturas {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 8px !important;
+        padding: 3px 6px !important;
+        margin: 3px 0 !important;
+        background: #f5f9fc !important;
+        border: 1px solid #e8eff5 !important;
+        border-radius: 3px !important;
+    }
+    
+    .os-assinaturas .os-sig-item {
+        text-align: center !important;
+    }
+    
+    .os-assinaturas .os-sig-item .os-sig-label {
+        font-size: 6pt !important;
+        font-weight: bold !important;
+        color: #0b2a3b !important;
+        margin-bottom: 2px !important;
+        display: block !important;
+    }
+    
+    .os-assinaturas .os-sig-item img {
+        max-height: 30px !important;
+        max-width: 100px !important;
+        border: 1px solid #ddd !important;
+        border-radius: 2px !important;
+        background: white !important;
+    }
+    
+    .os-assinaturas .os-sig-item .os-sig-placeholder {
+        font-size: 5.5pt !important;
+        color: #999 !important;
+    }
+    
+    /* Linha de assinatura física */
+    .os-linha-assinatura {
+        display: flex !important;
+        justify-content: space-around !important;
+        margin-top: 4px !important;
+        padding-top: 4px !important;
+        border-top: 2px solid #ccc !important;
+    }
+    
+    .os-linha-assinatura .os-campo-assinatura {
+        text-align: center !important;
+        flex: 1 !important;
+        padding: 0 6px !important;
+    }
+    
+    .os-linha-assinatura .os-campo-assinatura .os-linha {
+        border-bottom: 2px solid #000 !important;
+        width: 90% !important;
+        margin: 0 auto !important;
+        height: 20px !important;
+        min-height: 20px !important;
+    }
+    
+    .os-linha-assinatura .os-campo-assinatura .os-legenda {
+        font-size: 6pt !important;
+        color: #4d687a !important;
+        margin-top: 2px !important;
+        font-weight: bold !important;
+    }
+    
+    /* Garantia */
+    .os-garantia {
+        background: #f0f7fc !important;
+        padding: 3px 8px !important;
+        margin: 3px 0 !important;
+        border-left: 3px solid #0b2a3b !important;
+        font-size: 6.5pt !important;
+        line-height: 1.3 !important;
+        white-space: pre-line !important;
+        border-radius: 2px !important;
+    }
+    
+    .os-garantia strong {
+        font-size: 6.5pt !important;
+        color: #0b2a3b !important;
+    }
+    
+    /* Rodapé */
+    .os-footer {
+        text-align: center !important;
+        font-size: 5.5pt !important;
+        color: #666 !important;
+        border-top: 1px solid #e8eff5 !important;
+        padding: 3px 0 !important;
+        margin-top: 3px !important;
+    }
+    
+    /* =============================================
+       ===== CERTIFICADO - PADRÃO ÚNICO =====
+       ============================================= */
+    #page-certificados {
+        display: block !important;
+        padding: 2px !important;
+        font-size: 8pt !important;
+    }
+    
+    .cert-print-content {
+        font-size: 8pt !important;
+        padding: 4px !important;
+        max-width: 100% !important;
+        font-family: 'Arial', 'Helvetica', sans-serif !important;
+    }
+    
+    .cert-print-content .cert-header {
+        display: flex !important;
+        align-items: center !important;
+        gap: 10px !important;
+        border-bottom: 2px solid #0b2a3b !important;
+        padding: 2px 0 4px 0 !important;
+        margin: 0 0 4px 0 !important;
+    }
+    
+    .cert-print-content .cert-header .cert-logo {
+        flex-shrink: 0 !important;
+    }
+    
+    .cert-print-content .cert-header .cert-logo svg {
+        width: 35px !important;
+        height: 35px !important;
+    }
+    
+    .cert-print-content .cert-header .cert-info h1 {
+        font-size: 10pt !important;
+        font-weight: bold !important;
+        color: #0b2a3b !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    .cert-print-content .cert-header .cert-info p {
+        font-size: 5.5pt !important;
+        color: #4d687a !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    .cert-print-content .cert-titulo {
+        text-align: center !important;
+        font-size: 10pt !important;
+        font-weight: bold !important;
+        color: #0b2a3b !important;
+        margin: 3px 0 !important;
+        padding: 2px 0 !important;
+        letter-spacing: 2px !important;
+    }
+    
+    .cert-print-content .cert-corpo {
+        font-size: 7.5pt !important;
+        line-height: 1.3 !important;
+    }
+    
+    .cert-print-content .cert-corpo p {
+        margin: 3px 0 !important;
+        font-size: 7.5pt !important;
+    }
+    
+    /* Tabela de produtos do certificado */
+    .cert-print-content .cert-table {
+        width: 100% !important;
+        font-size: 6.5pt !important;
+        border-collapse: collapse !important;
+        margin: 3px 0 !important;
+    }
+    
+    .cert-print-content .cert-table th,
+    .cert-print-content .cert-table td {
+        padding: 1px 3px !important;
+        font-size: 6pt !important;
+        border: 1px solid #ccc !important;
+        text-align: center !important;
+    }
+    
+    .cert-print-content .cert-table th {
+        background: #0b2a3b !important;
+        color: white !important;
+        font-size: 5.5pt !important;
+        font-weight: bold !important;
+    }
+    
+    /* Observações do certificado */
+    .cert-print-content .cert-observacoes {
+        font-size: 6.5pt !important;
+        padding: 3px 6px !important;
+        margin: 3px 0 !important;
+        background: #f8fbfd !important;
+        border-left: 3px solid #0b2a3b !important;
+        white-space: pre-line !important;
+        border-radius: 2px !important;
+        max-height: 50px !important;
+        overflow-y: auto !important;
+    }
+    
+    .cert-print-content .cert-observacoes strong {
+        font-size: 6.5pt !important;
+    }
+    
+    /* Métodos */
+    .cert-print-content .cert-metodos {
+        font-size: 6.5pt !important;
+        padding: 3px 6px !important;
+        margin: 3px 0 !important;
+        background: #fafcfe !important;
+        border: 1px solid #e8eff5 !important;
+        border-radius: 2px !important;
+    }
+    
+    .cert-print-content .cert-metodos strong {
+        font-size: 6.5pt !important;
+    }
+    
+    /* Responsáveis */
+    .cert-print-content .cert-responsaveis {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 6px !important;
+        margin: 3px 0 !important;
+    }
+    
+    .cert-print-content .cert-responsaveis .cert-resp-item {
+        padding: 3px 6px !important;
+        background: #f8fbfd !important;
+        border-radius: 3px !important;
+        text-align: center !important;
+        font-size: 6.5pt !important;
+        border: 1px solid #e8eff5 !important;
+    }
+    
+    .cert-print-content .cert-responsaveis .cert-resp-item .cert-resp-nome {
+        font-weight: bold !important;
+        font-size: 7pt !important;
+        color: #0b2a3b !important;
+    }
+    
+    .cert-print-content .cert-responsaveis .cert-resp-item .cert-resp-cargo {
+        font-size: 5.5pt !important;
+        color: #4d687a !important;
+    }
+    
+    .cert-print-content .cert-responsaveis .cert-resp-item .cert-resp-registro {
+        font-size: 5.5pt !important;
+        color: #666 !important;
+    }
+    
+    /* Assinaturas do certificado */
+    .cert-print-content .cert-assinaturas {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 8px !important;
+        margin: 3px 0 !important;
+        padding: 3px 6px !important;
+        background: #f5f9fc !important;
+        border: 1px solid #e8eff5 !important;
+        border-radius: 3px !important;
+    }
+    
+    .cert-print-content .cert-assinaturas .cert-ass-item {
+        text-align: center !important;
+    }
+    
+    .cert-print-content .cert-assinaturas .cert-ass-item .cert-ass-label {
+        font-size: 5.5pt !important;
+        font-weight: bold !important;
+        color: #0b2a3b !important;
+        display: block !important;
+        margin-bottom: 2px !important;
+    }
+    
+    .cert-print-content .cert-assinaturas .cert-ass-item img {
+        max-height: 30px !important;
+        max-width: 80px !important;
+        border: 1px solid #ddd !important;
+        border-radius: 2px !important;
+        background: white !important;
+    }
+    
+    .cert-print-content .cert-assinaturas .cert-ass-item .cert-ass-placeholder {
+        font-size: 5pt !important;
+        color: #999 !important;
+    }
+    
+    /* Primeiros Socorros */
+    .cert-print-content .cert-primeiros-socorros {
+        font-size: 6pt !important;
+        padding: 2px 6px !important;
+        margin: 3px 0 !important;
+        background: #fde8e6 !important;
+        border-left: 3px solid #c0392b !important;
+        border-radius: 2px !important;
+    }
+    
+    .cert-print-content .cert-primeiros-socorros strong {
+        font-size: 6pt !important;
+        color: #b13e3a !important;
+    }
+    
+    /* Rodapé do certificado */
+    .cert-print-content .cert-footer {
+        font-size: 5.5pt !important;
+        text-align: center !important;
+        color: #666 !important;
+        border-top: 1px solid #e8eff5 !important;
+        padding: 3px 0 !important;
+        margin-top: 4px !important;
+    }
+    
+    /* =============================================
+       ===== RELATÓRIO - PADRÃO ÚNICO =====
+       ============================================= */
+    #page-relatorios {
+        display: block !important;
+        padding: 2px !important;
+        font-size: 8pt !important;
+    }
+    
+    .rel-print-content {
+        font-size: 8pt !important;
+        padding: 4px !important;
+        max-width: 100% !important;
+        font-family: 'Arial', 'Helvetica', sans-serif !important;
+    }
+    
+    .rel-print-content .rel-header {
+        text-align: center !important;
+        border-bottom: 3px solid #0b2a3b !important;
+        padding: 2px 0 4px 0 !important;
+        margin: 0 0 4px 0 !important;
+    }
+    
+    .rel-print-content .rel-header .rel-logo {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 10px !important;
+    }
+    
+    .rel-print-content .rel-header .rel-logo img {
+        max-height: 35px !important;
+        max-width: 100px !important;
+        object-fit: contain !important;
+    }
+    
+    .rel-print-content .rel-header h1 {
+        font-size: 11pt !important;
+        font-weight: bold !important;
+        color: #0b2a3b !important;
+        margin: 0 !important;
+    }
+    
+    .rel-print-content .rel-header .rel-sub {
+        font-size: 6.5pt !important;
+        color: #4d687a !important;
+    }
+    
+    .rel-print-content .rel-header .rel-detalhes {
+        font-size: 5.5pt !important;
+        color: #666 !important;
+        margin-top: 2px !important;
+    }
+    
+    .rel-print-content .rel-titulo {
+        text-align: center !important;
+        font-size: 10pt !important;
+        font-weight: bold !important;
+        color: #0b2a3b !important;
+        margin: 3px 0 !important;
+        padding: 2px 0 !important;
+    }
+    
+    .rel-print-content .rel-subtitulo {
+        text-align: center !important;
+        font-size: 7pt !important;
+        color: #4d687a !important;
+        margin: 0 0 3px 0 !important;
+    }
+    
+    .rel-print-content .rel-info-grid {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr 1fr !important;
+        gap: 2px 6px !important;
+        padding: 4px 8px !important;
+        margin: 3px 0 !important;
+        background: #f5f9fc !important;
+        border: 1px solid #e8eff5 !important;
+        border-radius: 3px !important;
+    }
+    
+    .rel-print-content .rel-info-grid .rel-info-item .rel-info-label {
+        font-size: 5.5pt !important;
+        color: #6a7f8d !important;
+        text-transform: uppercase !important;
+        font-weight: bold !important;
+        display: block !important;
+    }
+    
+    .rel-print-content .rel-info-grid .rel-info-item .rel-info-value {
+        font-size: 7pt !important;
+        font-weight: 600 !important;
+        color: #0b2a3b !important;
+    }
+    
+    .rel-print-content .rel-info-grid .rel-info-item .rel-info-badge {
+        font-size: 5.5pt !important;
+        padding: 1px 6px !important;
+        border-radius: 10px !important;
+        font-weight: 600 !important;
+        display: inline-block !important;
+    }
+    
+    .rel-print-content .rel-info-grid .rel-info-item .rel-info-badge.success {
+        background: #d1f0e5 !important;
+        color: #006b4f !important;
+    }
+    
+    .rel-print-content .rel-info-grid .rel-info-item .rel-info-badge.warning {
+        background: #fff2d0 !important;
+        color: #8e6100 !important;
+    }
+    
+    .rel-print-content .rel-info-grid .rel-info-item .rel-info-badge.danger {
+        background: #fde2e0 !important;
+        color: #b13e3a !important;
+    }
+    
+    /* Campos do relatório */
+    .rel-print-content .rel-campos {
+        margin: 3px 0 !important;
+    }
+    
+    .rel-print-content .rel-campos .rel-campos-title {
+        font-weight: bold !important;
+        font-size: 8pt !important;
+        color: #0b2a3b !important;
+        margin: 2px 0 !important;
+    }
+    
+    .rel-print-content .rel-campos table {
+        width: 100% !important;
+        font-size: 6.5pt !important;
+        border-collapse: collapse !important;
+        margin: 2px 0 !important;
+    }
+    
+    .rel-print-content .rel-campos table th,
+    .rel-print-content .rel-campos table td {
+        padding: 2px 6px !important;
+        font-size: 6.5pt !important;
+        border-bottom: 1px solid #e8eff5 !important;
+        text-align: left !important;
+    }
+    
+    .rel-print-content .rel-campos table th {
+        background: #0b2a3b !important;
+        color: white !important;
+        font-size: 6pt !important;
+        font-weight: bold !important;
+        border-bottom: none !important;
+    }
+    
+    /* Imagens do relatório */
+    .rel-print-content .rel-imagens {
+        margin: 3px 0 !important;
+        display: grid !important;
+        grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)) !important;
+        gap: 4px !important;
+    }
+    
+    .rel-print-content .rel-imagens .rel-img-item {
+        border: 1px solid #e8eff5 !important;
+        border-radius: 3px !important;
+        overflow: hidden !important;
+        background: #f8fbfd !important;
+    }
+    
+    .rel-print-content .rel-imagens .rel-img-item img {
+        width: 100% !important;
+        height: 60px !important;
+        object-fit: cover !important;
+    }
+    
+    .rel-print-content .rel-imagens .rel-img-item .rel-img-legenda {
+        font-size: 5pt !important;
+        padding: 1px 4px !important;
+        text-align: center !important;
+        color: #666 !important;
+        background: white !important;
+    }
+    
+    /* Observações do relatório */
+    .rel-print-content .rel-observacoes {
+        font-size: 6.5pt !important;
+        padding: 3px 8px !important;
+        margin: 3px 0 !important;
+        background: #f8fbfd !important;
+        border-left: 3px solid #0b2a3b !important;
+        border-radius: 2px !important;
+    }
+    
+    .rel-print-content .rel-observacoes strong {
+        font-size: 6.5pt !important;
+    }
+    
+    /* Rodapé do relatório */
+    .rel-print-content .rel-footer {
+        font-size: 5.5pt !important;
+        text-align: center !important;
+        color: #666 !important;
+        border-top: 1px solid #e8eff5 !important;
+        padding: 3px 0 !important;
+        margin-top: 4px !important;
+    }
+    
+    /* =============================================
+       ===== AJUSTES GERAIS =====
+       ============================================= */
+    
+    /* Força uma página */
+    .page-wrapper, 
+    .print-wrapper,
+    .os-print-wrapper,
+    .cert-print-wrapper,
+    .rel-print-wrapper {
+        max-height: 100vh !important;
+        overflow: hidden !important;
+        page-break-after: avoid !important;
+        page-break-inside: avoid !important;
+    }
+    
+    /* Cabeçalhos de página */
+    .page h1 {
+        font-size: 10pt !important;
+        margin: 2px 0 4px 0 !important;
+        padding: 0 !important;
+        font-weight: bold !important;
+        color: #0b2a3b !important;
+    }
+    
+    .page h1 i {
+        font-size: 9pt !important;
+        margin-right: 4px !important;
+    }
+    
+    /* Badges */
+    .badge,
+    .status-badge,
+    .cert-status-badge {
+        font-size: 5.5pt !important;
+        padding: 1px 6px !important;
+        border-radius: 8px !important;
+        font-weight: 600 !important;
+        display: inline-block !important;
+    }
+    
+    /* Tabelas genéricas */
+    .table-wrapper {
+        border: none !important;
+        box-shadow: none !important;
+        overflow: visible !important;
+    }
+    
+    table {
+        width: 100% !important;
+        font-size: 7pt !important;
+        border-collapse: collapse !important;
+    }
+    
+    table th,
+    table td {
+        padding: 2px 4px !important;
+        font-size: 6.5pt !important;
+        border: 1px solid #ccc !important;
+    }
+    
+    table th {
+        background: #0b2a3b !important;
+        color: white !important;
+        font-size: 6pt !important;
+        font-weight: bold !important;
+    }
+    
+    /* =============================================
+       ===== CORREÇÃO PARA TELAS PEQUENAS =====
+       ============================================= */
+    @media print and (max-width: 210mm) {
+        body {
+            padding: 3px !important;
+        }
+        
+        .os-info-cliente {
+            grid-template-columns: 1fr !important;
+            gap: 1px !important;
+        }
+        
+        .os-info-cliente .row {
+            flex-wrap: wrap !important;
+        }
+        
+        .os-checkbox-grid {
+            grid-template-columns: repeat(3, 1fr) !important;
+        }
+        
+        .cert-print-content .cert-responsaveis,
+        .cert-print-content .cert-assinaturas {
+            grid-template-columns: 1fr !important;
+            gap: 4px !important;
+        }
+        
+        .rel-print-content .rel-info-grid {
+            grid-template-columns: 1fr 1fr !important;
+        }
+        
+        .rel-print-content .rel-imagens {
+            grid-template-columns: repeat(3, 1fr) !important;
+        }
+        
+        table {
+            font-size: 6pt !important;
+        }
+        
+        table th,
+        table td {
+            font-size: 5.5pt !important;
+            padding: 1px 3px !important;
+        }
+    }
+    
+    @media print and (max-width: 150mm) {
+        .os-checkbox-grid {
+            grid-template-columns: repeat(2, 1fr) !important;
+        }
+        
+        .rel-print-content .rel-info-grid {
+            grid-template-columns: 1fr !important;
+        }
+        
+        .os-assinaturas {
+            grid-template-columns: 1fr !important;
+            gap: 4px !important;
+        }
+        
+        .os-linha-assinatura {
+            flex-direction: column !important;
+            gap: 6px !important;
+        }
+    }
+}
+
+/* =============================================
+   ===== PRÉ-VISUALIZAÇÃO DE IMPRESSÃO =====
+   ============================================= */
+
+.print-preview {
+    font-family: 'Arial', 'Helvetica', sans-serif !important;
+    font-size: 9pt !important;
+    line-height: 1.3 !important;
+    background: white !important;
+    padding: 8px !important;
+    max-width: 210mm !important;
+    margin: 0 auto !important;
+}
+
+.print-preview * {
+    font-family: 'Arial', 'Helvetica', sans-serif !important;
+}
