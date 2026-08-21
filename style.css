@@ -3895,3 +3895,209 @@ td i:hover { background: #e8eff5; }
 .print-preview * {
     font-family: 'Arial', 'Helvetica', sans-serif !important;
 }
+
+/* =============================================
+   ===== MULTI-SELEÇÃO DE SERVIÇOS =====
+   ============================================= */
+
+/* Estilos para os tipos de serviço com multi-seleção */
+.servico-tipos {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-top: 4px;
+}
+
+.servico-tipos .tipo-option {
+    padding: 12px 10px;
+    border: 2px solid #e8eff5;
+    border-radius: 12px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    background: #fafcfe;
+    font-weight: 500;
+    font-size: 0.85rem;
+    color: #4d687a;
+    position: relative;
+}
+
+.servico-tipos .tipo-option:hover {
+    border-color: #b0c8d8;
+    background: #f0f7fc;
+    transform: translateY(-2px);
+}
+
+.servico-tipos .tipo-option.selected {
+    border-color: #1d7a6b;
+    background: #e6f3f0;
+    color: #006b4f;
+    box-shadow: 0 4px 12px rgba(29, 122, 107, 0.15);
+}
+
+.servico-tipos .tipo-option .icon {
+    display: block;
+    font-size: 1.6rem;
+    margin-bottom: 4px;
+}
+
+.servico-tipos .tipo-option .check-mark {
+    display: none;
+    position: absolute;
+    top: 4px;
+    right: 8px;
+    font-size: 0.8rem;
+    color: #1d7a6b;
+    font-weight: 700;
+}
+
+.servico-tipos .tipo-option.selected .check-mark {
+    display: block;
+}
+
+/* Responsivo para a multi-seleção */
+@media (max-width: 640px) {
+    .servico-tipos {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+@media (max-width: 480px) {
+    .servico-tipos {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* =============================================
+   ===== CERTIFICADOS COMBINADOS E MÚLTIPLOS =====
+   ============================================= */
+
+/* Badges para certificados */
+.combinado-badge {
+    background: #8e44ad;
+    color: white;
+    font-size: 0.6rem;
+    padding: 1px 10px;
+    border-radius: 12px;
+    margin-left: 6px;
+    font-weight: 600;
+    display: inline-block;
+}
+
+.multi-badge {
+    background: #e67e22;
+    color: white;
+    font-size: 0.6rem;
+    padding: 1px 10px;
+    border-radius: 12px;
+    margin-left: 6px;
+    font-weight: 600;
+    display: inline-block;
+}
+
+/* Seção de múltiplos certificados no modal */
+#certMultiTiposInfo {
+    background: #f0f7fc;
+    padding: 12px 16px;
+    border-radius: 8px;
+    margin: 12px 0;
+    border-left: 4px solid #8e44ad;
+    animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+#certMultiTiposInfo .btn-sm {
+    padding: 6px 16px;
+    font-size: 0.8rem;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: 0.2s;
+    border: none;
+}
+
+#certMultiTiposInfo .btn-sm:hover {
+    transform: scale(1.02);
+    opacity: 0.9;
+}
+
+#certMultiTiposInfo .btn-sm:active {
+    transform: scale(0.98);
+}
+
+#certTiposLista {
+    font-weight: 500;
+    color: #0b2a3b;
+    background: white;
+    padding: 4px 12px;
+    border-radius: 4px;
+    display: inline-block;
+    margin-top: 4px;
+}
+
+/* Certificado combinado - destaque visual */
+.certificado-card .cert-info .cert-titulo .combinado-badge {
+    background: #8e44ad;
+    color: white;
+}
+
+.certificado-card .cert-info .cert-titulo .multi-badge {
+    background: #e67e22;
+    color: white;
+}
+
+/* Estilo para certificados combinados na lista */
+.certificado-card[data-combinado="true"] {
+    border-left: 4px solid #8e44ad;
+}
+
+.certificado-card[data-multi="true"] {
+    border-left: 4px solid #e67e22;
+}
+
+/* Responsivo para os botões de múltiplos certificados */
+@media (max-width: 640px) {
+    #certMultiTiposInfo .btn-sm {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    #certMultiTiposInfo {
+        padding: 10px 12px;
+    }
+    
+    #certMultiTiposInfo .btn-sm {
+        font-size: 0.75rem;
+        padding: 8px 12px;
+    }
+}
+
+/* 🔥 OCULTA O BOTÃO "GERENCIAR ASSINATURAS" NA IMPRESSÃO */
+@media print {
+    .btn-gerenciar-assinaturas {
+        display: none !important;
+    }
+}
+
+/* 🔥 TAMBÉM OCULTA QUALQUER BOTÃO QUE NÃO SEJA NECESSÁRIO NA IMPRESSÃO */
+@media print {
+    .no-print {
+        display: none !important;
+    }
+    button:not(.no-print button) {
+        display: none !important;
+    }
+    /* Mantém apenas os botões de assinatura visíveis na impressão? NÃO, todos os botões são ocultos */
+    .assinatura-area {
+        cursor: default !important;
+    }
+}

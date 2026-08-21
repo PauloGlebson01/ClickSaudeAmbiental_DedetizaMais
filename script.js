@@ -1,41 +1,3 @@
-// script.js - Sistema completo com sincronização em tempo real
-// CORRIGIDO - Mapa de Iscas com atualização automática sem recarregar página
-// CORRIGIDO - Seleção de responsáveis no certificado funcionando corretamente
-// CORRIGIDO - Certificado: seleção de responsáveis persistindo corretamente para todos os tipos
-// CORRIGIDO - Eliminação de duplicação de dados e controle de sessão
-// CORRIGIDO - Atualização imediata da lista de clientes
-// CORRIGIDO - Renderização imediata da equipe
-// CORRIGIDO - Cadastro de clientes com Razão Social e Nome Fantasia para CNPJ
-// ADICIONADO - Módulo de Certificados Técnicos com responsáveis selecionáveis e assinaturas
-// CORRIGIDO - Estoque com atualização automática após cadastro
-// CORRIGIDO - Certificado: responsáveis movidos para local das assinaturas
-// CORRIGIDO - Certificado: campo de observação com scroll e quebra de texto
-// CORRIGIDO - Certificado: filtro de técnicos mais abrangente
-// CORRIGIDO - Certificado: exibição correta do responsável selecionado
-// CORRIGIDO - Certificado: sincronização automática com Firestore
-// CORRIGIDO - Certificado: renderização imediata após criação
-// CORRIGIDO - Nome do admin sendo exibido corretamente
-// CORRIGIDO - Mapa de Iscas: atualização automática após criar/editar/excluir
-// CORRIGIDO - Certificado: seleção de responsáveis persistindo corretamente (FIX FINAL)
-// CORRIGIDO - Duplicação de serviços na agenda (verificação de existência)
-// CORRIGIDO - Atualização automática de relatórios sem recarregar página
-// ADICIONADO - Página de Administração com gerenciamento de plano e limites
-// ADICIONADO - Sistema de planos com limite de administradores
-// ADICIONADO - Indicadores visuais de uso do plano no topbar
-// CORRIGIDO - Campo "Texto da Garantia do Serviço" movido para dentro da OS (editável por OS)
-// ADICIONADO - Sistema de assinaturas salvas para técnicos e operacionais
-// ADICIONADO - Gerenciador de assinaturas com upload de imagens
-// ADICIONADO - Aplicação automática de assinaturas salvas em certificados
-// CORRIGIDO - Duplicação do botão "Gerenciar Assinaturas" removida
-// CORRIGIDO - Mapa de Iscas: campo "nome" alterado para "numero", "posicao" para "localizacao"
-// CORRIGIDO - Mapa de Iscas: campo "endereco" removido
-// CORRIGIDO - Mapa de Iscas: status alterados para ok, consumo, danificado, substituido
-// CORRIGIDO - Estoque: TODOS os produtos (qualquer categoria) aparecem na OS
-// CORRIGIDO - Mapa de Iscas: campo "Última Manutenção" removido e substituído por checkboxes
-// CORRIGIDO - Tamanhos de fonte para impressão ajustados para melhor visualização
-// CORRIGIDO - Removido "Documento gerado em..." dos arquivos impressos
-// CORRIGIDO - Impressão otimizada para uma única página com fontes padronizadas
-
 // =============================================
 // ===== PREVENÇÃO DE ERROS DE REFERÊNCIA =====
 // =============================================
@@ -88,7 +50,6 @@
     window.doc_1785075141708_f5ks = function () { return; };
     window.doc_1785075132377_vs6h = function () { return; };
 
-    console.log('🛡️ Sistema de proteção doc_* ativado');
 })();
 
 (function () {
@@ -103,7 +64,6 @@
                 const empresaAtual = EmpresaManager.getEmpresaAtual();
 
                 if (data.empresa && data.empresa !== empresaAtual) {
-                    console.log(`🧹 Limpando caches da sessão antiga (${data.empresa}) para a nova (${empresaAtual})`);
                     if (typeof FirestoreService !== 'undefined') {
                         FirestoreService.pararObservadores();
                     }
@@ -127,7 +87,6 @@
     // ===== VERIFICA SE O USUÁRIO ESTÁ LOGADO =====
     function verificarAutenticacao() {
         if (window._authVerifying) {
-            console.log('⏳ Verificação de autenticação em andamento...');
             return false;
         }
         window._authVerifying = true;
@@ -280,12 +239,11 @@
 
     verificarEmpresa();
 
-    // ===== CARREGA DADOS DO USUÁRIO (CORRIGIDO) =====
+    // ===== CARREGA DADOS DO USUÁRIO =====
     async function carregarDadosUsuario() {
         try {
             let nomeExibido = 'Admin';
 
-            // 🔥 CORREÇÃO: Tenta buscar do Firebase primeiro
             if (firebase && firebase.auth) {
                 try {
                     const user = firebase.auth().currentUser;
@@ -301,7 +259,6 @@
                 }
             }
 
-            // Se ainda não temos nome, tenta do AuthService
             if (nomeExibido === 'Admin' || nomeExibido.includes('@')) {
                 try {
                     if (typeof AuthService !== 'undefined') {
@@ -318,7 +275,6 @@
                 }
             }
 
-            // Se ainda não temos nome, tenta do session
             if (nomeExibido === 'Admin' || nomeExibido.includes('@')) {
                 try {
                     const session = localStorage.getItem('dedetiza_session');
@@ -334,7 +290,6 @@
                 }
             }
 
-            // Último recurso: tenta do session atual
             if (nomeExibido === 'Admin' || nomeExibido.includes('@')) {
                 try {
                     const atual = localStorage.getItem('dedetiza_session_atual');
@@ -350,7 +305,6 @@
                 }
             }
 
-            // Se ainda está 'Admin' ou contém '@', usa fallback
             if (nomeExibido === 'Admin' || nomeExibido.includes('@')) {
                 try {
                     const users = JSON.parse(localStorage.getItem('dedetiza_users') || '[]');
@@ -528,18 +482,15 @@
                 delete this._cache[collection];
                 delete this._cacheTime[collection];
             }
-            console.log('🧹 Cache limpo para: ' + collection);
         },
 
         _clearAllCaches: function () {
             this._cache = {};
             this._cacheTime = {};
-            console.log('🧹 Todos os caches foram limpos');
         },
 
         forceClearCache: function (collection) {
             this._clearCache(collection);
-            console.log('🧹 Cache forçado limpo para: ' + collection);
         },
 
         getFullKey: function (collection) {
@@ -761,7 +712,6 @@
                 localStorage.setItem(key, JSON.stringify(mergedData));
                 this._clearCache(collection);
 
-                console.log('✅ Sincronizado ' + collection + ': ' + mergedData.length + ' itens');
                 window._firestoreSyncing = false;
                 return mergedData;
             } catch (e) {
@@ -788,11 +738,9 @@
         },
 
         forcarSincronizacao: function () {
-            console.log('🔄 Forçando sincronização com Firestore...');
             if (typeof FirestoreService !== 'undefined') {
                 var empresaId = EmpresaManager.getEmpresaAtual();
                 return FirestoreService.sincronizarDadosEmpresa(empresaId).then(function (total) {
-                    console.log('✅ Sincronização concluída: ' + total + ' itens');
                     DB._clearAllCaches();
                     renderAll();
                     return total;
@@ -862,7 +810,6 @@
                 localStorage.setItem(this.getFullKey('configuracoes'), JSON.stringify(CONFIG_PADRAO));
                 localStorage.setItem(this.getFullKey('modelos'), JSON.stringify(DADOS_PADRAO.modelos));
 
-                console.log('✅ Sistema inicializado com dados limpos para esta empresa!');
             }
 
             if (typeof FirestoreService !== 'undefined') {
@@ -899,7 +846,6 @@
         if (!detail) return;
 
         if (detail.collection === 'relatorios') {
-            console.log('🔄 Relatório atualizado automaticamente:', detail.action);
             DB.forceClearCache('relatorios');
             const relatorioPage = document.getElementById('page-relatorios');
             if (relatorioPage && relatorioPage.classList.contains('active')) {
@@ -917,7 +863,6 @@
         }
 
         if (detail.collection === 'servicos') {
-            console.log('🔄 Serviço atualizado, atualizando agenda...');
             const agendaPage = document.getElementById('page-agenda');
             if (agendaPage && agendaPage.classList.contains('active')) {
                 renderAgenda();
@@ -926,7 +871,6 @@
     });
 
     document.addEventListener('relatorioAtualizado', function (e) {
-        console.log('🔄 Relatório atualizado via evento:', e.detail);
         DB.forceClearCache('relatorios');
         var relatorioPage = document.getElementById('page-relatorios');
         if (relatorioPage && relatorioPage.classList.contains('active')) {
@@ -944,7 +888,6 @@
     });
 
     document.addEventListener('estoqueAtualizado', function (e) {
-        console.log('🔄 Estoque atualizado automaticamente:', e.detail);
         if (e.detail.action === 'add') {
             var produtos = DB.getAll('estoque', true);
             renderizarTabelaEstoque(produtos);
@@ -954,7 +897,6 @@
     });
 
     document.addEventListener('movimentacaoAtualizada', function (e) {
-        console.log('🔄 Movimentação registrada automaticamente:', e.detail);
         var movTab = document.getElementById('tab-movimentacoes');
         if (movTab && movTab.classList.contains('active')) {
             renderMovimentacoes();
@@ -963,7 +905,6 @@
     });
 
     document.addEventListener('certificadoAtualizado', function (e) {
-        console.log('🔄 Certificado atualizado automaticamente:', e.detail);
         if (e.detail.action === 'add') {
             renderCertificados();
             preencherFiltroCertificados();
@@ -975,7 +916,6 @@
                 setTimeout(function () {
                     const card = document.getElementById('certificado-card-' + item.id);
                     if (card) {
-                        console.log('✅ Card do certificado encontrado via listener');
                         card.scrollIntoView({ behavior: 'smooth', block: 'center' });
                         card.style.transition = 'all 0.5s ease';
                         card.style.boxShadow = '0 0 0 3px #1d7a6b, 0 8px 30px rgba(29,122,107,0.3)';
@@ -989,7 +929,6 @@
     });
 
     document.addEventListener('pontoIscaAtualizado', function (e) {
-        console.log('🔄 Ponto de isca atualizado automaticamente:', e.detail);
         DB.forceClearCache('pontosIscas');
         renderMapaComFiltros();
         preencherFiltrosClientesMapa();
@@ -1041,13 +980,18 @@
                 }
             };
 
-            const observacoesPadrao = this._gerarObservacoesPorTipo(tipo, produtos);
+            // ✅ CAMPO DE OBSERVAÇÕES VAZIO - profissional deve preencher
+            const observacoesPadrao = '';
+            
+            const tiposServico = servico.tipos || [servico.tipo];
 
             const certificado = {
                 id: 'cert_' + Date.now(),
                 servicoId: servico.id,
                 clienteId: cliente.id,
                 tipo: tipo,
+                tiposServico: tiposServico,
+                descricaoCompleta: tiposServico.join(' + '),
                 dataEmissao: new Date().toISOString(),
                 dataServico: servico.data,
                 dataValidade: this._calcularDataValidade(servico.data, tipo),
@@ -1065,7 +1009,7 @@
                 responsaveis: responsaveis,
                 produtos: produtos,
                 metodos: metodos,
-                observacoes: observacoesPadrao,
+                observacoes: '', // ✅ CAMPO VAZIO - profissional preenche depois
                 telefoneEmergencia: '0800 148110',
                 status: 'ativo',
                 assinaturaTecnico: null,
@@ -1078,8 +1022,214 @@
             if (typeof FirestoreService !== 'undefined') {
                 try {
                     FirestoreService.sincronizarColecao('certificados').then(() => {
-                        console.log('✅ Certificado sincronizado com o Firestore:', certificadoSalvo.id);
                     }).catch(err => {
+                        console.warn('⚠️ Erro ao sincronizar certificado:', err);
+                    });
+                } catch (e) {
+                    console.warn('⚠️ Erro ao sincronizar certificado:', e);
+                }
+            }
+
+            setTimeout(function () {
+                document.dispatchEvent(new CustomEvent('certificadoAtualizado', {
+                    detail: { certificado: certificadoSalvo, action: 'add', item: certificadoSalvo }
+                }));
+            }, 100);
+
+            return certificadoSalvo;
+        },
+
+        gerarCertificadoCombinado: function (servicoId, tipoPrincipal, todosTipos) {
+            const servico = DB.getById('servicos', servicoId);
+            if (!servico) {
+                throw new Error('Serviço não encontrado!');
+            }
+
+            const cliente = getCliente(servico.clienteId);
+            if (!cliente) {
+                throw new Error('Cliente não encontrado!');
+            }
+
+            const config = DB.getConfig();
+            const produtos = this._buscarProdutosUtilizados(servico);
+            const metodos = this._buscarMetodosEmpregados(servico);
+
+            const empresaPrestadora = {
+                nome: config.empresa.nome || 'S. AUGUSTA DA SILVA (Click Saúde Ambiental)',
+                cnpj: config.empresa.cnpj || '48.922.299/0001-68',
+                alvaraSanitario: '3142.6700/2025',
+                licencaAmbiental: '110/2024',
+                endereco: config.empresa.endereco || 'rua Dona Rosa da Fonseca, 154, Prado, Maceió/AL'
+            };
+
+            const responsaveis = {
+                tecnico: {
+                    id: null,
+                    nome: 'Selecione...',
+                    registro: '',
+                    atuacao: ''
+                },
+                operacional: {
+                    id: null,
+                    nome: 'Selecione...',
+                    registro: '',
+                    atuacao: ''
+                }
+            };
+
+            // ✅ CAMPO DE OBSERVAÇÕES VAZIO - profissional deve preencher
+            const observacoesCombinadas = '';
+
+            const tiposStr = todosTipos.join(' + ');
+
+            const certificado = {
+                id: 'cert_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+                servicoId: servico.id,
+                clienteId: cliente.id,
+                tipo: tipoPrincipal,
+                tiposServico: todosTipos,
+                descricaoCompleta: tiposStr,
+                isCombinado: true,
+                dataEmissao: new Date().toISOString(),
+                dataServico: servico.data,
+                dataValidade: this._calcularDataValidade(servico.data, tipoPrincipal),
+
+                cliente: {
+                    nome: cliente.tipoCliente === 'cnpj' ? (cliente.nomeFantasia || cliente.razaoSocial || cliente.nome) : cliente.nome,
+                    razaoSocial: cliente.razaoSocial || '',
+                    cnpjCpf: cliente.documento || 'N/A',
+                    endereco: cliente.endereco || 'N/A',
+                    telefone: cliente.telefone || 'N/A',
+                    tipo: cliente.tipoCliente || 'cpf'
+                },
+
+                prestadora: empresaPrestadora,
+                responsaveis: responsaveis,
+                produtos: produtos,
+                metodos: metodos,
+                observacoes: '', // ✅ CAMPO VAZIO - profissional preenche depois
+                telefoneEmergencia: '0800 148110',
+                status: 'ativo',
+                assinaturaTecnico: null,
+                assinaturaOperacional: null,
+                criadoEm: new Date().toISOString()
+            };
+
+            const certificadoSalvo = DB.add('certificados', certificado);
+
+            if (typeof FirestoreService !== 'undefined') {
+                try {
+                    FirestoreService.sincronizarColecao('certificados').then(() => {
+                    }).catch(err => {
+                        console.warn('⚠️ Erro ao sincronizar certificado:', err);
+                    });
+                } catch (e) {
+                    console.warn('⚠️ Erro ao sincronizar certificado:', e);
+                }
+            }
+
+            setTimeout(function () {
+                document.dispatchEvent(new CustomEvent('certificadoAtualizado', {
+                    detail: { certificado: certificadoSalvo, action: 'add', item: certificadoSalvo }
+                }));
+            }, 100);
+
+            return certificadoSalvo;
+        },
+
+        gerarCertificadoComProdutos: function (servicoId, tipo, produtosSelecionados) {
+            var servico = DB.getById('servicos', servicoId);
+            if (!servico) {
+                throw new Error('Serviço não encontrado!');
+            }
+
+            var cliente = getCliente(servico.clienteId);
+            if (!cliente) {
+                throw new Error('Cliente não encontrado!');
+            }
+
+            var config = DB.getConfig();
+            var metodos = this._buscarMetodosEmpregados(servico);
+
+            var empresaPrestadora = {
+                nome: config.empresa.nome || 'S. AUGUSTA DA SILVA (Click Saúde Ambiental)',
+                cnpj: config.empresa.cnpj || '48.922.299/0001-68',
+                alvaraSanitario: '3142.6700/2025',
+                licencaAmbiental: '110/2024',
+                endereco: config.empresa.endereco || 'rua Dona Rosa da Fonseca, 154, Prado, Maceió/AL'
+            };
+
+            var responsaveis = {
+                tecnico: {
+                    id: null,
+                    nome: 'Selecione...',
+                    registro: '',
+                    atuacao: ''
+                },
+                operacional: {
+                    id: null,
+                    nome: 'Selecione...',
+                    registro: '',
+                    atuacao: ''
+                }
+            };
+
+            // ✅ CAMPO DE OBSERVAÇÕES VAZIO - profissional deve preencher
+            var observacoesPadrao = '';
+            
+            var tiposServico = servico.tipos || [servico.tipo];
+
+            var produtosFormatados = [];
+            for (var i = 0; i < produtosSelecionados.length; i++) {
+                var p = produtosSelecionados[i];
+                produtosFormatados.push({
+                    nome: p.nome || '',
+                    registroMs: p.registroMs || p.registro || '',
+                    grupoQuimico: p.grupoQuimico || p.gQuimico || '',
+                    principioAtivo: p.principioAtivo || p.pAtivo || '',
+                    concentracao: p.concentracao || p.porcentagem || '',
+                    tratamento: p.tratamento || 'Sintomático',
+                    quantidade: p.quantidade || 1,
+                    unidade: p.unidade || ''
+                });
+            }
+
+            var certificado = {
+                id: 'cert_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+                servicoId: servico.id,
+                clienteId: cliente.id,
+                tipo: tipo,
+                tiposServico: tiposServico,
+                descricaoCompleta: tiposServico.join(' + '),
+                dataEmissao: new Date().toISOString(),
+                dataServico: servico.data,
+                dataValidade: this._calcularDataValidade(servico.data, tipo),
+                cliente: {
+                    nome: cliente.tipoCliente === 'cnpj' ? (cliente.nomeFantasia || cliente.razaoSocial || cliente.nome) : cliente.nome,
+                    razaoSocial: cliente.razaoSocial || '',
+                    cnpjCpf: cliente.documento || 'N/A',
+                    endereco: cliente.endereco || 'N/A',
+                    telefone: cliente.telefone || 'N/A',
+                    tipo: cliente.tipoCliente || 'cpf'
+                },
+                prestadora: empresaPrestadora,
+                responsaveis: responsaveis,
+                produtos: produtosFormatados,
+                metodos: metodos,
+                observacoes: '', // ✅ CAMPO VAZIO - profissional preenche depois
+                telefoneEmergencia: '0800 148110',
+                status: 'ativo',
+                assinaturaTecnico: null,
+                assinaturaOperacional: null,
+                criadoEm: new Date().toISOString()
+            };
+
+            var certificadoSalvo = DB.add('certificados', certificado);
+
+            if (typeof FirestoreService !== 'undefined') {
+                try {
+                    FirestoreService.sincronizarColecao('certificados').then(function() {
+                    }).catch(function(err) {
                         console.warn('⚠️ Erro ao sincronizar certificado:', err);
                     });
                 } catch (e) {
@@ -1184,13 +1334,10 @@
             };
         },
 
+        // ✅ FUNÇÃO CORRIGIDA - CAMPO DE OBSERVAÇÕES VAZIO
         _gerarObservacoesPorTipo: function (tipo, produtos) {
-            const observacoes = {
-                'Desinsetização': 'Bifentol -- Interdição: Necessário por no mínimo 06 horas -- Ação Tóxica: Hipersensibilidade, Distúrbios Sensoriais, Cutâneos e Neurite Periférica -- Antídoto: Anti-histamínico e Sintomático.\nBaramid -- Interdição: Não é necessário -- Ação Tóxica: Toxicante Metabólico, Inibidor da Respiração Celular -- Antidoto: Tratamento Sintomático.\nFormifim -- Interdição: Não é necessário -- Ação Tóxica: Agonista da Acetilcolina, Hipersensibilidade, Distúrbios Sensoriais, Cutâneos e Neurite Periférica -- Antidoto: Anti-histamínico e Sintomático.',
-                'Desratização': 'Raticida Blocos -- Interdição: Necessário por no mínimo 04 horas -- Ação Tóxica: Anticoagulante, Distúrbios de Coagulação -- Antídoto: Vitamina K1 e Tratamento Sintomático.\nRaticida Pó -- Interdição: Não é necessário -- Ação Tóxica: Anticoagulante, Distúrbios de Coagulação -- Antídoto: Vitamina K1 e Tratamento Sintomático.',
-                'Descupinização': 'Cupinicida Líquido -- Interdição: Necessário por no mínimo 08 horas -- Ação Tóxica: Neurotóxica, Distúrbios Sensoriais e Cutâneos -- Antídoto: Tratamento Sintomático.\nCupinicida Solvente -- Interdição: Necessário por no mínimo 08 horas -- Ação Tóxica: Neurotóxica, Distúrbios Sensoriais e Cutâneos -- Antídoto: Tratamento Sintomático.'
-            };
-            return observacoes[tipo] || '';
+            // Campo vazio para o profissional preencher manualmente
+            return '';
         },
 
         _calcularDataValidade: function (dataServico, tipo) {
@@ -1294,6 +1441,17 @@
                 `${operacionalSelecionado.nome} - ${operacionalSelecionado.registro || 'Sem registro'}` :
                 'Nenhum operacional selecionado';
 
+            let tiposExibicao = [c.tipo];
+            if (c.tiposServico && c.tiposServico.length > 0) {
+                tiposExibicao = c.tiposServico;
+            } else {
+                const servicoOriginal = DB.getById('servicos', c.servicoId);
+                if (servicoOriginal && servicoOriginal.tipos && servicoOriginal.tipos.length > 0) {
+                    tiposExibicao = servicoOriginal.tipos;
+                }
+            }
+            const tiposStr = tiposExibicao.join(' + ');
+
             const botoesAssinaturaHtml = `
                 <div style="grid-column:1/-1;display:flex;gap:10px;margin-top:6px;flex-wrap:wrap;justify-content:center;">
                     ${tecnicoTemAssinatura ? `
@@ -1368,13 +1526,20 @@
 
                     <div style="font-size:13px;line-height:1.7;">
                         <p style="margin:8px 0;">
-                            Certificamos que foi prestado o serviço de <strong>${this._getTipoLabel(c.tipo)}</strong> em 
+                            Certificamos que foi prestado o serviço de <strong>${tiposStr}</strong> em 
                             <strong>${c.dataServico}</strong>, à empresa: <strong>${clienteNome}</strong>
                             ${clienteInfo.razaoSocial ? `(${clienteInfo.razaoSocial})` : ''},
                             inscrita no ${clienteInfo.tipo === 'cnpj' ? 'CNPJ' : 'CPF'} n° ${clienteInfo.cnpjCpf},
                             situada à ${clienteInfo.endereco}, pela ${c.prestadora.nome}, utilizando produtos 
                             domissanitários em conformidade com a legislação em vigor.
                         </p>
+                        
+                        ${tiposExibicao.length > 1 ? `
+                            <div style="margin:8px 0;padding:8px 14px;background:#f0f7fc;border-radius:6px;border-left:4px solid #1d7a6b;">
+                                <strong style="color:#0b2a3b;">📋 Serviços Realizados:</strong>
+                                <span style="color:#4d687a;">${tiposExibicao.join(' + ')}</span>
+                            </div>
+                        ` : ''}
 
                         <div style="margin:16px 0;">
                             <div style="font-weight:700;font-size:15px;margin-bottom:6px;color:#0b2a3b;">Produtos utilizados:</div>
@@ -1475,9 +1640,6 @@
                             <div style="font-size:11px;font-weight:600;color:#b13e3a;">Telefone de Emergência: ${c.telefoneEmergencia} (Centro de Informação Toxicológica)</div>
                             <div style="font-size:11px;color:#b13e3a;">Atenção: O ambiente passa por manutenção a cada 30 dias.</div>
                         </div>
-
-                        <div style="margin-top:20px;padding-top:12px;border-top:2px solid #e8eff5;text-align:center;font-size:10px;color:#6a7f8d;">
-                            Certificado Técnico
                         </div>
                     </div>
                 </div>
@@ -1493,159 +1655,392 @@
             return map[tipo] || tipo.toUpperCase();
         },
 
-        gerarPDF: function (certificado) {
-            const html = this.renderizarCertificado(certificado);
+       gerarPDF: function (certificado) {
+    var html = this.renderizarCertificado(certificado);
 
-            // Cria uma janela para impressão com tamanho otimizado
-            const win = window.open('', '_blank', 'width=700,height=500');
-            if (win) {
-                win.document.write(`
-                    <html>
-                    <head>
-                        <meta charset="UTF-8" />
-                        <title>Certificado Técnico</title>
-                        <style>
-                            * { margin: 0; padding: 0; box-sizing: border-box; }
-                            body { 
-                                margin: 0; 
-                                padding: 4px; 
-                                background: white; 
-                                font-family: Arial, sans-serif;
-                                font-size: 8pt;
-                                line-height: 1.2;
-                            }
-                            @media print {
-                                body { padding: 2px; }
-                                .no-print { display: none !important; }
-                            }
-                            .cert-print {
-                                font-size: 7.5pt;
-                                padding: 4px;
-                                max-width: 100%;
-                            }
-                            .cert-print .header-empresa {
-                                display: flex;
-                                align-items: center;
-                                gap: 10px;
-                                border-bottom: 2px solid #0b2a3b;
-                                padding-bottom: 4px;
-                                margin-bottom: 4px;
-                            }
-                            .cert-print .header-empresa .logo {
-                                flex-shrink: 0;
-                            }
-                            .cert-print .header-empresa .logo svg {
-                                width: 35px;
-                                height: 35px;
-                            }
-                            .cert-print .header-empresa .info h1 {
-                                font-size: 10pt;
-                                color: #0b2a3b;
-                                margin: 0;
-                            }
-                            .cert-print .header-empresa .info p {
-                                font-size: 5.5pt;
-                                color: #4d687a;
-                                margin: 1px 0;
-                            }
-                            .cert-print .titulo {
-                                text-align: center;
-                                font-size: 10pt;
-                                font-weight: bold;
-                                color: #0b2a3b;
-                                margin: 3px 0;
-                            }
-                            .cert-print .conteudo {
-                                font-size: 7pt;
-                                line-height: 1.2;
-                            }
-                            .cert-print table {
-                                width: 100%;
-                                border-collapse: collapse;
-                                font-size: 5.5pt;
-                                margin: 2px 0;
-                            }
-                            .cert-print table th {
-                                background: #0b2a3b;
-                                color: white;
-                                padding: 1px 4px;
-                                border: 1px solid #0b2a3b;
-                                font-size: 5pt;
-                            }
-                            .cert-print table td {
-                                padding: 1px 4px;
-                                border: 1px solid #ccc;
-                                text-align: center;
-                                font-size: 5pt;
-                            }
-                            .cert-print .observacoes {
-                                font-size: 5.5pt;
-                                padding: 2px 6px;
-                                margin: 2px 0;
-                                background: #f8fbfd;
-                                border-left: 3px solid #0b2a3b;
-                                white-space: pre-line;
-                            }
-                            .cert-print .responsaveis {
-                                display: grid;
-                                grid-template-columns: 1fr 1fr;
-                                gap: 6px;
-                                margin: 3px 0;
-                            }
-                            .cert-print .responsaveis .resp-item {
-                                padding: 3px 6px;
-                                background: #f8fbfd;
-                                border-radius: 3px;
-                                text-align: center;
-                                font-size: 6pt;
-                            }
-                            .cert-print .responsaveis .resp-item .nome {
-                                font-weight: bold;
-                                font-size: 6.5pt;
-                            }
-                            .cert-print .responsaveis .resp-item .cargo {
-                                font-size: 5pt;
-                                color: #4d687a;
-                            }
-                            .cert-print .primeiros-socorros {
-                                font-size: 5.5pt;
-                                padding: 2px 6px;
-                                background: #fde8e6;
-                                border-radius: 3px;
-                                border-left: 3px solid #c0392b;
-                                margin: 3px 0;
-                            }
-                            .cert-print .footer {
-                                font-size: 5pt;
-                                text-align: center;
-                                color: #6a7f8d;
-                                border-top: 1px solid #e8eff5;
-                                padding-top: 3px;
-                                margin-top: 4px;
-                            }
-                        </style>
-                    </head>
-                    <body>
-                        <div class="cert-print">
-                            ${html}
-                        </div>
-                        <div style="text-align:center;margin-top:6px;" class="no-print">
-                            <button onclick="window.print()" style="padding:6px 20px;background:#0b2a3b;color:white;border:none;border-radius:4px;cursor:pointer;font-weight:600;font-size:9pt;">
-                                <i class="fas fa-print"></i> Imprimir / Salvar PDF
-                            </button>
-                            <button onclick="window.close()" style="padding:6px 20px;background:#e8eff5;color:#1f3a4b;border:none;border-radius:4px;cursor:pointer;font-weight:600;font-size:9pt;margin-left:8px;">
-                                Fechar
-                            </button>
-                        </div>
-                        <script>
-                            window.onload = function() { window.print(); }
-                        <\/script>
-                    </body>
-                    </html>
-                `);
-                win.document.close();
-            }
-        },
+    var win = window.open('', '_blank', 'width=700,height=500');
+    if (win) {
+        win.document.write(`
+            <html>
+            <head>
+                <meta charset="UTF-8" />
+                <title>Certificado Técnico</title>
+                <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
+                <style>
+                    * { margin: 0; padding: 0; box-sizing: border-box; }
+                    body { 
+                        margin: 0; 
+                        padding: 0; 
+                        background: white; 
+                        font-family: Arial, sans-serif;
+                    }
+                    
+                    @page {
+                        size: A4;
+                        margin: 5mm 8mm 5mm 8mm;
+                    }
+                    
+                    @media print {
+                        body { padding: 0; margin: 0; }
+                        .no-print { display: none !important; }
+                        .cert-print {
+                            page-break-after: avoid !important;
+                            page-break-inside: avoid !important;
+                            break-inside: avoid !important;
+                        }
+                        /* 🔥 OCULTA TODOS OS BOTÕES NA IMPRESSÃO */
+                        button {
+                            display: none !important;
+                        }
+                        .btn-gerenciar-assinaturas {
+                            display: none !important;
+                        }
+                        /* 🔥 OCULTA O SELECT (drop-down) NA IMPRESSÃO - mostra apenas o texto */
+                        select {
+                            display: none !important;
+                        }
+                        /* 🔥 MOSTRA O TEXTO SELECIONADO NO LUGAR DO SELECT */
+                        .info-text {
+                            display: block !important;
+                            font-weight: bold;
+                            color: #0b2a3b;
+                        }
+                        /* 🔥 Área de assinatura fica apenas como imagem */
+                        .assinatura-area {
+                            cursor: default !important;
+                            border: 1px solid #ccc !important;
+                            min-height: 25px !important;
+                        }
+                        .assinatura-area span {
+                            display: none !important;
+                        }
+                    }
+                    
+                    /* 🔥 VISÍVEL NA TELA, OCULTO NA IMPRESSÃO */
+                    .btn-gerenciar-assinaturas {
+                        text-align: center;
+                        margin-top: 4px;
+                    }
+                    .btn-gerenciar-assinaturas button {
+                        background: #0b2a3b;
+                        color: white;
+                        border: none;
+                        padding: 3px 16px;
+                        border-radius: 4px;
+                        font-size: 7.5pt;
+                        cursor: pointer;
+                    }
+                    
+                    .cert-print {
+                        font-family: Arial, sans-serif;
+                        font-size: 8.5pt;
+                        max-width: 100%;
+                        margin: 0 auto;
+                        padding: 4px 6px;
+                        line-height: 1.25;
+                        page-break-inside: avoid;
+                        break-inside: avoid;
+                    }
+                    
+                    .cert-print .header-empresa {
+                        display: flex;
+                        align-items: center;
+                        gap: 10px;
+                        border-bottom: 2.5px solid #0b2a3b;
+                        padding-bottom: 4px;
+                        margin-bottom: 4px;
+                    }
+                    .cert-print .header-empresa .logo svg {
+                        width: 38px;
+                        height: 38px;
+                    }
+                    .cert-print .header-empresa .info h1 {
+                        font-size: 12pt;
+                        color: #0b2a3b;
+                        margin: 0;
+                    }
+                    .cert-print .header-empresa .info p {
+                        font-size: 6pt;
+                        color: #4d687a;
+                        margin: 0;
+                        line-height: 1.2;
+                    }
+                    
+                    .cert-print .titulo {
+                        text-align: center;
+                        font-size: 12pt;
+                        font-weight: 700;
+                        color: #0b2a3b;
+                        margin: 3px 0 4px;
+                        letter-spacing: 2px;
+                    }
+                    
+                    .cert-print .conteudo {
+                        font-size: 8pt;
+                        line-height: 1.3;
+                    }
+                    .cert-print .conteudo p {
+                        margin: 2px 0;
+                    }
+                    
+                    .cert-print .multi-servicos {
+                        margin: 2px 0;
+                        padding: 3px 10px;
+                        background: #f0f7fc;
+                        border-radius: 4px;
+                        border-left: 3px solid #1d7a6b;
+                        font-size: 7.5pt;
+                    }
+                    
+                    .cert-print table {
+                        width: 100%;
+                        border-collapse: collapse;
+                        font-size: 6.5pt;
+                        margin: 2px 0;
+                    }
+                    .cert-print table th {
+                        background: #0b2a3b;
+                        color: white;
+                        padding: 1.5px 4px;
+                        border: 1px solid #0b2a3b;
+                        text-align: center;
+                        font-size: 6pt;
+                    }
+                    .cert-print table td {
+                        padding: 1.5px 4px;
+                        border: 1px solid #ccc;
+                        text-align: center;
+                        font-size: 6pt;
+                    }
+                    
+                    .cert-print .info-grid {
+                        display: grid;
+                        grid-template-columns: 1fr 1fr;
+                        gap: 6px;
+                        margin: 3px 0;
+                    }
+                    .cert-print .info-grid .box {
+                        padding: 3px 8px;
+                        background: #f8fbfd;
+                        border-radius: 4px;
+                        border-left: 3px solid #0b2a3b;
+                    }
+                    .cert-print .info-grid .box .label {
+                        font-weight: 700;
+                        font-size: 7.5pt;
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                    }
+                    .cert-print .info-grid .box .label button {
+                        background: #0b2a3b;
+                        color: white;
+                        border: none;
+                        border-radius: 3px;
+                        padding: 0 8px;
+                        font-size: 6.5pt;
+                        cursor: pointer;
+                    }
+                    .cert-print .info-grid .box .content {
+                        font-size: 7pt;
+                        padding: 2px 5px;
+                        background: white;
+                        border: 1px solid #dce4ec;
+                        border-radius: 3px;
+                        min-height: 20px;
+                        max-height: 45px;
+                        overflow-y: auto;
+                        white-space: pre-wrap;
+                        word-wrap: break-word;
+                        margin-top: 1px;
+                        line-height: 1.3;
+                    }
+                    .cert-print .info-grid .box .content-metodos {
+                        font-size: 7pt;
+                        padding: 2px 6px;
+                        background: #fafcfe;
+                        border: 1px solid #e8eff5;
+                        border-radius: 3px;
+                        margin-top: 1px;
+                        max-height: 45px;
+                        overflow-y: auto;
+                    }
+                    
+                    .cert-print .responsaveis-grid {
+                        display: grid;
+                        grid-template-columns: 1fr 1fr;
+                        gap: 8px;
+                        margin: 2px 0;
+                    }
+                    .cert-print .responsaveis-grid .resp-card {
+                        padding: 4px 8px;
+                        background: #f8fbfd;
+                        border-radius: 4px;
+                        border: 1px solid #e8eff5;
+                    }
+                    .cert-print .responsaveis-grid .resp-card .title {
+                        font-weight: 600;
+                        font-size: 7.5pt;
+                        color: #0b2a3b;
+                        margin-bottom: 2px;
+                    }
+                    .cert-print .responsaveis-grid .resp-card select {
+                        width: 100%;
+                        padding: 1px 4px;
+                        border: 1px solid #dce4ec;
+                        border-radius: 3px;
+                        font-size: 7pt;
+                        background: white;
+                        margin-bottom: 2px;
+                    }
+                    .cert-print .responsaveis-grid .resp-card .info-text {
+                        font-size: 7pt;
+                        color: #4d687a;
+                        margin-bottom: 2px;
+                    }
+                    .cert-print .responsaveis-grid .resp-card .assinatura-area {
+                        width: 100%;
+                        min-height: 30px;
+                        border: 1px solid #ccc;
+                        border-radius: 3px;
+                        background: white;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        cursor: pointer;
+                    }
+                    .cert-print .responsaveis-grid .resp-card .assinatura-area img {
+                        max-height: 25px;
+                        max-width: 100%;
+                    }
+                    .cert-print .responsaveis-grid .resp-card .assinatura-area span {
+                        font-size: 6.5pt;
+                        color: #999;
+                    }
+                    
+                    .cert-print .primeiros-socorros {
+                        margin: 3px 0;
+                        padding: 3px 10px;
+                        background: #fde8e6;
+                        border-radius: 3px;
+                        border-left: 3px solid #c0392b;
+                        font-size: 7pt;
+                    }
+                    .cert-print .primeiros-socorros .title {
+                        font-weight: 700;
+                        color: #b13e3a;
+                    }
+                    .cert-print .primeiros-socorros .emergencia {
+                        font-weight: 600;
+                        color: #b13e3a;
+                    }
+                    
+                    .cert-print .footer {
+                        font-size: 5.5pt;
+                        text-align: center;
+                        color: #6a7f8d;
+                        border-top: 1px solid #e8eff5;
+                        padding-top: 2px;
+                        margin-top: 3px;
+                    }
+                    
+                    .no-print {
+                        text-align: center;
+                        margin-top: 6px;
+                    }
+                    .no-print button {
+                        padding: 5px 18px;
+                        border-radius: 4px;
+                        cursor: pointer;
+                        font-weight: 600;
+                        font-size: 8.5pt;
+                        border: none;
+                    }
+                    .no-print .btn-print {
+                        background: #0b2a3b;
+                        color: white;
+                    }
+                    .no-print .btn-close {
+                        background: #e8eff5;
+                        color: #1f3a4b;
+                        margin-left: 6px;
+                    }
+                    
+                    @media print {
+                        .cert-print {
+                            font-size: 8pt;
+                            padding: 2px 4px;
+                        }
+                        .cert-print .header-empresa .info h1 {
+                            font-size: 11pt;
+                        }
+                        .cert-print .titulo {
+                            font-size: 11pt;
+                        }
+                        .cert-print table {
+                            font-size: 6pt;
+                        }
+                        .cert-print table th,
+                        .cert-print table td {
+                            padding: 1px 3px;
+                            font-size: 5.5pt;
+                        }
+                        .cert-print .info-grid .box .content {
+                            max-height: 35px;
+                            font-size: 6.5pt;
+                        }
+                        .cert-print .responsaveis-grid .resp-card .assinatura-area {
+                            min-height: 25px;
+                        }
+                        .cert-print .responsaveis-grid .resp-card .assinatura-area img {
+                            max-height: 20px;
+                        }
+                        /* 🔥 GARANTE QUE O BOTÃO "GERENCIAR ASSINATURAS" NÃO APAREÇA */
+                        .btn-gerenciar-assinaturas {
+                            display: none !important;
+                        }
+                        .btn-gerenciar-assinaturas button {
+                            display: none !important;
+                        }
+                        /* 🔥 OCULTA SELECTS NA IMPRESSÃO */
+                        select {
+                            display: none !important;
+                        }
+                        /* 🔥 MOSTRA O TEXTO DO SELECT NA IMPRESSÃO */
+                        .info-text {
+                            display: block !important;
+                            font-weight: 600;
+                            color: #0b2a3b;
+                            font-size: 7.5pt;
+                        }
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="cert-print">
+                    ${html}
+                </div>
+                <div class="no-print">
+                    <button class="btn-print" onclick="window.print()">
+                        <i class="fas fa-print"></i> Imprimir / Salvar PDF
+                    </button>
+                    <button class="btn-close" onclick="window.close()">
+                        Fechar
+                    </button>
+                </div>
+                <script>
+                    window.onload = function() { 
+                        setTimeout(function() {
+                            window.print(); 
+                        }, 500);
+                    }
+                <\/script>
+            </body>
+            </html>
+        `);
+        win.document.close();
+    }
+},
 
         listarCertificados: function (filtro) {
             let certificados = DB.getAll('certificados');
@@ -1672,6 +2067,593 @@
 
     window.CertificadoService = CertificadoService;
 
+// =============================================
+// ===== FUNÇÕES DE CERTIFICADOS (GLOBAIS) =====
+// =============================================
+
+// =============================================
+// ===== FUNÇÃO CORRIGIDA PARA CARREGAR PRODUTOS NO CERTIFICADO =====
+// =============================================
+window.carregarProdutosCertificado = function() {
+    try {
+        if (typeof DB === 'undefined') {
+            console.warn('DB não disponível em carregarProdutosCertificado');
+            setTimeout(window.carregarProdutosCertificado, 300);
+            return;
+        }
+
+        var servicoId = parseInt(document.getElementById('modalCertServico')?.value || '0');
+        var container = document.getElementById('certProdutosLista');
+        var contador = document.getElementById('produtosSelecionadosContador');
+        
+        if (!servicoId || !container) {
+            console.warn('Serviço ou container não encontrado');
+            return;
+        }
+        
+        
+        var servico = DB.getById('servicos', servicoId);
+        if (!servico) {
+            console.warn('Serviço não encontrado:', servicoId);
+            container.innerHTML = '<div style="text-align:center;color:#999;padding:10px;">Serviço não encontrado</div>';
+            if (contador) contador.textContent = '0 selecionados';
+            return;
+        }
+        
+        // 1. Tenta buscar da OS vinculada
+        var produtos = [];
+        var ordens = DB.getAll('ordens');
+        var osVinculada = null;
+        for (var i = 0; i < ordens.length; i++) {
+            if (ordens[i].servicoId === servico.id) {
+                osVinculada = ordens[i];
+                break;
+            }
+        }
+        
+        if (osVinculada && osVinculada.inseticidasUtilizados && osVinculada.inseticidasUtilizados.length > 0) {
+            produtos = osVinculada.inseticidasUtilizados;
+        } 
+        // 2. Se não tiver na OS, tenta do serviço
+        else if (servico.produtosUtilizados && servico.produtosUtilizados.length > 0) {
+            produtos = servico.produtosUtilizados;
+        } 
+        
+        // 3. Fallback: produtos padrão
+        else {
+            var produtosPadrao = {
+                'Desinsetização': [
+                    { id: 'padrao_1', nome: 'Bifentol', registroMs: '32398.0027', grupoQuimico: 'Piretroide', principioAtivo: 'Bifentrina', concentracao: '1%', tratamento: 'Sintomático' },
+                    { id: 'padrao_2', nome: 'Baramid', registroMs: '33308.0014', grupoQuimico: 'Amidino hidrazona', principioAtivo: 'Hidrometil-nona', concentracao: '2%', tratamento: 'Sintomático' },
+                    { id: 'padrao_3', nome: 'Formifim', registroMs: '323980002', grupoQuimico: 'Neonicotinoide', principioAtivo: 'Imidacloprid', concentracao: '0,015%', tratamento: 'Sintomático' }
+                ],
+                'Desratização': [
+                    { id: 'padrao_4', nome: 'Raticida Blocos', registroMs: 'N/A', grupoQuimico: 'Anticoagulante', principioAtivo: 'Brodifacoum', concentracao: '0,005%', tratamento: 'Iscas' },
+                    { id: 'padrao_5', nome: 'Raticida Pó', registroMs: 'N/A', grupoQuimico: 'Anticoagulante', principioAtivo: 'Coumatetralyl', concentracao: '0,0375%', tratamento: 'Pó de contato' }
+                ],
+                'Descupinização': [
+                    { id: 'padrao_6', nome: 'Cupinicida Líquido', registroMs: 'N/A', grupoQuimico: 'Inseticida', principioAtivo: 'Imidacloprid', concentracao: '2%', tratamento: 'Barreira líquida' },
+                    { id: 'padrao_7', nome: 'Cupinicida Solvente', registroMs: 'N/A', grupoQuimico: 'Inseticida', principioAtivo: 'Fipronil', concentracao: '0,15%', tratamento: 'Barreira solvente' }
+                ]
+            };
+            var tipoServico = servico.tipos && servico.tipos.length > 0 ? servico.tipos[0] : servico.tipo;
+            produtos = produtosPadrao[tipoServico] || produtosPadrao['Desinsetização'];
+        }
+        
+        if (!produtos || produtos.length === 0) {
+            container.innerHTML = '<div style="text-align:center;color:#999;padding:20px;">Nenhum produto encontrado para este serviço</div>';
+            if (contador) contador.textContent = '0 selecionados';
+            return;
+        }
+        
+        // Renderiza os produtos
+        var html = '';
+        var selecionados = 0;
+        
+        produtos.forEach(function(p, index) {
+            var checked = 'checked';
+            selecionados++;
+            
+            html += `
+                <div class="produto-check-item" style="display:flex;align-items:center;gap:10px;padding:6px 8px;border-bottom:1px solid #f0f4f8;${index === produtos.length - 1 ? 'border-bottom:none;' : ''}">
+                    <input type="checkbox" class="cert-produto-check" data-produto-index="${index}" ${checked} style="width:16px;height:16px;cursor:pointer;flex-shrink:0;">
+                    <div style="flex:1;display:flex;flex-wrap:wrap;gap:4px 12px;font-size:0.85rem;">
+                        <span style="font-weight:500;color:#0b2a3b;">${p.nome || 'Produto'}</span>
+                        ${p.registroMs ? '<span style="color:#4d687a;">Reg. MS: ' + p.registroMs + '</span>' : ''}
+                        ${p.grupoQuimico ? '<span style="color:#4d687a;">' + p.grupoQuimico + '</span>' : ''}
+                        ${p.principioAtivo ? '<span style="color:#4d687a;">' + p.principioAtivo + '</span>' : ''}
+                        ${p.concentracao ? '<span style="color:#4d687a;">' + p.concentracao + '</span>' : ''}
+                    </div>
+                    <div style="font-size:0.7rem;color:#999;">
+                        ${p.tratamento || 'Aplicação'}
+                    </div>
+                </div>
+            `;
+        });
+        
+        container.innerHTML = html;
+        if (contador) contador.textContent = selecionados + ' selecionados';
+        
+        // Adiciona listeners aos checkboxes
+        var checks = container.querySelectorAll('.cert-produto-check');
+        for (var j = 0; j < checks.length; j++) {
+            (function(cb) {
+                cb.addEventListener('change', function() {
+                    atualizarContadorProdutos();
+                });
+            })(checks[j]);
+        }
+        
+    } catch (e) {
+        console.warn('Erro ao carregar produtos do certificado:', e);
+        var container = document.getElementById('certProdutosLista');
+        if (container) {
+            container.innerHTML = '<div style="text-align:center;color:#b13e3a;padding:10px;">Erro ao carregar produtos.</div>';
+        }
+    }
+};
+
+// =============================================
+// ===== ABRIR NOVO CERTIFICADO =====
+// =============================================
+window.abrirNovoCertificado = function () {
+    try {
+        if (typeof DB === 'undefined') {
+            console.warn('DB não disponível, aguardando...');
+            setTimeout(function() {
+                window.abrirNovoCertificado();
+            }, 500);
+            return;
+        }
+
+        var servicos = DB.getAll('servicos').filter(function(s) {
+            return s.status === 'Concluído' || s.status === 'Concluida' || s.status === 'Concluída';
+        });
+
+        if (servicos.length === 0) {
+            alert('Não há serviços concluídos disponíveis para gerar certificados.');
+            return;
+        }
+
+        var servicosOptions = servicos.map(function(s) {
+            var cliente = getCliente(s.clienteId);
+            var clienteNome = cliente ? cliente.nome : 'Cliente #' + s.clienteId;
+            var tiposDisplay = s.tipos && s.tipos.length > 0 ? s.tipos.join(' + ') : s.tipo;
+            return '<option value="' + s.id + '">#' + String(s.id).padStart(3, '0') + ' - ' + tiposDisplay + ' - ' + clienteNome + ' (' + s.data + ')</option>';
+        }).join('');
+
+        abrirModal('Novo Certificado Técnico', `
+            <div class="form-group">
+                <label>Serviço Concluído *</label>
+                <select id="modalCertServico" style="width:100%;padding:12px 16px;border:1px solid #dce4ec;border-radius:12px;font-size:0.95rem;outline:none;" onchange="atualizarTiposCertificado(); carregarProdutosCertificado();">
+                    ${servicosOptions}
+                </select>
+                <small style="color:#4d687a;display:block;margin-top:4px;">Selecione um serviço concluído para gerar o certificado</small>
+            </div>
+            
+            <div class="form-group" id="certTipoContainer">
+                <label>Tipo de Certificado *</label>
+                <select id="modalCertTipo" style="width:100%;padding:12px 16px;border:1px solid #dce4ec;border-radius:12px;font-size:0.95rem;outline:none;">
+                    <option value="Desinsetização">Desinsetização</option>
+                    <option value="Desratização">Desratização</option>
+                    <option value="Descupinização">Descupinização</option>
+                </select>
+                <small style="color:#4d687a;display:block;margin-top:4px;">Selecione o tipo de serviço para o certificado</small>
+            </div>
+
+            <div id="certMultiTiposInfo" style="display:none;background:#f0f7fc;padding:12px 16px;border-radius:8px;margin:12px 0;border-left:4px solid #8e44ad;">
+                <p style="margin:0;font-size:0.9rem;color:#0b2a3b;">
+                    <i class="fas fa-info-circle" style="color:#8e44ad;"></i>
+                    <strong>Múltiplos serviços encontrados:</strong>
+                    <span id="certTiposLista" style="display:block;margin-top:4px;color:#4d687a;"></span>
+                </p>
+                <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
+                    <button class="btn-secondary btn-sm" onclick="gerarCertificadosSeparados()" style="background:#8e44ad;color:white;border:none;padding:6px 16px;border-radius:6px;cursor:pointer;">
+                        <i class="fas fa-copy"></i> Gerar Certificados Separados
+                    </button>
+                    <button class="btn-secondary btn-sm" onclick="gerarCertificadoUnico()" style="background:#1d7a6b;color:white;border:none;padding:6px 16px;border-radius:6px;cursor:pointer;">
+                        <i class="fas fa-file"></i> Gerar Certificado Único
+                    </button>
+                </div>
+            </div>
+
+            <div id="certProdutosContainer" style="margin:12px 0;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                    <label style="font-weight:600;color:#0b2a3b;font-size:0.95rem;">
+                        <i class="fas fa-boxes" style="color:#1d7a6b;"></i> Produtos Utilizados
+                    </label>
+                    <div style="display:flex;gap:8px;">
+                        <button class="btn-secondary btn-sm" onclick="selecionarTodosProdutos()" style="padding:4px 12px;font-size:0.75rem;">Selecionar Todos</button>
+                        <button class="btn-secondary btn-sm" onclick="deselecionarTodosProdutos()" style="padding:4px 12px;font-size:0.75rem;">Limpar</button>
+                    </div>
+                </div>
+                <div id="certProdutosLista" style="background:#f8fbfd;border:1px solid #e8eff5;border-radius:8px;padding:12px;max-height:200px;overflow-y:auto;">
+                    <div style="text-align:center;color:#999;padding:20px;">
+                        <i class="fas fa-spinner fa-spin"></i> Carregando produtos...
+                    </div>
+                </div>
+                <small style="color:#4d687a;display:block;margin-top:4px;">
+                    💡 Selecione os produtos que foram utilizados neste serviço.
+                    <span id="produtosSelecionadosContador" style="font-weight:600;color:#1d7a6b;">0 selecionados</span>
+                </small>
+            </div>
+
+            <div style="background:#f0f7fc;padding:12px 16px;border-radius:8px;margin:12px 0;border-left:4px solid #1d7a6b;">
+                <p style="margin:0;font-size:0.9rem;color:#0b2a3b;">
+                    <i class="fas fa-info-circle" style="color:#1d7a6b;"></i>
+                    O certificado será gerado com base nos dados do serviço selecionado,
+                    incluindo apenas os produtos selecionados acima, métodos empregados e observações.
+                    <br><small style="color:#4d687a;">Para serviços com múltiplos tipos, você pode gerar certificados separados.</small>
+                </p>
+            </div>
+
+            <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:12px;margin-top:24px;padding-top:20px;border-top:1px solid #e8eff5;">
+                <button class="btn-secondary" onclick="fecharModal()" style="background:#e8eff5;color:#1f3a4b;border:none;padding:12px 28px;border-radius:40px;font-weight:600;cursor:pointer;transition:0.2s;">Cancelar</button>
+                <button class="btn-primary" onclick="criarCertificadoComProdutos()" style="background:#0b2a3b;color:white;border:none;padding:12px 28px;border-radius:40px;font-weight:600;cursor:pointer;transition:0.2s;display:inline-flex;align-items:center;gap:10px;box-shadow:0 4px 10px rgba(11,42,59,0.2);">
+                    <i class="fas fa-certificate"></i> Gerar Certificado
+                </button>
+            </div>
+        `);
+
+        // O TIMEOUT É CRUCIAL PARA GARANTIR QUE OS ELEMENTOS ESTEJAM NO DOM
+        setTimeout(function() {
+            try {
+                if (typeof window.atualizarTiposCertificado === 'function') {
+                    window.atualizarTiposCertificado();
+                }
+                if (typeof window.carregarProdutosCertificado === 'function') {
+                    window.carregarProdutosCertificado();
+                }
+            } catch (e) {
+                console.warn('Erro ao atualizar certificado:', e);
+            }
+        }, 500);
+    } catch (e) {
+        console.warn('Erro ao abrir novo certificado:', e);
+        alert('Erro ao abrir o formulário de certificado. Tente novamente.');
+    }
+};
+
+// =============================================
+// ===== FUNÇÕES AUXILIARES DO CERTIFICADO =====
+// =============================================
+
+window.atualizarTiposCertificado = function() {
+    try {
+        if (typeof DB === 'undefined') {
+            console.warn('DB não disponível em atualizarTiposCertificado');
+            return;
+        }
+
+        var servicoId = parseInt(document.getElementById('modalCertServico')?.value || '0');
+        var tipoSelect = document.getElementById('modalCertTipo');
+        var multiInfo = document.getElementById('certMultiTiposInfo');
+        var tiposLista = document.getElementById('certTiposLista');
+        
+        if (!servicoId || !tipoSelect) return;
+        
+        var servico = DB.getById('servicos', servicoId);
+        if (!servico) {
+            console.warn('Serviço não encontrado:', servicoId);
+            return;
+        }
+        
+        var tipos = servico.tipos || [servico.tipo];
+        
+        if (tipos.length > 1) {
+            if (multiInfo) multiInfo.style.display = 'block';
+            if (tiposLista) tiposLista.textContent = tipos.join(' + ');
+            
+            var currentValue = tipoSelect.value;
+            tipoSelect.innerHTML = tipos.map(function(t) {
+                return '<option value="' + t + '" ' + (t === currentValue ? 'selected' : '') + '>' + t + '</option>';
+            }).join('');
+        } else {
+            if (multiInfo) multiInfo.style.display = 'none';
+            tipoSelect.innerHTML = '<option value="' + tipos[0] + '">' + tipos[0] + '</option>';
+        }
+    } catch (e) {
+        console.warn('Erro ao atualizar tipos do certificado:', e);
+    }
+};
+
+function atualizarContadorProdutos() {
+    try {
+        var checks = document.querySelectorAll('.cert-produto-check');
+        var selecionados = 0;
+        for (var i = 0; i < checks.length; i++) {
+            if (checks[i].checked) selecionados++;
+        }
+        var contador = document.getElementById('produtosSelecionadosContador');
+        if (contador) {
+            contador.textContent = selecionados + ' selecionados';
+        }
+    } catch (e) {
+        console.warn('Erro ao atualizar contador:', e);
+    }
+}
+
+window.selecionarTodosProdutos = function() {
+    try {
+        var checks = document.querySelectorAll('.cert-produto-check');
+        for (var i = 0; i < checks.length; i++) {
+            checks[i].checked = true;
+        }
+        atualizarContadorProdutos();
+    } catch (e) {
+        console.warn('Erro ao selecionar todos os produtos:', e);
+    }
+};
+
+window.deselecionarTodosProdutos = function() {
+    try {
+        var checks = document.querySelectorAll('.cert-produto-check');
+        for (var i = 0; i < checks.length; i++) {
+            checks[i].checked = false;
+        }
+        atualizarContadorProdutos();
+    } catch (e) {
+        console.warn('Erro ao deselecionar todos os produtos:', e);
+    }
+};
+
+window.criarCertificadoComProdutos = function() {
+    try {
+        if (typeof DB === 'undefined') {
+            alert('Sistema não disponível. Tente novamente.');
+            return;
+        }
+
+        var servicoId = parseInt(document.getElementById('modalCertServico')?.value || '0');
+        var tipo = document.getElementById('modalCertTipo')?.value || 'Desinsetização';
+
+        if (!servicoId) {
+            alert('Selecione um serviço!');
+            return;
+        }
+
+        var produtoChecks = document.querySelectorAll('.cert-produto-check:checked');
+        if (produtoChecks.length === 0) {
+            alert('Selecione pelo menos um produto para incluir no certificado!');
+            return;
+        }
+
+        var servico = DB.getById('servicos', servicoId);
+        if (!servico) {
+            alert('Serviço não encontrado!');
+            return;
+        }
+
+        var ordens = DB.getAll('ordens');
+        var osVinculada = null;
+        for (var i = 0; i < ordens.length; i++) {
+            if (ordens[i].servicoId === servico.id) {
+                osVinculada = ordens[i];
+                break;
+            }
+        }
+        
+        var produtosCompletos = [];
+        
+        for (var j = 0; j < produtoChecks.length; j++) {
+            var index = parseInt(produtoChecks[j].dataset.produtoIndex);
+            var produtoCompleto = null;
+            
+            if (osVinculada && osVinculada.inseticidasUtilizados && osVinculada.inseticidasUtilizados.length > index) {
+                var ins = osVinculada.inseticidasUtilizados[index];
+                produtoCompleto = {
+                    nome: ins.nome || '',
+                    registroMs: ins.registro || ins.registroMs || '',
+                    grupoQuimico: ins.gQuimico || ins.grupoQuimico || '',
+                    principioAtivo: ins.pAtivo || ins.principioAtivo || '',
+                    concentracao: ins.porcentagem || ins.concentracao || '',
+                    tratamento: ins.tratamento || 'Sintomático',
+                    quantidade: ins.quantidade || 1,
+                    unidade: ins.unidade || ''
+                };
+            } else {
+                var servicoProdutos = servico.produtosUtilizados || [];
+                if (servicoProdutos.length > index) {
+                    var sp = servicoProdutos[index];
+                    produtoCompleto = {
+                        nome: sp.nome || '',
+                        registroMs: sp.registroMs || sp.registro || '',
+                        grupoQuimico: sp.grupoQuimico || sp.gQuimico || '',
+                        principioAtivo: sp.principioAtivo || sp.pAtivo || '',
+                        concentracao: sp.concentracao || sp.porcentagem || '',
+                        tratamento: sp.tratamento || 'Sintomático',
+                        quantidade: sp.quantidade || 1,
+                        unidade: sp.unidade || ''
+                    };
+                }
+            }
+            
+            if (produtoCompleto) {
+                produtosCompletos.push(produtoCompleto);
+            }
+        }
+
+        if (produtosCompletos.length === 0) {
+            var servicoTipos = servico.tipos || [servico.tipo];
+            var tipoPrincipal = servicoTipos[0] || tipo;
+            
+            var produtosPadrao = {
+                'Desinsetização': [
+                    { nome: 'Bifentol', registroMs: '32398.0027', grupoQuimico: 'Piretroide', principioAtivo: 'Bifentrina', concentracao: '1%', tratamento: 'Sintomático' },
+                    { nome: 'Baramid', registroMs: '33308.0014', grupoQuimico: 'Amidino hidrazona', principioAtivo: 'Hidrometil-nona', concentracao: '2%', tratamento: 'Sintomático' },
+                    { nome: 'Formifim', registroMs: '323980002', grupoQuimico: 'Neonicotinoide', principioAtivo: 'Imidacloprid', concentracao: '0,015%', tratamento: 'Sintomático' }
+                ],
+                'Desratização': [
+                    { nome: 'Raticida Blocos', registroMs: 'N/A', grupoQuimico: 'Anticoagulante', principioAtivo: 'Brodifacoum', concentracao: '0,005%', tratamento: 'Iscas' },
+                    { nome: 'Raticida Pó', registroMs: 'N/A', grupoQuimico: 'Anticoagulante', principioAtivo: 'Coumatetralyl', concentracao: '0,0375%', tratamento: 'Pó de contato' }
+                ],
+                'Descupinização': [
+                    { nome: 'Cupinicida Líquido', registroMs: 'N/A', grupoQuimico: 'Inseticida', principioAtivo: 'Imidacloprid', concentracao: '2%', tratamento: 'Barreira líquida' },
+                    { nome: 'Cupinicida Solvente', registroMs: 'N/A', grupoQuimico: 'Inseticida', principioAtivo: 'Fipronil', concentracao: '0,15%', tratamento: 'Barreira solvente' }
+                ]
+            };
+            
+            var listaCompleta = produtosPadrao[tipoPrincipal] || [];
+            for (var k = 0; k < produtoChecks.length; k++) {
+                var idx = parseInt(produtoChecks[k].dataset.produtoIndex);
+                if (listaCompleta[idx]) {
+                    produtosCompletos.push(listaCompleta[idx]);
+                }
+            }
+        }
+
+        var certificado = CertificadoService.gerarCertificadoComProdutos(servicoId, tipo, produtosCompletos);
+        
+        fecharModal();
+
+        renderCertificados();
+        preencherFiltroCertificados();
+
+        if (typeof renderAll === 'function') {
+            renderAll();
+        }
+
+        setTimeout(function () {
+            var card = document.getElementById('certificado-card-' + certificado.id);
+            if (card) {
+                card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                card.style.transition = 'all 0.5s ease';
+                card.style.boxShadow = '0 0 0 3px #1d7a6b, 0 8px 30px rgba(29,122,107,0.3)';
+                setTimeout(function () {
+                    card.style.boxShadow = '';
+                }, 3000);
+            } else {
+                renderCertificados();
+            }
+        }, 300);
+
+        alert('✅ Certificado gerado com ' + produtosCompletos.length + ' produto(s)!');
+
+        if (confirm('Deseja visualizar o certificado agora?')) {
+            visualizarCertificado(certificado.id);
+        }
+    } catch (error) {
+        alert('Erro ao gerar certificado: ' + error.message);
+        console.error(error);
+    }
+};
+
+// =============================================
+// ===== GERAR CERTIFICADOS SEPARADOS E ÚNICO =====
+// =============================================
+
+window.gerarCertificadosSeparados = function() {
+    try {
+        if (typeof DB === 'undefined') {
+            alert('Sistema não disponível. Tente novamente.');
+            return;
+        }
+
+        var servicoId = parseInt(document.getElementById('modalCertServico')?.value || '0');
+        if (!servicoId) {
+            alert('Selecione um serviço!');
+            return;
+        }
+        
+        var servico = DB.getById('servicos', servicoId);
+        if (!servico) {
+            alert('Serviço não encontrado!');
+            return;
+        }
+        
+        var tipos = servico.tipos || [servico.tipo];
+        
+        if (tipos.length < 2) {
+            alert('Este serviço possui apenas um tipo. Use a opção "Gerar Certificado".');
+            return;
+        }
+        
+        if (!confirm('Deseja gerar ' + tipos.length + ' certificados separados para os serviços: ' + tipos.join(' + ') + '?')) {
+            return;
+        }
+        
+        var certificadosGerados = [];
+        var erros = [];
+        
+        tipos.forEach(function(tipo) {
+            try {
+                var certificado = CertificadoService.gerarCertificado(servicoId, tipo);
+                certificadosGerados.push(certificado);
+            } catch (error) {
+                erros.push(tipo + ': ' + error.message);
+                console.warn('❌ Erro ao gerar certificado para ' + tipo + ':', error);
+            }
+        });
+        
+        fecharModal();
+        
+        if (certificadosGerados.length > 0) {
+            renderCertificados();
+            preencherFiltroCertificados();
+            
+            if (typeof renderAll === 'function') {
+                renderAll();
+            }
+            
+            alert('✅ ' + certificadosGerados.length + ' certificados gerados com sucesso!' + (erros.length > 0 ? '\n\n⚠️ Erros: ' + erros.join('\n') : ''));
+            
+            if (certificadosGerados.length === 1) {
+                if (confirm('Deseja visualizar o certificado gerado?')) {
+                    visualizarCertificado(certificadosGerados[0].id);
+                }
+            }
+        } else {
+            alert('❌ Nenhum certificado foi gerado. Verifique os erros.');
+        }
+    } catch (e) {
+        console.warn('Erro ao gerar certificados separados:', e);
+        alert('Erro ao gerar certificados: ' + e.message);
+    }
+};
+
+window.gerarCertificadoUnico = function() {
+    try {
+        if (typeof DB === 'undefined') {
+            alert('Sistema não disponível. Tente novamente.');
+            return;
+        }
+
+        var servicoId = parseInt(document.getElementById('modalCertServico')?.value || '0');
+        if (!servicoId) {
+            alert('Selecione um serviço!');
+            return;
+        }
+        
+        var servico = DB.getById('servicos', servicoId);
+        if (!servico) {
+            alert('Serviço não encontrado!');
+            return;
+        }
+        
+        var tipos = servico.tipos || [servico.tipo];
+        var tipoSelecionado = document.getElementById('modalCertTipo')?.value || tipos[0];
+        
+        var certificado = CertificadoService.gerarCertificadoCombinado(servicoId, tipoSelecionado, tipos);
+        
+        fecharModal();
+        renderCertificados();
+        preencherFiltroCertificados();
+        
+        if (typeof renderAll === 'function') {
+            renderAll();
+        }
+        
+        alert('✅ Certificado único gerado com sucesso para: ' + tipos.join(' + '));
+        
+        if (confirm('Deseja visualizar o certificado gerado?')) {
+            visualizarCertificado(certificado.id);
+        }
+    } catch (error) {
+        alert('Erro ao gerar certificado: ' + error.message);
+        console.error(error);
+    }
+};
+
     // =============================================
     // ===== SERVIÇO DE ASSINATURAS SALVAS =====
     // =============================================
@@ -1693,7 +2675,6 @@
 
             DB.forceClearCache('equipe');
 
-            console.log(`✅ Assinatura salva para ${membro.nome} (${tipo})`);
             return true;
         },
 
@@ -1738,7 +2719,6 @@
                 detail: { certificado: { id: certId }, action: 'update' }
             }));
 
-            console.log(`✅ Assinatura aplicada ao certificado ${certId}`);
             return true;
         }
     };
@@ -2017,7 +2997,6 @@
     };
 
     window.atualizarResponsavelCertificado = function (certId, tipo, membroId) {
-        console.log('🔄 Atualizando responsável:', { certId, tipo, membroId });
 
         if (!membroId || membroId === '' || membroId === 'default_tecnico' || membroId === 'default_operacional') {
             console.warn('⚠️ Nenhum membro selecionado - resetando');
@@ -2053,13 +3032,11 @@
                 return m.nome && m.nome.toLowerCase() === String(membroId).toLowerCase();
             });
             if (membroByName) {
-                console.log('📌 Membro encontrado por nome:', membroByName);
                 return window.atualizarResponsavelCertificado(certId, tipo, String(membroByName.id));
             }
             return;
         }
 
-        console.log('📌 Membro encontrado:', membro);
 
         const certificado = CertificadoService.getCertificado(certId);
         if (!certificado) {
@@ -2079,7 +3056,6 @@
 
         updateData['responsaveis.' + campo] = responsavelData;
 
-        console.log('📝 Atualizando dados:', JSON.stringify(updateData));
 
         DB.update('certificados', certId, updateData);
 
@@ -2111,7 +3087,6 @@
             if (certVerificado) {
                 const responsavelSalvo = certVerificado.responsaveis?.[campo];
                 if (responsavelSalvo && String(responsavelSalvo.id) === String(membro.id)) {
-                    console.log('✅ Responsável salvo com sucesso:', responsavelSalvo.nome);
                 } else {
                     console.warn('⚠️ Responsável não foi salvo corretamente, forçando re-salvamento...');
                     DB.update('certificados', certId, updateData);
@@ -2296,7 +3271,6 @@
 
     function renderAll() {
         if (_isRendering) {
-            console.log('⏳ Renderização já em andamento, agendando...');
             if (_renderTimeout) clearTimeout(_renderTimeout);
             _renderTimeout = setTimeout(function () {
                 _renderTimeout = null;
@@ -2330,7 +3304,6 @@
             preencherFiltroCertificados();
             adicionarIndicadorPlano();
             carregarInfoAdministracao();
-            console.log('🔄 Renderização completa executada');
         } catch (error) {
             console.error('❌ Erro na renderização:', error);
         } finally {
@@ -2396,14 +3369,12 @@
     window.forcarCarregamentoFirestore = function () {
         if (typeof FirestoreService !== 'undefined') {
             var empresaId = EmpresaManager.getEmpresaAtual();
-            console.log('🔄 Forçando carregamento dos dados do Firestore...');
 
             if (typeof DB !== 'undefined') {
                 DB._clearAllCaches();
             }
 
             FirestoreService.sincronizarDadosEmpresa(empresaId).then(function (total) {
-                console.log('✅ Dados carregados: ' + total + ' itens');
                 if (typeof renderAll !== 'undefined') {
                     renderAll();
                 }
@@ -2698,9 +3669,7 @@
         }
     }
 
-    // =============================================
     // ===== FUNÇÃO PARA MAPEAR STATUS DO SERVIÇO PARA OS =====
-    // =============================================
     function mapearStatusServicoParaOS(statusServico) {
         var map = {
             'Concluído': 'Concluída',
@@ -2714,6 +3683,40 @@
             'Cancelada': 'Cancelada'
         };
         return map[statusServico] || 'Pendente';
+    }
+
+    // =============================================
+    // ===== VERIFICA CERTIFICADO AUTOMÁTICO =====
+    // =============================================
+    function verificarCertificadoAutomatico(servico) {
+        if (!servico) return;
+
+        if (servico.status === 'Concluído' || servico.status === 'Concluida' || servico.status === 'Concluída') {
+            const certificados = CertificadoService.listarCertificados();
+            const existe = certificados.some(c => String(c.servicoId) === String(servico.id));
+
+            if (!existe) {
+                try {
+                    let tipoCertificado = servico.tipo || 'Desinsetização';
+                    if (servico.tipos && servico.tipos.length > 1) {
+                        tipoCertificado = servico.tipos[0];
+                    }
+                    const certificado = CertificadoService.gerarCertificado(servico.id, tipoCertificado);
+                    
+                    if (certificado && servico.tipos && servico.tipos.length > 1) {
+                        DB.update('certificados', certificado.id, {
+                            tiposServico: servico.tipos,
+                            descricaoCompleta: servico.tipos.join(' + ')
+                        });
+                    }
+                    
+                    return certificado;
+                } catch (error) {
+                    console.warn('Erro ao gerar certificado automático:', error);
+                }
+            }
+        }
+        return null;
     }
 
     // =============================================
@@ -2732,7 +3735,6 @@
                     status: 'Cancelada',
                     atualizadoEm: new Date().toISOString()
                 });
-                console.log('📄 OS desvinculada do serviço #' + servico.id);
             }
             return;
         }
@@ -2770,7 +3772,6 @@
                 itens: itensAtualizados,
                 atualizadoEm: new Date().toISOString()
             });
-            console.log('📄 OS atualizada para serviço #' + servico.id);
         } else if (acao === 'add' || acao === 'update') {
             var numeroOS = gerarNumeroOS();
 
@@ -2800,7 +3801,6 @@
                 criadoEm: new Date().toISOString(),
                 atualizadoEm: new Date().toISOString()
             });
-            console.log('📄 Nova OS criada para serviço #' + servico.id);
         }
     }
 
@@ -2810,7 +3810,6 @@
     function sincronizarServicoComAgenda(servico, acao, servicoAntigo) {
         if (!servico) return;
 
-        console.log('🔄 INICIANDO sincronização do serviço #' + servico.id + ' - Status: ' + servico.status);
 
         var cliente = getCliente(servico.clienteId);
         var clienteNome = cliente ? cliente.nome : 'Cliente #' + servico.clienteId;
@@ -2831,7 +3830,8 @@
         var statusEmoji = statusInfo.emoji;
         var statusLabel = statusInfo.label;
         var valorFormatado = servico.valor ? servico.valor.toFixed(2).replace('.', ',') : '0,00';
-        var descricao = 'Serviço #' + String(servico.id).padStart(3, '0') + ': ' + servico.tipo + ' - ' + statusEmoji + ' ' + statusLabel + ' (R$ ' + valorFormatado + ')';
+        var tiposStr = servico.tipos && servico.tipos.length > 0 ? servico.tipos.join(' + ') : servico.tipo;
+        var descricao = 'Serviço #' + String(servico.id).padStart(3, '0') + ': ' + tiposStr + ' - ' + statusEmoji + ' ' + statusLabel + ' (R$ ' + valorFormatado + ')';
 
         var agendaKey = DB.getFullKey('agenda');
         var agendaItems = JSON.parse(localStorage.getItem(agendaKey) || '[]');
@@ -2839,7 +3839,6 @@
             return a.servicoId === servico.id;
         });
 
-        console.log('📅 Agendamento existente:', agendamentoExistente ? 'SIM (ID: ' + agendamentoExistente.id + ')' : 'NÃO');
 
         if (agendamentoExistente) {
             var horario = servico.horario || agendamentoExistente.horario || '09:00';
@@ -2857,6 +3856,7 @@
                     servicoId: servico.id,
                     statusServico: servico.status,
                     tipoServico: servico.tipo,
+                    tiposServico: servico.tipos || [servico.tipo],
                     sincronizado: true,
                     clienteNome: clienteNome,
                     criadoEm: agendamentoExistente.criadoEm || new Date().toISOString(),
@@ -2865,7 +3865,6 @@
 
                 localStorage.setItem(agendaKey, JSON.stringify(agendaItems));
                 DB.forceClearCache('agenda');
-                console.log('📅 Agenda ATUALIZADA! Serviço #' + servico.id + ' -> Status: ' + servico.status);
                 return agendaItems[index];
             }
         }
@@ -2877,7 +3876,6 @@
                 });
                 localStorage.setItem(agendaKey, JSON.stringify(filteredItems));
                 DB.forceClearCache('agenda');
-                console.log('📅 Agenda REMOVIDA para serviço #' + servico.id);
             }
             return;
         }
@@ -2899,6 +3897,7 @@
                 servicoId: servico.id,
                 statusServico: servico.status,
                 tipoServico: servico.tipo,
+                tiposServico: servico.tipos || [servico.tipo],
                 sincronizado: true,
                 clienteNome: clienteNome,
                 criadoEm: new Date().toISOString(),
@@ -2908,7 +3907,6 @@
             agendaItems.push(novoAgendamento);
             localStorage.setItem(agendaKey, JSON.stringify(agendaItems));
             DB.forceClearCache('agenda');
-            console.log('📅 Agenda CRIADA para serviço #' + servico.id + ' Status: ' + servico.status);
             return novoAgendamento;
         }
     }
@@ -2917,7 +3915,6 @@
     // ===== FUNÇÃO DE SINCRONIZAÇÃO COMPLETA =====
     // =============================================
     function sincronizarServicoCompleto(servico, acao, servicoAntigo) {
-        console.log('🔄 Sincronizando serviço #' + servico.id + ' (' + acao + ') - Status: ' + servico.status);
         sincronizarServicoComAgenda(servico, acao, servicoAntigo);
         sincronizarServicoComOS(servico, acao);
 
@@ -2936,30 +3933,6 @@
         }
 
         DB._clearAllCaches();
-        console.log('✅ Sincronização concluída para serviço #' + servico.id);
-    }
-
-    // =============================================
-    // ===== VERIFICA CERTIFICADO AUTOMÁTICO =====
-    // =============================================
-    function verificarCertificadoAutomatico(servico) {
-        if (!servico) return;
-
-        if (servico.status === 'Concluído' || servico.status === 'Concluida' || servico.status === 'Concluída') {
-            const certificados = CertificadoService.listarCertificados();
-            const existe = certificados.some(c => String(c.servicoId) === String(servico.id));
-
-            if (!existe) {
-                try {
-                    const certificado = CertificadoService.gerarCertificado(servico.id, servico.tipo);
-                    console.log('✅ Certificado gerado automaticamente para serviço #' + servico.id);
-                    return certificado;
-                } catch (error) {
-                    console.warn('Erro ao gerar certificado automático:', error);
-                }
-            }
-        }
-        return null;
     }
 
     // =============================================
@@ -3021,7 +3994,12 @@
         if (elStatusOrdens) elStatusOrdens.innerHTML = statusOSHtml || '<p style="color:#999;">Nenhuma OS cadastrada</p>';
 
         var tipos = {};
-        servicos.forEach(function (s) { tipos[s.tipo] = (tipos[s.tipo] || 0) + 1; });
+        servicos.forEach(function (s) { 
+            var tiposServico = s.tipos || [s.tipo];
+            tiposServico.forEach(function(t) {
+                tipos[t] = (tipos[t] || 0) + 1;
+            });
+        });
         var tiposHtml = Object.entries(tipos).map(function (entry) {
             var tipo = entry[0];
             var qtd = entry[1];
@@ -3077,7 +4055,10 @@
 
         var tipos = {};
         servicosMes.forEach(function (s) {
-            tipos[s.tipo] = (tipos[s.tipo] || 0) + 1;
+            var tiposServico = s.tipos || [s.tipo];
+            tiposServico.forEach(function(t) {
+                tipos[t] = (tipos[t] || 0) + 1;
+            });
         });
 
         var statusOS = {};
@@ -3234,7 +4215,10 @@
 
         var tiposCount = {};
         servicosFiltrados.forEach(function (s) {
-            tiposCount[s.tipo] = (tiposCount[s.tipo] || 0) + 1;
+            var tiposServico = s.tipos || [s.tipo];
+            tiposServico.forEach(function(t) {
+                tiposCount[t] = (tiposCount[t] || 0) + 1;
+            });
         });
         var tipoEntries = Object.entries(tiposCount);
         tipoEntries.forEach(function (entry) {
@@ -3309,7 +4293,10 @@
 
         var tiposCount = {};
         servicosFiltrados.forEach(function (s) {
-            tiposCount[s.tipo] = (tiposCount[s.tipo] || 0) + 1;
+            var tiposServico = s.tipos || [s.tipo];
+            tiposServico.forEach(function(t) {
+                tiposCount[t] = (tiposCount[t] || 0) + 1;
+            });
         });
 
         var yPos = 80;
@@ -3471,7 +4458,7 @@
     }
 
     // =============================================
-    // ===== RENDER CLIENTES (CORRIGIDO COM CNPJ) =====
+    // ===== RENDER CLIENTES =====
     // =============================================
     function renderClientes() {
         DB.forceClearCache('clientes');
@@ -3529,7 +4516,8 @@
         };
         var statusInfo = statusMap[servico.status] || { emoji: '📌', label: servico.status };
         var valorFormatado = servico.valor ? servico.valor.toFixed(2).replace('.', ',') : '0,00';
-        return 'Serviço #' + String(servico.id).padStart(3, '0') + ': ' + servico.tipo + ' - ' + statusInfo.emoji + ' ' + statusInfo.label + ' (R$ ' + valorFormatado + ')';
+        var tiposStr = servico.tipos && servico.tipos.length > 0 ? servico.tipos.join(' + ') : servico.tipo;
+        return 'Serviço #' + String(servico.id).padStart(3, '0') + ': ' + tiposStr + ' - ' + statusInfo.emoji + ' ' + statusInfo.label + ' (R$ ' + valorFormatado + ')';
     }
 
     function renderMapaIscas(filtro) {
@@ -3544,7 +4532,7 @@
     }
 
     // =============================================
-    // ===== RENDER EQUIPE (CORRIGIDO) =====
+    // ===== RENDER EQUIPE =====
     // =============================================
     function renderEquipe() {
         DB.forceClearCache('equipe');
@@ -3632,14 +4620,14 @@
     // =============================================
 
     function renderCertificados() {
-        const filtros = {
+        var filtros = {
             clienteId: document.getElementById('filtroCertCliente')?.value || '',
             tipo: document.getElementById('filtroCertTipo')?.value || '',
             status: document.getElementById('filtroCertStatus')?.value || ''
         };
 
-        let certificados = CertificadoService.listarCertificados(filtros);
-        const container = document.getElementById('certificadosGrid');
+        var certificados = CertificadoService.listarCertificados(filtros);
+        var container = document.getElementById('certificadosGrid');
         if (!container) return;
 
         if (certificados.length === 0) {
@@ -3653,25 +4641,38 @@
             return;
         }
 
-        container.innerHTML = certificados.map(c => {
-            const isExpirado = new Date(c.dataValidade.split('/').reverse().join('-')) < new Date();
-            const statusClass = isExpirado ? 'expirado' : 'ativo';
-            const statusLabel = isExpirado ? '❌ Expirado' : '✅ Ativo';
-            const clienteNome = c.cliente.nome || 'Cliente #' + c.clienteId;
-            const tipoLabel = CertificadoService._getTipoLabel(c.tipo);
+        container.innerHTML = certificados.map(function(c) {
+            var isExpirado = new Date(c.dataValidade.split('/').reverse().join('-')) < new Date();
+            var statusClass = isExpirado ? 'expirado' : 'ativo';
+            var statusLabel = isExpirado ? '❌ Expirado' : '✅ Ativo';
+            var clienteNome = c.cliente.nome || 'Cliente #' + c.clienteId;
+            var tipoLabel = CertificadoService._getTipoLabel(c.tipo);
+            
+            var isCombinado = c.isCombinado || false;
+            var tiposDisplay = c.tiposServico && c.tiposServico.length > 1 ? c.tiposServico.join(' + ') : '';
+            
+            var badgeHtml = '';
+            if (isCombinado && tiposDisplay) {
+                badgeHtml = '<span class="combinado-badge">📋 Combinado</span>';
+            } else if (tiposDisplay) {
+                badgeHtml = '<span class="multi-badge">📋 Múltiplos</span>';
+            }
 
             return `
-                <div class="certificado-card" id="certificado-card-${c.id}">
+                <div class="certificado-card" id="certificado-card-${c.id}" data-combinado="${isCombinado}" data-multi="${!!tiposDisplay && !isCombinado}">
                     <div class="cert-info">
                         <div class="cert-titulo">
                             <i class="fas fa-${c.tipo === 'Desinsetização' ? 'bug' : c.tipo === 'Desratização' ? 'rat' : 'tree'}" 
                                style="color:#1d7a6b;margin-right:8px;"></i>
                             ${tipoLabel} - ${clienteNome}
+                            ${badgeHtml}
+                            ${tiposDisplay ? '<span style="font-size:0.7rem;color:#4d687a;font-weight:400;margin-left:4px;">(' + tiposDisplay + ')</span>' : ''}
                         </div>
                         <div class="cert-detalhes">
                             <span><i class="fas fa-calendar-alt"></i> Emissão: ${new Date(c.criadoEm).toLocaleDateString('pt-BR')}</span>
                             <span><i class="fas fa-clock"></i> Validade: ${c.dataValidade}</span>
                             <span><i class="fas fa-hashtag"></i> #${c.id}</span>
+                            ${isCombinado ? '<span style="background:#8e44ad;color:white;padding:1px 10px;border-radius:12px;font-size:0.6rem;margin-left:4px;">Combinado</span>' : ''}
                         </div>
                     </div>
                     <div class="cert-status">
@@ -3689,12 +4690,12 @@
     }
 
     function preencherFiltroCertificados() {
-        const clientes = DB.getAll('clientes');
-        const select = document.getElementById('filtroCertCliente');
+        var clientes = DB.getAll('clientes');
+        var select = document.getElementById('filtroCertCliente');
         if (select) {
-            const currentValue = select.value;
+            var currentValue = select.value;
             select.innerHTML = '<option value="">Todos os Clientes</option>' +
-                clientes.map(c => `<option value="${c.id}">${c.nome}</option>`).join('');
+                clientes.map(function(c) { return '<option value="' + c.id + '">' + c.nome + '</option>'; }).join('');
             select.value = currentValue;
         }
     }
@@ -3708,239 +4709,6 @@
         document.getElementById('filtroCertTipo').value = '';
         document.getElementById('filtroCertStatus').value = '';
         renderCertificados();
-    };
-
-    window.abrirNovoCertificado = function () {
-        const servicos = DB.getAll('servicos').filter(s =>
-            s.status === 'Concluído' || s.status === 'Concluida' || s.status === 'Concluída'
-        );
-
-        if (servicos.length === 0) {
-            alert('Não há serviços concluídos disponíveis para gerar certificados.');
-            return;
-        }
-
-        abrirModal('Novo Certificado Técnico', `
-            <div class="form-group">
-                <label>Serviço Concluído *</label>
-                <select id="modalCertServico" style="width:100%;padding:12px 16px;border:1px solid #dce4ec;border-radius:12px;font-size:0.95rem;outline:none;">
-                    ${servicos.map(s => {
-            const cliente = getCliente(s.clienteId);
-            const clienteNome = cliente ? cliente.nome : 'Cliente #' + s.clienteId;
-            return `<option value="${s.id}">#${String(s.id).padStart(3, '0')} - ${s.tipo} - ${clienteNome} (${s.data})</option>`;
-        }).join('')}
-                </select>
-                <small style="color:#4d687a;display:block;margin-top:4px;">Selecione um serviço concluído para gerar o certificado</small>
-            </div>
-            <div class="form-group">
-                <label>Tipo do Certificado</label>
-                <select id="modalCertTipo" style="width:100%;padding:12px 16px;border:1px solid #dce4ec;border-radius:12px;font-size:0.95rem;outline:none;">
-                    <option value="Desinsetização">Desinsetização</option>
-                    <option value="Desratização">Desratização</option>
-                    <option value="Descupinização">Descupinização</option>
-                </select>
-            </div>
-            <div style="background:#f0f7fc;padding:12px 16px;border-radius:8px;margin:12px 0;border-left:4px solid #1d7a6b;">
-                <p style="margin:0;font-size:0.9rem;color:#0b2a3b;">
-                    <i class="fas fa-info-circle" style="color:#1d7a6b;"></i>
-                    O certificado será gerado com base nos dados do serviço selecionado,
-                    incluindo produtos utilizados, métodos empregados e observações.
-                </p>
-            </div>
-            <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:12px;margin-top:24px;padding-top:20px;border-top:1px solid #e8eff5;">
-                <button class="btn-secondary" onclick="fecharModal()" style="background:#e8eff5;color:#1f3a4b;border:none;padding:12px 28px;border-radius:40px;font-weight:600;cursor:pointer;transition:0.2s;">Cancelar</button>
-                <button class="btn-primary" onclick="criarCertificado()" style="background:#0b2a3b;color:white;border:none;padding:12px 28px;border-radius:40px;font-weight:600;cursor:pointer;transition:0.2s;display:inline-flex;align-items:center;gap:10px;box-shadow:0 4px 10px rgba(11,42,59,0.2);">
-                    <i class="fas fa-certificate"></i> Gerar Certificado
-                </button>
-            </div>
-        `);
-
-        const selectServico = document.getElementById('modalCertServico');
-        const selectTipo = document.getElementById('modalCertTipo');
-        if (selectServico && selectTipo) {
-            selectServico.addEventListener('change', function () {
-                const servicoId = parseInt(this.value);
-                if (servicoId) {
-                    const servico = DB.getById('servicos', servicoId);
-                    if (servico && servico.tipo) {
-                        selectTipo.value = servico.tipo;
-                    }
-                }
-            });
-        }
-    };
-
-    window.criarCertificado = function () {
-        const servicoId = parseInt(document.getElementById('modalCertServico')?.value || '0');
-        const tipo = document.getElementById('modalCertTipo')?.value || 'Desinsetização';
-
-        if (!servicoId) {
-            alert('Selecione um serviço!');
-            return;
-        }
-
-        try {
-            const certificado = CertificadoService.gerarCertificado(servicoId, tipo);
-            fecharModal();
-
-            console.log('✅ Certificado criado:', certificado.id);
-
-            renderCertificados();
-            preencherFiltroCertificados();
-
-            if (typeof renderAll === 'function') {
-                renderAll();
-            }
-
-            setTimeout(function () {
-                const card = document.getElementById('certificado-card-' + certificado.id);
-                if (card) {
-                    console.log('✅ Card do certificado encontrado na DOM');
-                    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    card.style.transition = 'all 0.5s ease';
-                    card.style.boxShadow = '0 0 0 3px #1d7a6b, 0 8px 30px rgba(29,122,107,0.3)';
-                    setTimeout(function () {
-                        card.style.boxShadow = '';
-                    }, 3000);
-                } else {
-                    console.warn('⚠️ Card do certificado não encontrado, forçando nova renderização');
-                    renderCertificados();
-                }
-            }, 300);
-
-            alert('✅ Certificado gerado com sucesso!');
-
-            if (confirm('Deseja visualizar o certificado agora?')) {
-                visualizarCertificado(certificado.id);
-            }
-        } catch (error) {
-            alert('Erro ao gerar certificado: ' + error.message);
-        }
-    };
-
-    window.visualizarCertificado = function (id) {
-        const certificado = CertificadoService.getCertificado(id);
-        if (!certificado) {
-            alert('Certificado não encontrado!');
-            return;
-        }
-
-        const html = CertificadoService.renderizarCertificado(certificado);
-
-        const overlay = document.getElementById('modalOSOverlay');
-        const titleEl = document.getElementById('modalOSTitle');
-        const bodyEl = document.getElementById('modalOSBody');
-
-        if (titleEl) titleEl.textContent = 'Certificado Técnico - ' + certificado.tipo;
-        if (bodyEl) {
-            bodyEl.innerHTML = `
-                ${html}
-                <div style="margin-top:20px;display:flex;gap:12px;justify-content:flex-end;border-top:1px solid #e8eff5;padding-top:20px;flex-wrap:wrap;">
-                    <button class="btn-secondary" onclick="fecharModalOS()" style="background:#e8eff5;color:#1f3a4b;border:none;padding:10px 24px;border-radius:40px;font-weight:600;cursor:pointer;transition:0.2s;">Fechar</button>
-                    <button class="btn-primary" onclick="imprimirCertificado('${id}')" style="background:#0b2a3b;color:white;border:none;padding:10px 24px;border-radius:40px;font-weight:600;cursor:pointer;transition:0.2s;display:inline-flex;align-items:center;gap:8px;"><i class="fas fa-print"></i> Imprimir</button>
-                    <button class="btn-danger" onclick="baixarPDFCertificado('${id}')" style="background:#c0392b;color:white;border:none;padding:10px 24px;border-radius:40px;font-weight:600;cursor:pointer;transition:0.2s;display:inline-flex;align-items:center;gap:8px;"><i class="fas fa-file-pdf"></i> Baixar PDF</button>
-                </div>
-            `;
-        }
-        if (overlay) overlay.classList.add('active');
-    };
-
-    window.fecharModalOS = function () {
-        var overlay = document.getElementById('modalOSOverlay');
-        if (overlay) overlay.classList.remove('active');
-    };
-
-    window.imprimirCertificado = function (id) {
-        const certificado = CertificadoService.getCertificado(id);
-        if (!certificado) {
-            alert('Certificado não encontrado!');
-            return;
-        }
-        CertificadoService.gerarPDF(certificado);
-    };
-
-    window.baixarPDFCertificado = function (id) {
-        const certificado = CertificadoService.getCertificado(id);
-        if (!certificado) {
-            alert('Certificado não encontrado!');
-            return;
-        }
-        CertificadoService.gerarPDF(certificado);
-    };
-
-    window.excluirCertificado = function (id) {
-        if (!confirm('Tem certeza que deseja excluir este certificado?')) {
-            return;
-        }
-        DB.remove('certificados', id);
-        renderCertificados();
-        alert('Certificado excluído com sucesso!');
-    };
-
-    window.exportarCertificadosExcel = function () {
-        const filtros = {
-            clienteId: document.getElementById('filtroCertCliente')?.value || '',
-            tipo: document.getElementById('filtroCertTipo')?.value || '',
-            status: document.getElementById('filtroCertStatus')?.value || ''
-        };
-
-        let certificados = CertificadoService.listarCertificados(filtros);
-
-        const data = certificados.map(c => ({
-            'ID': c.id,
-            'Cliente': c.cliente.nome,
-            'CNPJ/CPF': c.cliente.cnpjCpf,
-            'Tipo': c.tipo,
-            'Data Emissão': new Date(c.criadoEm).toLocaleDateString('pt-BR'),
-            'Data Serviço': c.dataServico,
-            'Data Validade': c.dataValidade,
-            'Status': new Date(c.dataValidade.split('/').reverse().join('-')) < new Date() ? 'Expirado' : 'Ativo'
-        }));
-
-        const wb = XLSX.utils.book_new();
-        const ws = XLSX.utils.json_to_sheet(data);
-        XLSX.utils.book_append_sheet(wb, ws, 'Certificados');
-        XLSX.writeFile(wb, 'certificados_' + new Date().toISOString().split('T')[0] + '.xlsx');
-    };
-
-    window.exportarCertificadosPDF = function () {
-        const doc = new window.jspdf.jsPDF('p', 'mm', 'a4');
-        doc.setFontSize(14);
-        doc.text('Relatório de Certificados Técnicos', 105, 20, { align: 'center' });
-        doc.setFontSize(10);
-        doc.text('Gerado em: ' + new Date().toLocaleString('pt-BR'), 105, 28, { align: 'center' });
-
-        const filtros = {
-            clienteId: document.getElementById('filtroCertCliente')?.value || '',
-            tipo: document.getElementById('filtroCertTipo')?.value || '',
-            status: document.getElementById('filtroCertStatus')?.value || ''
-        };
-
-        let certificados = CertificadoService.listarCertificados(filtros);
-
-        const data = certificados.map(c => [
-            c.id,
-            c.cliente.nome,
-            c.tipo,
-            new Date(c.criadoEm).toLocaleDateString('pt-BR'),
-            c.dataValidade,
-            new Date(c.dataValidade.split('/').reverse().join('-')) < new Date() ? 'Expirado' : 'Ativo'
-        ]);
-
-        if (data.length === 0) {
-            doc.text('Nenhum certificado encontrado.', 20, 40);
-        } else {
-            doc.autoTable({
-                startY: 35,
-                head: [['ID', 'Cliente', 'Tipo', 'Emissão', 'Validade', 'Status']],
-                body: data,
-                theme: 'striped',
-                headStyles: { fillColor: [11, 42, 59] },
-                styles: { fontSize: 8 }
-            });
-        }
-
-        doc.save('certificados_' + new Date().toISOString().split('T')[0] + '.pdf');
     };
 
     // =============================================
@@ -4412,7 +5180,7 @@
             });
         }
 
-        // Botão Novo Ponto - CORRIGIDO com checkboxes
+        // Botão Novo Ponto
         var btnNovoPonto = document.getElementById('btnNovoPonto');
         if (btnNovoPonto) {
             btnNovoPonto.addEventListener('click', function () {
@@ -4481,138 +5249,9 @@
             });
         }
 
-        // Botão Nova OS - CORRIGIDO para mostrar TODOS os produtos
-        var btnNovaOS = document.getElementById('btnNovaOS');
-        if (btnNovaOS) {
-            btnNovaOS.addEventListener('click', function () {
-                var clientes = DB.getAll('clientes');
-                if (clientes.length === 0) {
-                    alert('Cadastre um cliente primeiro!');
-                    return;
-                }
-
-                var numero = gerarNumeroOS();
-                var hoje = new Date().toISOString().split('T')[0];
-                var produtos = DB.getAll('estoque');
-
-                var inseticidas = produtos.filter(function (p) { return p.quantidade > 0; });
-
-                var servicosHtml = gerarCheckboxes(SERVICOS_LIST, [], 'servico-check', false);
-                var pragasHtml = gerarCheckboxes(PRAGAS_LIST, [], 'praga-check', false);
-                var metodosHtml = gerarCheckboxes(METODOS_LIST, [], 'metodo-check', false);
-
-                var inseticidasOptions = inseticidas.map(function (p) {
-                    return '<option value="' + p.id + '">' + p.nome + ' (' + p.categoria + ' - ' + p.quantidade + ' ' + p.unidade + ')</option>';
-                }).join('');
-
-                abrirModal('Nova Ordem de Serviço', `
-                    <div class="form-group">
-                        <label>Número da OS</label>
-                        <input type="text" value="${numero}" disabled style="background:#f0f4f8;font-weight:600;" />
-                    </div>
-                    <div class="form-group">
-                        <label>Cliente</label>
-                        <select id="modalOSCliente">
-                            ${clientes.map(c => `<option value="${c.id}">${c.nome} (${c.tipoCliente === 'cnpj' ? 'CNPJ' : 'CPF'})</option>`).join('')}
-                        </select>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group"><label>Data</label><input type="date" id="modalOSData" value="${hoje}" /></div>
-                        <div class="form-group"><label>Data de Entrega</label><input type="date" id="modalOSEntrega" /></div>
-                    </div>
-                    <div class="form-group">
-                        <label>Status</label>
-                        <select id="modalOSStatus">
-                            <option value="Pendente">Pendente</option>
-                            <option value="Em andamento">Em andamento</option>
-                            <option value="Concluída">Concluída</option>
-                            <option value="Cancelada">Cancelada</option>
-                        </select>
-                    </div>
-                    
-                    <h4 style="margin:12px 0 8px;color:#0b2a3b;">Serviços Executados</h4>
-                    <div class="checkbox-grid">
-                        ${servicosHtml}
-                    </div>
-                    
-                    <h4 style="margin:12px 0 8px;color:#0b2a3b;">Pragas Alvo</h4>
-                    <div class="checkbox-grid">
-                        ${pragasHtml}
-                    </div>
-                    
-                    <h4 style="margin:12px 0 8px;color:#0b2a3b;">Métodos Empregados</h4>
-                    <div class="checkbox-grid">
-                        ${metodosHtml}
-                    </div>
-                    
-                    <h4 style="margin:16px 0 8px;color:#0b2a3b;">Inseticidas Utilizados</h4>
-                    <div id="inseticidasContainer">
-                        <div class="form-row inseticida-row" data-index="0">
-                            <div class="form-group" style="flex:2;">
-                                <label>Produto</label>
-                                <select class="ins-produto">
-                                    <option value="">Selecione...</option>
-                                    ${inseticidasOptions}
-                                </select>
-                            </div>
-                            <div class="form-group" style="flex:0.8;">
-                                <label>Reg. MS</label>
-                                <input type="text" class="ins-registro" />
-                            </div>
-                            <div class="form-group" style="flex:0.8;">
-                                <label>G. Químico</label>
-                                <input type="text" class="ins-quimico" />
-                            </div>
-                            <div class="form-group" style="flex:0.8;">
-                                <label>P. Ativo</label>
-                                <input type="text" class="ins-ativo" />
-                            </div>
-                            <div class="form-group" style="flex:0.6;">
-                                <label>%</label>
-                                <input type="text" class="ins-porcentagem" />
-                            </div>
-                            <div class="form-group" style="flex:0.8;">
-                                <label>Quantidade</label>
-                                <input type="number" class="ins-quantidade" value="1" min="0" step="0.1" />
-                            </div>
-                            <div class="form-group" style="flex:1;">
-                                <label>Tratamento</label>
-                                <input type="text" class="ins-tratamento" value="Aplicação" />
-                            </div>
-                            <div style="display:flex;align-items:flex-end;padding-bottom:6px;">
-                                <button type="button" class="btn-danger btn-sm" onclick="removerInseticida(this)"><i class="fas fa-times"></i></button>
-                            </div>
-                        </div>
-                    </div>
-                    <button type="button" class="btn-secondary btn-sm" onclick="adicionarInseticida()" style="margin-top:4px;">
-                        <i class="fas fa-plus"></i> Adicionar Inseticida
-                    </button>
-                    
-                    <div class="form-group" style="margin-top:12px;">
-                        <label>Área Liberada</label>
-                        <textarea id="modalOSAreaLiberada" rows="2" placeholder="Informe a área liberada para acesso..."></textarea>
-                    </div>
-                    
-                    <div class="form-group" style="margin-top:12px;">
-                        <label>Observações</label>
-                        <textarea id="modalOSObs" rows="2" placeholder="Observações sobre a OS..."></textarea>
-                    </div>
-
-                    <div class="form-group" style="margin-top:12px;">
-                        <label>📝 Texto da Garantia do Serviço</label>
-                        <textarea id="modalOSGarantia" rows="4" placeholder="Digite o texto da garantia do serviço..." style="width:100%;padding:10px 14px;border:1px solid #dce4ec;border-radius:10px;font-size:0.9rem;outline:none;transition:0.2s;resize:vertical;font-family:inherit;background:#fafcfe;"></textarea>
-                        <small style="color:#4d687a;font-size:0.75rem;display:block;margin-top:4px;">Este texto aparecerá no rodapé da Ordem de Serviço impressa.</small>
-                    </div>
-                    
-                    <div class="modal-footer">
-                        <button class="btn-secondary" onclick="fecharModal()">Cancelar</button>
-                        <button class="btn-primary" onclick="criarNovaOS()">Criar OS</button>
-                    </div>
-                `);
-            });
-        }
-
-        // Botão Novo Serviço - CORRIGIDO COM VERIFICAÇÃO DE DUPLICAÇÃO
+        // =============================================
+        // ===== BOTÃO NOVO SERVIÇO - MULTI-SELEÇÃO =====
+        // =============================================
         var btnNovoServico = document.getElementById('btnNovoServico');
         if (btnNovoServico) {
             btnNovoServico.addEventListener('click', function () {
@@ -4639,22 +5278,26 @@
                         </div>
 
                         <div class="form-group">
-                            <label>Tipo de Serviço <span class="required">*</span></label>
+                            <label>Tipos de Serviço <span class="required">*</span></label>
                             <div class="servico-tipos" id="servicoTipos">
                                 <div class="tipo-option selected" data-tipo="Desratização">
                                     <span class="icon">🐀</span>
                                     Desratização
+                                    <span class="check-mark">✓</span>
                                 </div>
                                 <div class="tipo-option" data-tipo="Desinsetização">
                                     <span class="icon">🐜</span>
                                     Desinsetização
+                                    <span class="check-mark">✓</span>
                                 </div>
                                 <div class="tipo-option" data-tipo="Descupinização">
                                     <span class="icon">🏠</span>
                                     Descupinização
+                                    <span class="check-mark">✓</span>
                                 </div>
                             </div>
-                            <input type="hidden" id="modalTipo" value="Desratização" />
+                            <input type="hidden" id="modalTipos" value='["Desratização"]' />
+                            <small style="color:#4d687a;display:block;margin-top:4px;">💡 Selecione um ou mais serviços para este atendimento</small>
                         </div>
 
                         <div class="form-row">
@@ -4707,21 +5350,39 @@
 
                         <div class="servico-footer">
                             <button class="btn-cancel" onclick="fecharModal()">Cancelar</button>
-                            <button class="btn-create" onclick="criarNovoServico()">
+                            <button class="btn-create" onclick="criarNovoServicoMulti()">
                                 <i class="fas fa-plus-circle"></i> Criar Serviço
                             </button>
                         </div>
                     </div>
                 `);
 
+                // ===== CONFIGURA A MULTI-SELEÇÃO =====
                 var servicoTipos = document.getElementById('servicoTipos');
                 if (servicoTipos) {
+                    var selectedTipos = ['Desratização'];
+                    
                     servicoTipos.querySelectorAll('.tipo-option').forEach(function (el) {
                         el.addEventListener('click', function () {
-                            servicoTipos.querySelectorAll('.tipo-option').forEach(function (o) { o.classList.remove('selected'); });
-                            this.classList.add('selected');
-                            var tipoInput = document.getElementById('modalTipo');
-                            if (tipoInput) tipoInput.value = this.dataset.tipo;
+                            var tipo = this.dataset.tipo;
+                            var index = selectedTipos.indexOf(tipo);
+                            
+                            if (index === -1) {
+                                selectedTipos.push(tipo);
+                                this.classList.add('selected');
+                            } else {
+                                if (selectedTipos.length > 1) {
+                                    selectedTipos.splice(index, 1);
+                                    this.classList.remove('selected');
+                                } else {
+                                    alert('Selecione pelo menos um tipo de serviço!');
+                                }
+                            }
+                            
+                            var tiposInput = document.getElementById('modalTipos');
+                            if (tiposInput) {
+                                tiposInput.value = JSON.stringify(selectedTipos);
+                            }
                         });
                     });
                 }
@@ -4739,6 +5400,575 @@
                 }
             });
         }
+
+        // =============================================
+        // ===== CRIA NOVO SERVIÇO COM MÚLTIPLOS TIPOS =====
+        // =============================================
+
+        window.criarNovoServicoMulti = function () {
+            var clienteId = parseInt(document.getElementById('modalClienteId')?.value || '0');
+            var data = document.getElementById('modalData')?.value?.split('-').reverse().join('/') || '';
+            var horario = document.getElementById('modalHorario')?.value || '09:00';
+            var status = document.getElementById('modalStatus')?.value || 'Agendado';
+            var valor = parseFloat(document.getElementById('modalValor')?.value) || 0;
+
+            var tiposInput = document.getElementById('modalTipos');
+            var tipos = [];
+            try {
+                tipos = JSON.parse(tiposInput?.value || '["Desratização"]');
+            } catch (e) {
+                tipos = ['Desratização'];
+            }
+
+            if (!clienteId || !data || tipos.length === 0) {
+                alert('Preencha todos os campos obrigatórios e selecione pelo menos um tipo de serviço!');
+                return;
+            }
+
+            var chaveAtendimento = clienteId + '_' + data + '_' + horario + '_' + Date.now();
+            
+
+            var servicosExistentes = DB.getAll('servicos');
+            
+            var servicoExistente = servicosExistentes.find(function (s) {
+                if (String(s.clienteId) !== String(clienteId)) return false;
+                if (s.data !== data) return false;
+                if (s.status !== status && s.status !== 'Agendado') return false;
+                
+                var tiposExistentes = s.tipos || [s.tipo];
+                if (tiposExistentes.length !== tipos.length) return false;
+                var sorted1 = tiposExistentes.slice().sort();
+                var sorted2 = tipos.slice().sort();
+                return sorted1.every(function (t, i) { return t === sorted2[i]; });
+            });
+
+            if (servicoExistente) {
+                console.warn('⚠️ Serviço já existe, atualizando em vez de criar novo:', servicoExistente.id);
+                DB.update('servicos', servicoExistente.id, {
+                    status: status,
+                    valor: valor,
+                    horario: horario,
+                    atualizadoEm: new Date().toISOString()
+                });
+
+                sincronizarServicoMultiComAgenda(servicoExistente, 'update');
+                sincronizarServicoMultiComOS(servicoExistente, 'update');
+
+                fecharModal();
+                renderAll();
+                alert('✅ Serviço #' + String(servicoExistente.id).padStart(3, '0') + ' atualizado para: ' + status + ' (' + tipos.join(', ') + ')');
+                return;
+            }
+
+            var servico = DB.add('servicos', {
+                clienteId: clienteId,
+                tipos: tipos,
+                tipo: tipos[0],
+                data: data,
+                status: status,
+                valor: valor,
+                horario: horario,
+                chaveAtendimento: chaveAtendimento,
+                criadoEm: new Date().toISOString(),
+                atualizadoEm: new Date().toISOString()
+            });
+
+
+            var cliente = getCliente(clienteId);
+            var clienteNome = cliente ? cliente.nome : 'Cliente #' + clienteId;
+
+            var statusMap = {
+                'Concluído': { emoji: '✅', label: 'Concluído' },
+                'Concluida': { emoji: '✅', label: 'Concluído' },
+                'Concluída': { emoji: '✅', label: 'Concluído' },
+                'Em andamento': { emoji: '🔄', label: 'Em andamento' },
+                'Pendente': { emoji: '⏳', label: 'Pendente' },
+                'Agendado': { emoji: '📅', label: 'Agendado' },
+                'Agendada': { emoji: '📅', label: 'Agendado' },
+                'Cancelado': { emoji: '❌', label: 'Cancelado' },
+                'Cancelada': { emoji: '❌', label: 'Cancelado' }
+            };
+            var statusInfo = statusMap[status] || { emoji: '📌', label: status };
+            var valorFormatado = valor ? valor.toFixed(2).replace('.', ',') : '0,00';
+            var tiposStr = tipos.join(' + ');
+            var descricao = 'Serviço #' + String(servico.id).padStart(3, '0') + ': ' + tiposStr + ' - ' + statusInfo.emoji + ' ' + statusInfo.label + ' (R$ ' + valorFormatado + ')';
+
+            var agendaKey = DB.getFullKey('agenda');
+            var agendaItems = JSON.parse(localStorage.getItem(agendaKey) || '[]');
+            var agendamentoExistente = agendaItems.find(function (a) {
+                return a.servicoId === servico.id;
+            });
+
+            if (agendamentoExistente) {
+                console.warn('⚠️ Agendamento já existe para o serviço #' + servico.id + ', atualizando...');
+                var index = agendaItems.findIndex(function (a) { return a.id === agendamentoExistente.id; });
+                if (index !== -1) {
+                    agendaItems[index] = {
+                        ...agendamentoExistente,
+                        data: data,
+                        horario: horario,
+                        descricao: descricao,
+                        statusServico: status,
+                        tiposServico: tipos,
+                        tipoServico: tipos[0],
+                        clienteNome: clienteNome,
+                        atualizadoEm: new Date().toISOString()
+                    };
+                    localStorage.setItem(agendaKey, JSON.stringify(agendaItems));
+                }
+            } else {
+                var maxId = agendaItems.reduce(function (max, a) {
+                    var id = typeof a.id === 'number' ? a.id : parseInt(a.id) || 0;
+                    return Math.max(max, id);
+                }, 0);
+                var novoId = maxId + 1;
+
+                var novoAgendamento = {
+                    id: novoId,
+                    clienteId: clienteId,
+                    data: data,
+                    horario: horario,
+                    descricao: descricao,
+                    servicoId: servico.id,
+                    statusServico: status,
+                    tiposServico: tipos,
+                    tipoServico: tipos[0],
+                    sincronizado: true,
+                    clienteNome: clienteNome,
+                    criadoEm: new Date().toISOString(),
+                    atualizadoEm: new Date().toISOString()
+                };
+
+                agendaItems.push(novoAgendamento);
+                localStorage.setItem(agendaKey, JSON.stringify(agendaItems));
+            }
+
+            sincronizarServicoMultiComOS(servico, 'add');
+
+            if (status === 'Concluído' || status === 'Concluida' || status === 'Concluída') {
+                verificarCertificadoAutomaticoMulti(servico);
+            }
+
+            DB.forceClearCache('agenda');
+            DB._clearAllCaches();
+
+            fecharModal();
+            renderAll();
+
+            setTimeout(function () {
+                renderAll();
+            }, 200);
+
+            alert('✅ Serviço #' + String(servico.id).padStart(3, '0') + ' criado com status: ' + status + ' (' + tipos.join(', ') + ')');
+        };
+
+        // =============================================
+        // ===== SINCRONIZAÇÃO SERVIÇO MULTI ↔ OS =====
+        // =============================================
+
+        function sincronizarServicoMultiComOS(servico, acao) {
+            if (!servico) return;
+
+            var ordens = DB.getAll('ordens');
+            var osVinculada = ordens.find(function (o) { return o.servicoId === servico.id; });
+
+            var tipos = servico.tipos || [servico.tipo];
+            var tiposStr = tipos.join(' + ');
+            var valorServico = servico.valor || 0;
+
+            if (acao === 'remove') {
+                if (osVinculada) {
+                    DB.update('ordens', osVinculada.id, {
+                        servicoId: null,
+                        status: 'Cancelada',
+                        atualizadoEm: new Date().toISOString()
+                    });
+                }
+                return;
+            }
+
+            var statusOS = mapearStatusServicoParaOS(servico.status);
+
+            if (osVinculada) {
+                var itensAtualizados = osVinculada.itens || [];
+                
+                if (itensAtualizados.length > 0) {
+                    itensAtualizados[0] = Object.assign({}, itensAtualizados[0], {
+                        valorUnitario: valorServico,
+                        quantidade: 1,
+                        descricao: 'Serviço: ' + tiposStr
+                    });
+                } else if (valorServico > 0) {
+                    itensAtualizados = [{
+                        descricao: 'Serviço: ' + tiposStr,
+                        quantidade: 1,
+                        valorUnitario: valorServico
+                    }];
+                }
+
+                var valorTotal = itensAtualizados.reduce(function (sum, item) {
+                    return sum + (item.quantidade * (item.valorUnitario || 0));
+                }, 0);
+
+                DB.update('ordens', osVinculada.id, {
+                    clienteId: servico.clienteId,
+                    data: servico.data,
+                    status: statusOS,
+                    valorTotal: valorTotal,
+                    itens: itensAtualizados,
+                    tiposServico: tipos,
+                    atualizadoEm: new Date().toISOString()
+                });
+            } else if (acao === 'add' || acao === 'update') {
+                var numeroOS = gerarNumeroOS();
+
+                var itens = [];
+                if (valorServico > 0) {
+                    itens.push({
+                        descricao: 'Serviço: ' + tiposStr,
+                        quantidade: 1,
+                        valorUnitario: valorServico
+                    });
+                }
+
+                DB.add('ordens', {
+                    numero: numeroOS,
+                    clienteId: servico.clienteId,
+                    data: servico.data,
+                    status: statusOS,
+                    servicoId: servico.id,
+                    itens: itens,
+                    valorTotal: valorServico,
+                    tiposServico: tipos,
+                    observacoes: 'OS gerada automaticamente para serviços: ' + tiposStr + ' (#' + String(servico.id).padStart(3, '0') + ')',
+                    areaLiberada: '',
+                    dataEntrega: '',
+                    assinaturaOperador: null,
+                    assinaturaCliente: null,
+                    garantia: '',
+                    criadoEm: new Date().toISOString(),
+                    atualizadoEm: new Date().toISOString()
+                });
+            }
+        }
+
+        // =============================================
+        // ===== SINCRONIZAÇÃO SERVIÇO MULTI ↔ AGENDA =====
+        // =============================================
+
+        function sincronizarServicoMultiComAgenda(servico, acao, servicoAntigo) {
+            if (!servico) return;
+
+
+            var cliente = getCliente(servico.clienteId);
+            var clienteNome = cliente ? cliente.nome : 'Cliente #' + servico.clienteId;
+            var tipos = servico.tipos || [servico.tipo];
+            var tiposStr = tipos.join(' + ');
+
+            var statusMap = {
+                'Concluído': { emoji: '✅', label: 'Concluído' },
+                'Concluida': { emoji: '✅', label: 'Concluído' },
+                'Concluída': { emoji: '✅', label: 'Concluído' },
+                'Em andamento': { emoji: '🔄', label: 'Em andamento' },
+                'Pendente': { emoji: '⏳', label: 'Pendente' },
+                'Agendado': { emoji: '📅', label: 'Agendado' },
+                'Agendada': { emoji: '📅', label: 'Agendado' },
+                'Cancelado': { emoji: '❌', label: 'Cancelado' },
+                'Cancelada': { emoji: '❌', label: 'Cancelado' }
+            };
+
+            var statusInfo = statusMap[servico.status] || { emoji: '📌', label: servico.status };
+            var statusEmoji = statusInfo.emoji;
+            var statusLabel = statusInfo.label;
+            var valorFormatado = servico.valor ? servico.valor.toFixed(2).replace('.', ',') : '0,00';
+            var descricao = 'Serviço #' + String(servico.id).padStart(3, '0') + ': ' + tiposStr + ' - ' + statusEmoji + ' ' + statusLabel + ' (R$ ' + valorFormatado + ')';
+
+            var agendaKey = DB.getFullKey('agenda');
+            var agendaItems = JSON.parse(localStorage.getItem(agendaKey) || '[]');
+            var agendamentoExistente = agendaItems.find(function (a) {
+                return a.servicoId === servico.id;
+            });
+
+
+            if (agendamentoExistente) {
+                var horario = servico.horario || agendamentoExistente.horario || '09:00';
+                var index = agendaItems.findIndex(function (a) {
+                    return a.id === agendamentoExistente.id;
+                });
+
+                if (index !== -1) {
+                    agendaItems[index] = {
+                        id: agendamentoExistente.id,
+                        clienteId: servico.clienteId,
+                        data: servico.data,
+                        horario: horario,
+                        descricao: descricao,
+                        servicoId: servico.id,
+                        statusServico: servico.status,
+                        tiposServico: tipos,
+                        tipoServico: tipos[0],
+                        sincronizado: true,
+                        clienteNome: clienteNome,
+                        criadoEm: agendamentoExistente.criadoEm || new Date().toISOString(),
+                        atualizadoEm: new Date().toISOString()
+                    };
+
+                    localStorage.setItem(agendaKey, JSON.stringify(agendaItems));
+                    DB.forceClearCache('agenda');
+                    return agendaItems[index];
+                }
+            }
+
+            if (acao === 'remove') {
+                if (agendamentoExistente) {
+                    var filteredItems = agendaItems.filter(function (a) {
+                        return a.servicoId !== servico.id;
+                    });
+                    localStorage.setItem(agendaKey, JSON.stringify(filteredItems));
+                    DB.forceClearCache('agenda');
+                }
+                return;
+            }
+
+            if (acao === 'add' || (acao === 'update' && !agendamentoExistente)) {
+                var horarioBase = servico.horario || '09:00';
+                var maxId = agendaItems.reduce(function (max, a) {
+                    var id = typeof a.id === 'number' ? a.id : parseInt(a.id) || 0;
+                    return Math.max(max, id);
+                }, 0);
+                var novoId = maxId + 1;
+
+                var novoAgendamento = {
+                    id: novoId,
+                    clienteId: servico.clienteId,
+                    data: servico.data,
+                    horario: horarioBase,
+                    descricao: descricao,
+                    servicoId: servico.id,
+                    statusServico: servico.status,
+                    tiposServico: tipos,
+                    tipoServico: tipos[0],
+                    sincronizado: true,
+                    clienteNome: clienteNome,
+                    criadoEm: new Date().toISOString(),
+                    atualizadoEm: new Date().toISOString()
+                };
+
+                agendaItems.push(novoAgendamento);
+                localStorage.setItem(agendaKey, JSON.stringify(agendaItems));
+                DB.forceClearCache('agenda');
+                return novoAgendamento;
+            }
+        }
+
+        // =============================================
+        // ===== CERTIFICADO AUTOMÁTICO MULTI =====
+        // =============================================
+
+        function verificarCertificadoAutomaticoMulti(servico) {
+            if (!servico) return;
+
+            if (servico.status === 'Concluído' || servico.status === 'Concluida' || servico.status === 'Concluída') {
+                const certificados = CertificadoService.listarCertificados();
+                const existe = certificados.some(c => String(c.servicoId) === String(servico.id));
+
+                if (!existe) {
+                    try {
+                        const tipos = servico.tipos || [servico.tipo];
+                        const tipoPrincipal = tipos.length > 0 ? tipos[0] : servico.tipo || 'Desinsetização';
+                        
+                        const certificado = CertificadoService.gerarCertificado(servico.id, tipoPrincipal);
+                        
+                        if (certificado && tipos.length > 1) {
+                            DB.update('certificados', certificado.id, {
+                                tiposServico: tipos,
+                                descricaoCompleta: tipos.join(' + ')
+                            });
+                            
+                            setTimeout(() => {
+                                const certAtualizado = CertificadoService.getCertificado(certificado.id);
+                                if (certAtualizado) {
+                                }
+                            }, 100);
+                        }
+                        
+                        return certificado;
+                    } catch (error) {
+                        console.warn('Erro ao gerar certificado automático:', error);
+                    }
+                }
+            }
+            return null;
+        }
+
+        // =============================================
+        // ===== FUNÇÃO DE EDIÇÃO DE SERVIÇO =====
+        // =============================================
+
+        window.editarServico = function (id) {
+            var s = DB.getById('servicos', id);
+            if (!s) return;
+
+            var validade = calcularValidadeServico(s);
+            var infoValidade = '';
+            if (validade) {
+                var statusMap = {
+                    'valido': '🟢 Válido',
+                    'proximo': '🟡 Próximo do vencimento',
+                    'critico': '🔴 Vence em breve',
+                    'vencido': '❌ Vencido'
+                };
+                infoValidade = `
+                    <div style="background:#f8fbfd;padding:12px 16px;border-radius:8px;margin-bottom:16px;">
+                        <strong>Validade:</strong> ${statusMap[validade.status] || 'Válido'} 
+                        (${validade.diasRestantes > 0 ? validade.diasRestantes + ' dias restantes' : Math.abs(validade.diasRestantes) + ' dias vencido'})
+                        <br><small style="color:#4d687a;">Vence em: ${validade.dataVencimento.toLocaleDateString('pt-BR')}</small>
+                    </div>
+                `;
+            }
+
+            var horarioAtual = '09:00';
+            var agendaKey = DB.getFullKey('agenda');
+            var agendaItems = JSON.parse(localStorage.getItem(agendaKey) || '[]');
+            var agendamento = agendaItems.find(function (a) { return a.servicoId === id; });
+            if (agendamento) {
+                horarioAtual = agendamento.horario || '09:00';
+            }
+
+            var tipos = s.tipos || [s.tipo];
+            var tiposHtml = tipos.map(function(t) {
+                return '<span style="background:#e8eff5;padding:2px 12px;border-radius:12px;font-size:0.85rem;color:#1f3a4b;margin:2px;">' + t + '</span>';
+            }).join('');
+
+            abrirModal('Editar Serviço', `
+                ${infoValidade}
+                <div class="form-group">
+                    <label>Cliente</label>
+                    <select id="modalClienteId">
+                        ${DB.getAll('clientes').map(c => `<option value="${c.id}" ${c.id === s.clienteId ? 'selected' : ''}>${c.nome} (${c.tipoCliente === 'cnpj' ? 'CNPJ' : 'CPF'})</option>`).join('')}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Tipos de Serviço</label>
+                    <div style="display:flex;flex-wrap:wrap;gap:8px;padding:8px 12px;background:#f8fbfd;border-radius:8px;border:1px solid #e8eff5;">
+                        ${tiposHtml}
+                    </div>
+                    <small style="color:#4d687a;font-size:0.8rem;display:block;margin-top:4px;">Para editar os tipos, recrie o serviço ou use a opção de múltipla seleção.</small>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>Data</label><input type="date" id="modalData" value="${s.data.split('/').reverse().join('-')}" /></div>
+                    <div class="form-group"><label>Horário</label><input type="time" id="modalHorario" value="${horarioAtual}" /></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>Valor (R$)</label><input type="number" id="modalValor" value="${s.valor || 0}" step="0.01" /></div>
+                    <div class="form-group"><label>Status</label>
+                        <select id="modalStatus">
+                            ${['Concluído', 'Em andamento', 'Pendente', 'Agendado', 'Cancelado'].map(st => `<option value="${st}" ${st === s.status ? 'selected' : ''}>${st}</option>`).join('')}
+                        </select>
+                    </div>
+                </div>
+                <small style="color:#4d687a;font-size:0.8rem;display:block;margin-top:4px;">⚠️ Alterar o status atualizará automaticamente a agenda e a OS vinculada.</small>
+                <div class="modal-footer">
+                    <button class="btn-secondary" onclick="fecharModal()">Cancelar</button>
+                    <button class="btn-primary" onclick="salvarEdicaoServicoMulti(${id})">Salvar</button>
+                </div>
+            `);
+        };
+
+        // =============================================
+        // ===== SALVAR EDIÇÃO DE SERVIÇO MULTI =====
+        // =============================================
+
+        window.salvarEdicaoServicoMulti = function (id) {
+            var clienteId = parseInt(document.getElementById('modalClienteId')?.value || '0');
+            var data = document.getElementById('modalData')?.value?.split('-').reverse().join('/') || '';
+            var horario = document.getElementById('modalHorario')?.value || '09:00';
+            var status = document.getElementById('modalStatus')?.value || 'Agendado';
+            var valor = parseFloat(document.getElementById('modalValor')?.value) || 0;
+
+            var servicoAntigo = DB.getById('servicos', id);
+            if (!servicoAntigo) {
+                alert('Serviço não encontrado!');
+                return;
+            }
+
+            var tipos = servicoAntigo.tipos || [servicoAntigo.tipo];
+
+
+            DB.update('servicos', id, {
+                clienteId: clienteId,
+                data: data,
+                status: status,
+                valor: valor,
+                horario: horario,
+                tipos: tipos,
+                atualizadoEm: new Date().toISOString()
+            });
+
+            var servicoAtualizado = DB.getById('servicos', id);
+
+            sincronizarServicoMultiComAgenda(servicoAtualizado, 'update', servicoAntigo);
+
+            sincronizarServicoMultiComOS(servicoAtualizado, 'update');
+
+            if (status === 'Concluído' || status === 'Concluida' || status === 'Concluída') {
+                verificarCertificadoAutomaticoMulti(servicoAtualizado);
+            }
+
+            DB.forceClearCache('agenda');
+            DB._clearAllCaches();
+
+            fecharModal();
+            renderAll();
+
+            setTimeout(function () {
+                renderAll();
+            }, 300);
+
+            alert('✅ Serviço #' + String(id).padStart(3, '0') + ' atualizado para: ' + status + ' (' + tipos.join(', ') + ')');
+        };
+
+        // =============================================
+        // ===== EXCLUIR SERVIÇO =====
+        // =============================================
+
+        window.excluirServico = function (id) {
+            if (!confirm('Tem certeza que deseja excluir este serviço?')) {
+                return;
+            }
+
+            var servico = DB.getById('servicos', id);
+            if (!servico) return;
+
+            var agendaKey = DB.getFullKey('agenda');
+            var agenda = JSON.parse(localStorage.getItem(agendaKey) || '[]');
+            var agendamentoRelacionado = agenda.find(function (a) { return a.servicoId === id; });
+            if (agendamentoRelacionado) {
+                var novaAgenda = agenda.filter(function (a) { return a.id !== agendamentoRelacionado.id; });
+                localStorage.setItem(agendaKey, JSON.stringify(novaAgenda));
+            }
+
+            var ordens = DB.getAll('ordens');
+            var osRelacionada = ordens.find(function (o) { return o.servicoId === id; });
+            if (osRelacionada) {
+                DB.update('ordens', osRelacionada.id, {
+                    servicoId: null,
+                    status: 'Cancelada',
+                    atualizadoEm: new Date().toISOString()
+                });
+            }
+
+            DB.remove('servicos', id);
+            DB._clearAllCaches();
+            DB.forceClearCache('agenda');
+            renderAll();
+
+            setTimeout(function () {
+                renderAll();
+            }, 200);
+
+            alert('✅ Serviço removido com sucesso!');
+        };
 
         // Botão Novo Proposta Comercial
         var btnNovoOrcamento = document.getElementById('btnNovoOrcamento');
@@ -4837,7 +6067,7 @@
             });
         }
 
-        // Botão Novo Cliente - CORRIGIDO COM RAZÃO SOCIAL E NOME FANTASIA
+        // Botão Novo Cliente
         var btnNovoCliente = document.getElementById('btnNovoCliente');
         if (btnNovoCliente) {
             btnNovoCliente.addEventListener('click', function () {
@@ -4915,7 +6145,7 @@
             });
         }
 
-        // Botão Novo Produto - CORRIGIDO COM ATUALIZAÇÃO AUTOMÁTICA
+        // Botão Novo Produto
         var btnNovoProduto = document.getElementById('btnNovoProduto');
         if (btnNovoProduto) {
             btnNovoProduto.addEventListener('click', function () {
@@ -5114,7 +6344,7 @@
     }
 
     // =============================================
-    // ===== BOTÃO GERENCIAR ASSINATURAS (ADICIONADO) =====
+    // ===== BOTÃO GERENCIAR ASSINATURAS =====
     // =============================================
 
     document.addEventListener('DOMContentLoaded', function () {
@@ -5258,7 +6488,7 @@
     };
 
     // =============================================
-    // ===== FUNÇÕES DE MAPA DE ISCAS (CORRIGIDAS) =====
+    // ===== FUNÇÕES DE MAPA DE ISCAS =====
     // =============================================
 
     window.criarNovoPonto = function () {
@@ -5779,7 +7009,8 @@
                 if (String(s.clienteId) !== String(filtrosServicos.clienteId)) return false;
             }
             if (filtrosServicos.tipo) {
-                if (s.tipo !== filtrosServicos.tipo) return false;
+                var tipos = s.tipos || [s.tipo];
+                if (!tipos.includes(filtrosServicos.tipo)) return false;
             }
             if (filtrosServicos.status) {
                 if (s.status !== filtrosServicos.status) return false;
@@ -5799,10 +7030,11 @@
         tbody.innerHTML = resultados.map(function (s) {
             var validadeBadge = getValidadeBadge(s);
             var clienteNome = getClienteNome(s.clienteId);
+            var tiposDisplay = s.tipos && s.tipos.length > 0 ? s.tipos.join(' + ') : s.tipo;
             return '<tr>' +
                 '<td>#' + String(s.id).padStart(3, '0') + '</td>' +
                 '<td>' + clienteNome + '</td>' +
-                '<td>' + s.tipo + '</td>' +
+                '<td>' + tiposDisplay + '</td>' +
                 '<td>' + s.data + '</td>' +
                 '<td>' + getStatusBadge(s.status) + '</td>' +
                 '<td>' + validadeBadge + '</td>' +
@@ -6038,7 +7270,6 @@
 
         setTimeout(function () {
             renderAll();
-            console.log('🔄 Proposta ' + numero + ' criada e interface atualizada!');
         }, 150);
 
         alert('Proposta ' + numero + ' criado com sucesso!');
@@ -6193,7 +7424,6 @@
 
         setTimeout(function () {
             renderAll();
-            console.log('🔄 Proposta ' + numero + ' atualizada e interface atualizada!');
         }, 150);
 
         alert('Proposta atualizado com sucesso!');
@@ -6752,6 +7982,7 @@
                     a.clienteId = servico.clienteId;
                     a.data = servico.data;
                     a.tipoServico = servico.tipo;
+                    a.tiposServico = servico.tipos || [servico.tipo];
                     a.horario = servico.horario || a.horario || '09:00';
                 }
             } else if (a.clienteId) {
@@ -6831,14 +8062,16 @@
             }
 
             var tipoBadge = '';
-            if (a.tipoServico) {
-                var tipoCores = {
+            if (a.tiposServico && a.tiposServico.length > 0) {
+                var tiposCores = {
                     'Desratização': '#e67e22',
                     'Desinsetização': '#1d7a6b',
                     'Descupinização': '#8e44ad'
                 };
-                var cor = tipoCores[a.tipoServico] || '#2c5c6b';
-                var shortName = a.tipoServico.substring(0, 3);
+                var shortName = a.tiposServico.length > 1 ? 
+                    a.tiposServico.map(function(t) { return t.substring(0, 3); }).join('+') : 
+                    a.tiposServico[0].substring(0, 3);
+                var cor = a.tiposServico.length > 1 ? '#2c5c6b' : (tiposCores[a.tiposServico[0]] || '#2c5c6b');
                 tipoBadge = '<span style="display:inline-block;padding:0 8px;border-radius:10px;font-size:0.6rem;font-weight:600;background:' + cor + ';color:white;margin-left:4px;">' + shortName + '</span>';
             }
 
@@ -6875,11 +8108,10 @@
                 '</div>';
         }).join('');
 
-        console.log('📋 Agenda filtrada com ' + resultados.length + ' itens' + (temFiltroAtivo ? ' (filtros ativos)' : ' (apenas hoje)'));
     }
 
     // =============================================
-    // ===== FUNÇÕES DE CLIENTES (CORRIGIDAS COM CNPJ) =====
+    // ===== FUNÇÕES DE CLIENTES =====
     // =============================================
 
     function aplicarMascaraDocumento(input) {
@@ -7261,7 +8493,8 @@
                 if (String(s.clienteId) !== String(filtrosServicos.clienteId)) return false;
             }
             if (filtrosServicos.tipo) {
-                if (s.tipo !== filtrosServicos.tipo) return false;
+                var tipos = s.tipos || [s.tipo];
+                if (!tipos.includes(filtrosServicos.tipo)) return false;
             }
             if (filtrosServicos.status) {
                 if (s.status !== filtrosServicos.status) return false;
@@ -7403,7 +8636,8 @@
                 if (String(s.clienteId) !== String(filtrosServicos.clienteId)) return false;
             }
             if (filtrosServicos.tipo) {
-                if (s.tipo !== filtrosServicos.tipo) return false;
+                var tipos = s.tipos || [s.tipo];
+                if (!tipos.includes(filtrosServicos.tipo)) return false;
             }
             if (filtrosServicos.status) {
                 if (s.status !== filtrosServicos.status) return false;
@@ -8349,7 +9583,6 @@
             return;
         }
 
-        console.log('🔄 Criando novo serviço - Status: ' + status);
 
         var servicosExistentes = DB.getAll('servicos');
         var servicoExistente = servicosExistentes.find(function (s) {
@@ -8388,7 +9621,6 @@
             atualizadoEm: new Date().toISOString()
         });
 
-        console.log('✅ Serviço criado com ID: ' + servico.id);
 
         var cliente = getCliente(clienteId);
         var clienteNome = cliente ? cliente.nome : 'Cliente #' + clienteId;
@@ -8454,7 +9686,6 @@
 
             agendaItems.push(novoAgendamento);
             localStorage.setItem(agendaKey, JSON.stringify(agendaItems));
-            console.log('📅 Agenda CRIADA para serviço #' + servico.id + ' Status: ' + status);
         }
 
         sincronizarServicoComOS(servico, 'add');
@@ -8471,7 +9702,6 @@
 
         setTimeout(function () {
             renderAll();
-            console.log('🔄 Renderização completa após criar serviço #' + servico.id);
         }, 200);
 
         alert('✅ Serviço #' + String(servico.id).padStart(3, '0') + ' criado com status: ' + status);
@@ -8494,9 +9724,6 @@
             return;
         }
 
-        console.log('🔄 Editando serviço #' + id);
-        console.log('  Status ANTIGO: ' + servicoAntigo.status);
-        console.log('  Status NOVO: ' + status);
 
         DB.update('servicos', id, {
             clienteId: clienteId,
@@ -8550,7 +9777,6 @@
                 };
 
                 localStorage.setItem(agendaKey, JSON.stringify(agendaItems));
-                console.log('📅 Agenda ATUALIZADA MANUALMENTE! Serviço #' + id + ' -> Status: ' + status);
             }
         } else {
             sincronizarServicoComAgenda(servicoAtualizado, 'add', servicoAntigo);
@@ -8570,7 +9796,6 @@
 
         setTimeout(function () {
             renderAll();
-            console.log('🔄 Renderização completa após editar serviço #' + id);
         }, 300);
 
         alert('✅ Serviço #' + String(id).padStart(3, '0') + ' atualizado para: ' + status);
@@ -8614,99 +9839,23 @@
         alert('✅ Serviço removido com sucesso!');
     };
 
-    window.editarServico = function (id) {
-        var s = DB.getById('servicos', id);
-        if (!s) return;
-
-        var validade = calcularValidadeServico(s);
-        var infoValidade = '';
-        if (validade) {
-            var statusMap = {
-                'valido': '🟢 Válido',
-                'proximo': '🟡 Próximo do vencimento',
-                'critico': '🔴 Vence em breve',
-                'vencido': '❌ Vencido'
-            };
-            infoValidade = `
-                <div style="background:#f8fbfd;padding:12px 16px;border-radius:8px;margin-bottom:16px;">
-                    <strong>Validade:</strong> ${statusMap[validade.status] || 'Válido'} 
-                    (${validade.diasRestantes > 0 ? validade.diasRestantes + ' dias restantes' : Math.abs(validade.diasRestantes) + ' dias vencido'})
-                    <br><small style="color:#4d687a;">Vence em: ${validade.dataVencimento.toLocaleDateString('pt-BR')}</small>
-                </div>
-            `;
-        }
-
-        var horarioAtual = '09:00';
-        var agendaKey = DB.getFullKey('agenda');
-        var agendaItems = JSON.parse(localStorage.getItem(agendaKey) || '[]');
-        var agendamento = agendaItems.find(function (a) { return a.servicoId === id; });
-        if (agendamento) {
-            horarioAtual = agendamento.horario || '09:00';
-        }
-
-        abrirModal('Editar Serviço', `
-            ${infoValidade}
-            <div class="form-group">
-                <label>Cliente</label>
-                <select id="modalClienteId">
-                    ${DB.getAll('clientes').map(c => `<option value="${c.id}" ${c.id === s.clienteId ? 'selected' : ''}>${c.nome} (${c.tipoCliente === 'cnpj' ? 'CNPJ' : 'CPF'})</option>`).join('')}
-                </select>
-            </div>
-            <div class="form-row">
-                <div class="form-group"><label>Tipo</label>
-                    <select id="modalTipo">
-                        ${['Desratização', 'Desinsetização', 'Descupinização'].map(t => `<option value="${t}" ${t === s.tipo ? 'selected' : ''}>${t}</option>`).join('')}
-                    </select>
-                </div>
-                <div class="form-group"><label>Data</label><input type="date" id="modalData" value="${s.data.split('/').reverse().join('-')}" /></div>
-            </div>
-            <div class="form-row">
-                <div class="form-group"><label>Horário</label><input type="time" id="modalHorario" value="${horarioAtual}" /></div>
-                <div class="form-group"><label>Valor (R$)</label><input type="number" id="modalValor" value="${s.valor || 0}" step="0.01" /></div>
-            </div>
-            <div class="form-group">
-                <label>Status</label>
-                <select id="modalStatus">
-                    ${['Concluído', 'Em andamento', 'Pendente', 'Agendado', 'Cancelado'].map(st => `<option value="${st}" ${st === s.status ? 'selected' : ''}>${st}</option>`).join('')}
-                </select>
-                <small style="color:#4d687a;font-size:0.8rem;display:block;margin-top:4px;">⚠️ Alterar o status atualizará automaticamente a agenda e a OS vinculada.</small>
-            </div>
-            <div class="modal-footer">
-                <button class="btn-secondary" onclick="fecharModal()">Cancelar</button>
-                <button class="btn-primary" onclick="salvarEdicaoServico(${id})">Salvar</button>
-            </div>
-        `);
-    };
-
     // =============================================
     // ===== FUNÇÃO DE DIAGNÓSTICO =====
     // =============================================
     window.diagnosticarAgenda = function () {
-        console.log('🔍 DIAGNÓSTICO DA AGENDA');
-        console.log('========================');
 
         var servicos = DB.getAll('servicos');
         var agendaKey = DB.getFullKey('agenda');
         var agenda = JSON.parse(localStorage.getItem(agendaKey) || '[]');
 
-        console.log('📊 Total de serviços: ' + servicos.length);
-        console.log('📊 Total de agendamentos: ' + agenda.length);
-        console.log('');
 
         servicos.forEach(function (s) {
             var agendamento = agenda.find(function (a) { return a.servicoId === s.id; });
-            console.log('Serviço #' + s.id + ':');
-            console.log('  Status no SERVIÇO: ' + s.status);
             if (agendamento) {
-                console.log('  Status na AGENDA: ' + agendamento.statusServico);
-                console.log('  Sincronizado: ' + (agendamento.statusServico === s.status ? '✅ SIM' : '❌ NÃO'));
             } else {
-                console.log('  ❌ Nenhum agendamento encontrado para este serviço!');
             }
-            console.log('');
         });
 
-        console.log('========================');
     };
 
     window.forcarRecriarAgenda = function () {
@@ -8714,7 +9863,6 @@
             return;
         }
 
-        console.log('🔄 Forçando recriação da agenda...');
         var servicos = DB.getAll('servicos');
         var agendaItems = [];
         var agendaKey = DB.getFullKey('agenda');
@@ -8737,7 +9885,8 @@
 
             var statusInfo = statusMap[servico.status] || { emoji: '📌', label: servico.status };
             var valorFormatado = servico.valor ? servico.valor.toFixed(2).replace('.', ',') : '0,00';
-            var descricao = 'Serviço #' + String(servico.id).padStart(3, '0') + ': ' + servico.tipo + ' - ' + statusInfo.emoji + ' ' + statusInfo.label + ' (R$ ' + valorFormatado + ')';
+            var tiposStr = servico.tipos && servico.tipos.length > 0 ? servico.tipos.join(' + ') : servico.tipo;
+            var descricao = 'Serviço #' + String(servico.id).padStart(3, '0') + ': ' + tiposStr + ' - ' + statusInfo.emoji + ' ' + statusInfo.label + ' (R$ ' + valorFormatado + ')';
             var horario = servico.horario || '09:00';
 
             agendaItems.push({
@@ -8749,6 +9898,7 @@
                 servicoId: servico.id,
                 statusServico: servico.status,
                 tipoServico: servico.tipo,
+                tiposServico: servico.tipos || [servico.tipo],
                 sincronizado: true,
                 clienteNome: clienteNome,
                 criadoEm: new Date().toISOString(),
@@ -8761,7 +9911,6 @@
         DB._clearAllCaches();
 
         renderAll();
-        console.log('✅ Agenda recriada com ' + agendaItems.length + ' itens');
         alert('✅ Agenda recriada com sucesso! ' + agendaItems.length + ' agendamentos gerados.');
     };
 
@@ -9566,7 +10715,7 @@
     }
 
     // =============================================
-    // ===== IMPRIMIR RELATÓRIO (OTIMIZADO) =====
+    // ===== IMPRIMIR RELATÓRIO =====
     // =============================================
     window.imprimirRelatorio = function (id) {
         var r = DB.getById('relatorios', id);
@@ -10172,7 +11321,7 @@
     };
 
     // =============================================
-    // ===== IMPRIMIR OS (OTIMIZADO E LEGÍVEL) =====
+    // ===== IMPRIMIR OS =====
     // =============================================
     window.imprimirOS = function (id) {
         var os = DB.getById('ordens', id);
@@ -10211,7 +11360,6 @@
                 '</tr>';
         }
 
-        // Função para gerar checkboxes com tamanho adequado
         function gerarCheckboxImpressao(lista, selecionados, cols) {
             cols = cols || 4;
             var html = '<div style="display:grid;grid-template-columns:repeat(' + cols + ',1fr);gap:2px 8px;font-size:9pt;">';
@@ -11301,9 +12449,7 @@
     }, 500);
 
     if (typeof FirestoreService !== 'undefined' && Object.keys(FirestoreService._unsubscribers).length === 0) {
-        console.log('🔄 Iniciando observadores em tempo real a partir da página principal.');
         FirestoreService.iniciarObservadores(() => {
-            console.log('🔄 Dados atualizados em tempo real, renderizando...');
             if (typeof window.renderAll === 'function') {
                 window.renderAll();
             }
@@ -11317,32 +12463,191 @@
         });
     }
 
-    console.log('🚀 Sistema Dedetização Multi-Empresa carregado com sucesso!');
-    console.log('📌 Empresa atual:', typeof EmpresaManager !== 'undefined' ? EmpresaManager.getEmpresaAtual() : 'N/A');
-    console.log('📌 Para resetar todos os dados, use: resetarDados()');
-    console.log('📌 Para diagnosticar a agenda, use: diagnosticarAgenda()');
-    console.log('📌 Para recriar a agenda, use: forcarRecriarAgenda()');
-    console.log('📌 Sincronização automática de status: CADA SERVIÇO ATUALIZA APENAS SEU AGENDAMENTO');
-    console.log('📌 Para sincronizar dados com o servidor, use: forcarSincronizacao()');
-    console.log('📌 Para recarregar dados do servidor, use: forcarCarregamentoFirestore()');
-    console.log('✅ CORREÇÕES APLICADAS:');
-    console.log('  ✅ Duplicação de serviços na agenda eliminada');
-    console.log('  ✅ Atualização automática de relatórios sem recarregar página');
-    console.log('  ✅ Página de Administração com gerenciamento de plano e limites');
-    console.log('  ✅ Indicador de plano no topbar');
-    console.log('  ✅ Campo "Texto da Garantia do Serviço" movido para dentro da OS (editável por OS)');
-    console.log('  ✅ Sistema de assinaturas salvas para técnicos e operacionais');
-    console.log('  ✅ Gerenciador de assinaturas com upload de imagens');
-    console.log('  ✅ Aplicação automática de assinaturas salvas em certificados');
-    console.log('  ✅ Duplicação do botão "Gerenciar Assinaturas" removida');
-    console.log('  ✅ Mapa de Iscas: campo "nome" alterado para "numero"');
-    console.log('  ✅ Mapa de Iscas: campo "posicao" alterado para "localizacao"');
-    console.log('  ✅ Mapa de Iscas: campo "endereco" removido');
-    console.log('  ✅ Mapa de Iscas: status alterados para ok, consumo, danificado, substituido');
-    console.log('  ✅ Mapa de Iscas: campo "Última Manutenção" removido e substituído por checkboxes');
-    console.log('  ✅ Tamanhos de fonte para impressão ajustados para melhor visualização');
-    console.log('  ✅ Removido "Documento gerado em..." dos arquivos impressos');
-    console.log('  ✅ Estoque: TODOS os produtos (qualquer categoria) aparecem na OS');
-    console.log('  ✅ Estoque: TODOS os produtos aparecem ao adicionar novo item na OS');
-    console.log('  ✅ Impressão otimizada para uma única página com fontes padronizadas');
+    // =============================================
+    // ===== CORREÇÃO: EXPORTAÇÃO DE FUNÇÕES DE CERTIFICADO =====
+    // =============================================
+
+    // 🔥 VISUALIZAR CERTIFICADO
+    window.visualizarCertificado = function (id) {
+        try {
+            if (typeof DB === 'undefined') {
+                console.warn('DB não disponível');
+                alert('Sistema não disponível. Tente novamente.');
+                return;
+            }
+
+            var certificado = CertificadoService.getCertificado(id);
+            if (!certificado) {
+                alert('Certificado não encontrado!');
+                return;
+            }
+
+            var html = CertificadoService.renderizarCertificado(certificado);
+            
+            // Adiciona botões de ação no modal
+            html += `
+                <div style="margin-top:20px;display:flex;gap:12px;justify-content:flex-end;border-top:1px solid #e8eff5;padding-top:20px;">
+                    <button class="btn-secondary" onclick="fecharModalRelatorio()">Fechar</button>
+                    <button class="btn-primary" onclick="imprimirCertificado('${id}')"><i class="fas fa-print"></i> Imprimir</button>
+                    <button class="btn-primary" onclick="baixarPDFCertificado('${id}')"><i class="fas fa-file-pdf"></i> Baixar PDF</button>
+                </div>
+            `;
+
+            var titleEl = document.getElementById('modalRelatorioTitle');
+            var bodyEl = document.getElementById('modalRelatorioBody');
+            if (titleEl) titleEl.textContent = 'Certificado Técnico - ' + certificado.tipo;
+            if (bodyEl) bodyEl.innerHTML = html;
+            
+            var overlay = document.getElementById('modalRelatorioOverlay');
+            if (overlay) overlay.classList.add('active');
+            
+        } catch (e) {
+            console.warn('Erro ao visualizar certificado:', e);
+            alert('Erro ao visualizar certificado: ' + e.message);
+        }
+    };
+
+    // 🔥 IMPRIMIR CERTIFICADO
+    window.imprimirCertificado = function (id) {
+        try {
+            if (typeof DB === 'undefined') {
+                alert('Sistema não disponível. Tente novamente.');
+                return;
+            }
+
+            var certificado = CertificadoService.getCertificado(id);
+            if (!certificado) {
+                alert('Certificado não encontrado!');
+                return;
+            }
+
+            CertificadoService.gerarPDF(certificado);
+        } catch (e) {
+            console.warn('Erro ao imprimir certificado:', e);
+            alert('Erro ao imprimir certificado: ' + e.message);
+        }
+    };
+
+    // 🔥 BAIXAR PDF DO CERTIFICADO
+    window.baixarPDFCertificado = function (id) {
+        try {
+            if (typeof DB === 'undefined') {
+                alert('Sistema não disponível. Tente novamente.');
+                return;
+            }
+
+            var certificado = CertificadoService.getCertificado(id);
+            if (!certificado) {
+                alert('Certificado não encontrado!');
+                return;
+            }
+
+            CertificadoService.gerarPDF(certificado);
+        } catch (e) {
+            console.warn('Erro ao baixar PDF do certificado:', e);
+            alert('Erro ao baixar PDF: ' + e.message);
+        }
+    };
+
+    // 🔥 EXCLUIR CERTIFICADO
+    window.excluirCertificado = function (id) {
+        if (!confirm('Tem certeza que deseja excluir este certificado?')) {
+            return;
+        }
+        
+        try {
+            DB.remove('certificados', id);
+            DB.forceClearCache('certificados');
+            renderCertificados();
+            preencherFiltroCertificados();
+            renderAll();
+            alert('✅ Certificado excluído com sucesso!');
+        } catch (e) {
+            console.warn('Erro ao excluir certificado:', e);
+            alert('Erro ao excluir certificado: ' + e.message);
+        }
+    };
+
+    // 🔥 EXPORTAR CERTIFICADOS EXCEL
+    window.exportarCertificadosExcel = function () {
+        try {
+            if (typeof DB === 'undefined') {
+                alert('Sistema não disponível. Tente novamente.');
+                return;
+            }
+
+            var certificados = CertificadoService.listarCertificados();
+            
+            var data = certificados.map(function(c) {
+                var cliente = getCliente(c.clienteId);
+                return {
+                    'ID': c.id,
+                    'Cliente': cliente ? cliente.nome : 'N/A',
+                    'Tipo': c.tipo,
+                    'Data Emissão': new Date(c.criadoEm).toLocaleDateString('pt-BR'),
+                    'Data Serviço': c.dataServico,
+                    'Validade': c.dataValidade,
+                    'Status': c.status,
+                    'Observações': c.observacoes ? c.observacoes.substring(0, 100) : ''
+                };
+            });
+
+            var wb = XLSX.utils.book_new();
+            var ws = XLSX.utils.json_to_sheet(data);
+            XLSX.utils.book_append_sheet(wb, ws, 'Certificados');
+            XLSX.writeFile(wb, 'certificados_' + new Date().toISOString().split('T')[0] + '.xlsx');
+        } catch (e) {
+            console.warn('Erro ao exportar certificados:', e);
+            alert('Erro ao exportar certificados: ' + e.message);
+        }
+    };
+
+    // 🔥 EXPORTAR CERTIFICADOS PDF
+    window.exportarCertificadosPDF = function () {
+        try {
+            if (typeof DB === 'undefined') {
+                alert('Sistema não disponível. Tente novamente.');
+                return;
+            }
+
+            var certificados = CertificadoService.listarCertificados();
+            
+            var doc = new window.jspdf.jsPDF('p', 'mm', 'a4');
+            doc.setFontSize(14);
+            doc.text('Relatório de Certificados Técnicos', 105, 20, { align: 'center' });
+            doc.setFontSize(10);
+            doc.text('Gerado em: ' + new Date().toLocaleString('pt-BR'), 105, 28, { align: 'center' });
+
+            var data = certificados.map(function(c) {
+                var cliente = getCliente(c.clienteId);
+                return [
+                    c.id,
+                    cliente ? cliente.nome : 'N/A',
+                    c.tipo,
+                    new Date(c.criadoEm).toLocaleDateString('pt-BR'),
+                    c.dataValidade,
+                    c.status
+                ];
+            });
+
+            if (data.length === 0) {
+                doc.text('Nenhum certificado encontrado.', 20, 40);
+            } else {
+                doc.autoTable({
+                    startY: 35,
+                    head: [['ID', 'Cliente', 'Tipo', 'Emissão', 'Validade', 'Status']],
+                    body: data,
+                    theme: 'striped',
+                    headStyles: { fillColor: [11, 42, 59] },
+                    styles: { fontSize: 8 }
+                });
+            }
+
+            doc.save('certificados_' + new Date().toISOString().split('T')[0] + '.pdf');
+        } catch (e) {
+            console.warn('Erro ao exportar certificados PDF:', e);
+            alert('Erro ao exportar certificados: ' + e.message);
+        }
+    };
+    
 })();

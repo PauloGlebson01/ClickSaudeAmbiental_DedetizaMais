@@ -9,7 +9,6 @@ const AuthService = {
     _lastLoginAttempt: 0,
     
     async cadastrar(email, senha, nome, usuario, empresaId = null) {
-        console.log('📝 Cadastrando novo admin:', email);
         
         try {
             if (!firebase || !firebase.auth) {
@@ -49,7 +48,6 @@ const AuthService = {
                     ultimoAcesso: new Date().toISOString(),
                     ativo: true
                 });
-                console.log('✅ Admin salvo no Firestore com empresaId:', empresaFinal);
             } catch (firestoreError) {
                 console.warn('Erro ao salvar no Firestore:', firestoreError);
             }
@@ -76,7 +74,6 @@ const AuthService = {
             
             // INICIA OBSERVADORES EM TEMPO REAL
             FirestoreService.iniciarObservadores(() => {
-                console.log('🔄 Dados atualizados em tempo real');
                 if (typeof window.renderAll === 'function') {
                     window.renderAll();
                 }
@@ -260,7 +257,6 @@ const AuthService = {
             
             // 🔥 INICIA OBSERVADORES EM TEMPO REAL
             FirestoreService.iniciarObservadores(() => {
-                console.log('🔄 Dados atualizados em tempo real');
                 if (typeof window.renderAll === 'function') {
                     window.renderAll();
                 }
@@ -648,7 +644,6 @@ const EmpresaManager = {
             }
         };
         this._salvarEmpresas();
-        console.log('✅ Empresa única criada:', id);
         return this._empresas[id];
     },
     
@@ -744,7 +739,6 @@ const EmpresaManager = {
             }
         };
         this._salvarEmpresas();
-        console.log('✅ Empresa criada:', id);
         return this._empresas[id];
     },
     
@@ -796,7 +790,6 @@ const EmpresaManager = {
                 adicionadoEm: new Date().toISOString()
             });
             this._salvarEmpresas();
-            console.log('✅ Admin adicionado à empresa:', empresaId, '-', nome);
             return true;
         }
         return false;
@@ -965,7 +958,6 @@ const FirestoreService = {
                     const mergedData = this._mergeData(localData, items);
                     this._setLocalData(collection, mergedData);
                     this._clearLocalCache(collection);
-                    console.log(`✅ ${collection}: ${mergedData.length} itens carregados do Firestore`);
                     return mergedData;
                 }
             } catch (error) {
@@ -975,7 +967,6 @@ const FirestoreService = {
         
         // FALLBACK: dados locais
         const localData = this._getLocalData(collection);
-        console.log(`📁 ${collection}: ${localData.length} itens carregados localmente (fallback)`);
         return localData;
     },
     
@@ -1027,13 +1018,11 @@ const FirestoreService = {
         if (this._isFirestoreAvailable()) {
             try {
                 await db.collection(collection).doc(id).set(docData);
-                console.log(`✅ Adicionado ${collection}/${id} no Firestore`);
             } catch (error) {
                 console.warn(`Erro ao adicionar ${collection} no Firestore:`, error);
                 setTimeout(async () => {
                     try {
                         await db.collection(collection).doc(id).set(docData);
-                        console.log(`✅ Adicionado ${collection}/${id} no Firestore (retry)`);
                     } catch (retryError) {
                         console.warn(`Erro ao adicionar ${collection} no Firestore (retry):`, retryError);
                     }
@@ -1081,14 +1070,12 @@ const FirestoreService = {
         if (this._isFirestoreAvailable()) {
             try {
                 await db.collection(collection).doc(idStr).update(docData);
-                console.log(`✅ Atualizado ${collection}/${idStr} no Firestore`);
             } catch (error) {
                 // Se falhou, tenta criar o documento
                 try {
                     const fullData = items.find(item => String(item.id) === idStr);
                     if (fullData) {
                         await db.collection(collection).doc(idStr).set(fullData);
-                        console.log(`✅ Criado ${collection}/${idStr} no Firestore (update fallback)`);
                     }
                 } catch (setError) {
                     console.warn(`Erro ao atualizar ${collection} no Firestore:`, setError);
@@ -1097,7 +1084,6 @@ const FirestoreService = {
                             const fullData = items.find(item => String(item.id) === idStr);
                             if (fullData) {
                                 await db.collection(collection).doc(idStr).set(fullData);
-                                console.log(`✅ Atualizado ${collection}/${idStr} no Firestore (retry)`);
                             }
                         } catch (retryError) {
                             console.warn(`Erro ao atualizar ${collection} no Firestore (retry):`, retryError);
@@ -1127,13 +1113,11 @@ const FirestoreService = {
         if (this._isFirestoreAvailable()) {
             try {
                 await db.collection(collection).doc(idStr).delete();
-                console.log(`✅ Deletado ${collection}/${idStr} no Firestore`);
             } catch (error) {
                 console.warn(`Erro ao deletar ${collection} no Firestore:`, error);
                 setTimeout(async () => {
                     try {
                         await db.collection(collection).doc(idStr).delete();
-                        console.log(`✅ Deletado ${collection}/${idStr} no Firestore (retry)`);
                     } catch (retryError) {
                         console.warn(`Erro ao deletar ${collection} no Firestore (retry):`, retryError);
                     }
@@ -1171,8 +1155,6 @@ const FirestoreService = {
             this._setLocalData(collection, mergedData);
             this._clearLocalCache(collection);
 
-            console.log(`🔄 Coleção '${collection}' atualizada em tempo real: ${mergedData.length} itens`);
-
             if (typeof onUpdate === 'function') {
                 onUpdate(mergedData);
             }
@@ -1195,7 +1177,6 @@ const FirestoreService = {
 
         this.collections.forEach(collection => {
             if (this._unsubscribers[collection]) {
-                console.log(`ℹ️ Observador já existe para ${collection}`);
                 return;
             }
             
@@ -1206,7 +1187,6 @@ const FirestoreService = {
             });
         });
 
-        console.log(`✅ Observadores em tempo real iniciados para a empresa: ${empresaAtual}`);
         this._isInitialized = true;
     },
 
@@ -1223,7 +1203,6 @@ const FirestoreService = {
             });
             this._unsubscribers = {};
             this._currentEmpresa = null;
-            console.log('⏹️ Observadores em tempo real parados.');
         }
         this._isInitialized = false;
     },
@@ -1259,7 +1238,6 @@ const FirestoreService = {
                     const mergedData = this._mergeData(localData, items);
                     this._setLocalData(collection, mergedData);
                     totalItens += mergedData.length;
-                    console.log(`✅ Sincronizado ${collection}: ${mergedData.length} itens (Firestore prioritário)`);
                 } else if (localData.length > 0 && force) {
                     // Se não há dados no Firestore e é força, sincroniza os locais
                     for (const item of localData) {
@@ -1268,7 +1246,6 @@ const FirestoreService = {
                                 ...item,
                                 empresaId: empresaId
                             });
-                            console.log(`⬆️ Sincronizado item local para Firestore: ${collection}/${item.id}`);
                         } catch (syncError) {
                             console.warn(`Erro ao sincronizar item ${item.id}:`, syncError);
                         }
@@ -1287,7 +1264,6 @@ const FirestoreService = {
         }
         
         EmpresaManager.setEmpresaAtual(empresaAnterior);
-        console.log(`✅ Sincronização completa: ${totalItens} itens sincronizados`);
         return totalItens;
     },
     
@@ -1316,7 +1292,6 @@ const FirestoreService = {
                 const mergedData = this._mergeData(localData, items);
                 this._setLocalData(collection, mergedData);
                 this._clearLocalCache(collection);
-                console.log(`✅ Sincronizado ${collection}: ${mergedData.length} itens`);
                 return mergedData;
             } else if (localData.length > 0) {
                 // Envia dados locais para o Firestore
@@ -1413,12 +1388,10 @@ const FirestoreService = {
                 for (const modelo of defaultModelos) {
                     await this.add('modelos', modelo);
                 }
-                console.log('✅ Modelos padrão criados!');
             }
             
             // VERIFICA SE HÁ CERTIFICADOS E SINCRONIZA
             const certificados = await this.getAll('certificados', true);
-            console.log(`📋 ${certificados.length} certificados sincronizados`);
             
         } catch (error) {
             console.warn('Erro ao inicializar dados padrão:', error);
@@ -1979,7 +1952,6 @@ if (typeof window !== 'undefined') {
 
 // Inicializa observadores automaticamente após o carregamento da página
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('🚀 Inicializando sincronização automática...');
     
     // Aguarda um pouco para garantir que tudo está carregado
     setTimeout(async () => {
@@ -1994,14 +1966,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Inicia observadores se ainda não iniciados
                 if (!FirestoreService._isInitialized) {
                     FirestoreService.iniciarObservadores(() => {
-                        console.log('🔄 Dados atualizados em tempo real');
                         if (typeof window.renderAll === 'function') {
                             window.renderAll();
                         }
                     });
                 }
                 
-                console.log('✅ Sincronização automática iniciada com sucesso!');
             } else {
                 console.warn('⚠️ Firestore não disponível, usando dados locais');
             }
@@ -2019,10 +1989,3 @@ window.AuthService = AuthService;
 window.FirestoreService = FirestoreService;
 window.EmpresaManager = EmpresaManager;
 window.PlanService = PlanService;
-
-console.log('✅ Firebase Services - SINCRONIZAÇÃO AUTOMÁTICA MULTI-DISPOSITIVO carregados!');
-console.log('📌 Todos os registros são sincronizados em tempo real entre dispositivos');
-console.log('📌 PRIORIDADE: Dados do Firestore sobrescrevem dados locais');
-console.log('📌 Nenhuma ação manual necessária!');
-console.log('📌 Planos disponíveis: Básico (3 admins), Profissional (10 admins), Premium (usuários ilimitados)');
-console.log('📌 Para alterar o plano, use PlanService.PLANOS');

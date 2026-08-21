@@ -2,9 +2,6 @@
 
 document.addEventListener('DOMContentLoaded', function() {
     
-    console.log('🔍 Inicializando sistema de login...');
-    console.log('📌 Firebase disponível:', typeof firebase !== 'undefined');
-    console.log('📌 AuthService disponível:', typeof AuthService !== 'undefined');
 
     // ============================================
     // FUNÇÕES DE NAVEGAÇÃO
@@ -259,6 +256,4 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    console.log('🔐 Sistema de Login carregado!');
-    console.log('📌 Empresa única - dados compartilhados em tempo real');
 });
