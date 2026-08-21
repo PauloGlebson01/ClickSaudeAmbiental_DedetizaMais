@@ -812,15 +812,18 @@
 
             }
 
-            if (typeof FirestoreService !== 'undefined') {
-                setTimeout(function () {
-                    try {
-                        FirestoreService.initializeDefaultData();
-                    } catch (error) {
-                        console.warn('Erro ao inicializar dados no Firebase:', error);
-                    }
-                }, 500);
+if (typeof FirestoreService !== 'undefined') {
+    setTimeout(function() {
+        try {
+            var empresaId = EmpresaManager.getEmpresaAtual();
+            if (typeof FirestoreService.inicializarDadosEmpresa === 'function') {
+                FirestoreService.inicializarDadosEmpresa(empresaId);
+            } else if (typeof FirestoreService.initializeDefaultData === 'function') {
+                FirestoreService.initializeDefaultData();
             }
+        } catch (error) {}
+    }, 500);
+}
         },
 
         limparDados: function () {
@@ -2996,105 +2999,126 @@ window.gerarCertificadoUnico = function() {
         }
     };
 
-    window.atualizarResponsavelCertificado = function (certId, tipo, membroId) {
+window.atualizarResponsavelCertificado = function (certId, tipo, membroId) {
 
-        if (!membroId || membroId === '' || membroId === 'default_tecnico' || membroId === 'default_operacional') {
-            console.warn('⚠️ Nenhum membro selecionado - resetando');
-            const infoEl = document.getElementById('cert' + (tipo === 'tecnico' ? 'Tecnico' : 'Operacional') + 'Info_' + certId);
-            if (infoEl) {
-                infoEl.textContent = 'Nenhum ' + (tipo === 'tecnico' ? 'técnico' : 'operacional') + ' selecionado';
-            }
-
-            const updateData = {};
-            const campo = tipo === 'tecnico' ? 'tecnico' : 'operacional';
-            updateData['responsaveis.' + campo] = {
-                id: null,
-                nome: 'Selecione...',
-                registro: '',
-                atuacao: ''
-            };
-            DB.update('certificados', certId, updateData);
-
-            setTimeout(function () {
-                visualizarCertificado(certId);
-            }, 150);
-            return;
-        }
-
-        const equipe = DB.getAll('equipe');
-        const membro = equipe.find(function (m) {
-            return String(m.id) === String(membroId);
-        });
-
-        if (!membro) {
-            console.warn('⚠️ Membro não encontrado:', membroId);
-            const membroByName = equipe.find(function (m) {
-                return m.nome && m.nome.toLowerCase() === String(membroId).toLowerCase();
-            });
-            if (membroByName) {
-                return window.atualizarResponsavelCertificado(certId, tipo, String(membroByName.id));
-            }
-            return;
-        }
-
-
-        const certificado = CertificadoService.getCertificado(certId);
-        if (!certificado) {
-            console.warn('⚠️ Certificado não encontrado:', certId);
-            return;
-        }
-
-        const updateData = {};
-        const campo = tipo === 'tecnico' ? 'tecnico' : 'operacional';
-
-        const responsavelData = {
-            id: membro.id,
-            nome: membro.nome,
-            registro: membro.registro || '',
-            atuacao: membro.cargo || ''
-        };
-
-        updateData['responsaveis.' + campo] = responsavelData;
-
-
-        DB.update('certificados', certId, updateData);
-
-        if (typeof FirestoreService !== 'undefined') {
-            try {
-                const certAtualizado = CertificadoService.getCertificado(certId);
-                if (certAtualizado) {
-                    FirestoreService.update('certificados', certId, certAtualizado).catch(err => {
-                        console.warn('⚠️ Erro na sincronização Firestore:', err);
-                    });
-                }
-            } catch (e) {
-                console.warn('⚠️ Erro na sincronização Firestore:', e);
-            }
-        }
-
+    if (!membroId || membroId === '' || membroId === 'default_tecnico' || membroId === 'default_operacional') {
         const infoEl = document.getElementById('cert' + (tipo === 'tecnico' ? 'Tecnico' : 'Operacional') + 'Info_' + certId);
         if (infoEl) {
-            infoEl.textContent = membro.nome + (membro.registro ? ' - ' + membro.registro : '');
+            infoEl.textContent = 'Nenhum ' + (tipo === 'tecnico' ? 'técnico' : 'operacional') + ' selecionado';
         }
 
-        const selectEl = document.getElementById('cert' + (tipo === 'tecnico' ? 'Tecnico' : 'Operacional') + 'Select_' + certId);
-        if (selectEl) {
-            selectEl.value = membroId;
+        var certAtual = CertificadoService.getCertificado(certId);
+        if (certAtual) {
+            var responsaveis = certAtual.responsaveis || {};
+            if (tipo === 'tecnico') {
+                responsaveis.tecnico = {
+                    id: null,
+                    nome: 'Selecione...',
+                    registro: '',
+                    atuacao: ''
+                };
+            } else {
+                responsaveis.operacional = {
+                    id: null,
+                    nome: 'Selecione...',
+                    registro: '',
+                    atuacao: ''
+                };
+            }
+            
+            var updateData = { responsaveis: responsaveis };
+            DB.update('certificados', certId, updateData);
+            
+            if (typeof FirestoreService !== 'undefined') {
+                try {
+                    FirestoreService.update('certificados', certId, updateData);
+                } catch (e) {}
+            }
         }
 
         setTimeout(function () {
-            const certVerificado = CertificadoService.getCertificado(certId);
-            if (certVerificado) {
-                const responsavelSalvo = certVerificado.responsaveis?.[campo];
-                if (responsavelSalvo && String(responsavelSalvo.id) === String(membro.id)) {
-                } else {
-                    console.warn('⚠️ Responsável não foi salvo corretamente, forçando re-salvamento...');
-                    DB.update('certificados', certId, updateData);
-                }
-            }
+            visualizarCertificado(certId);
             renderCertificados();
-        }, 300);
+        }, 200);
+        return;
+    }
+
+    const equipe = DB.getAll('equipe');
+    const membro = equipe.find(function (m) {
+        return String(m.id) === String(membroId);
+    });
+
+    if (!membro) {
+        const membroByName = equipe.find(function (m) {
+            return m.nome && m.nome.toLowerCase() === String(membroId).toLowerCase();
+        });
+        if (membroByName) {
+            return window.atualizarResponsavelCertificado(certId, tipo, String(membroByName.id));
+        }
+        return;
+    }
+
+    var certificado = CertificadoService.getCertificado(certId);
+    if (!certificado) {
+        certificado = CertificadoService.getCertificado(certId);
+        if (!certificado) {
+            return;
+        }
+    }
+
+    var responsavelData = {
+        id: membro.id,
+        nome: membro.nome,
+        registro: membro.registro || '',
+        atuacao: membro.cargo || ''
     };
+
+    var responsaveis = certificado.responsaveis || {};
+    
+    if (tipo === 'tecnico') {
+        responsaveis.tecnico = responsavelData;
+    } else {
+        responsaveis.operacional = responsavelData;
+    }
+
+    var updateData = { responsaveis: responsaveis };
+
+    // 1. Atualiza localmente
+    DB.update('certificados', certId, updateData);
+
+    // 2. Atualiza no Firestore via serviço
+    if (typeof FirestoreService !== 'undefined') {
+        try {
+            FirestoreService.update('certificados', certId, updateData);
+        } catch (e) {}
+    }
+
+    // 3. Atualização direta no Firestore (fallback garantido)
+    if (typeof FirestoreService !== 'undefined' && FirestoreService._isFirestoreAvailable()) {
+        try {
+            var docRef = db.collection('certificados').doc(String(certId));
+            docRef.update(updateData).catch(function(err) {
+                docRef.set(updateData, { merge: true });
+            });
+        } catch (e) {}
+    }
+
+    // Atualiza a interface
+    const infoEl = document.getElementById('cert' + (tipo === 'tecnico' ? 'Tecnico' : 'Operacional') + 'Info_' + certId);
+    if (infoEl) {
+        infoEl.textContent = membro.nome + (membro.registro ? ' - ' + membro.registro : '');
+    }
+
+    const selectEl = document.getElementById('cert' + (tipo === 'tecnico' ? 'Tecnico' : 'Operacional') + 'Select_' + certId);
+    if (selectEl) {
+        selectEl.value = membroId;
+    }
+
+    setTimeout(function () {
+        visualizarCertificado(certId);
+        renderCertificados();
+    }, 300);
+};
 
     window.editarObservacaoCertificado = function (certId) {
         const certificado = CertificadoService.getCertificado(certId);

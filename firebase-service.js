@@ -9,7 +9,6 @@ const AuthService = {
     _lastLoginAttempt: 0,
     
     async cadastrar(email, senha, nome, usuario, empresaId = null) {
-        
         try {
             if (!firebase || !firebase.auth) {
                 return this._cadastrarFallback(email, senha, nome, usuario, empresaId);
@@ -20,9 +19,7 @@ const AuthService = {
                 if (methods && methods.length > 0) {
                     return { success: false, message: 'Este e-mail já está cadastrado.' };
                 }
-            } catch (verifyError) {
-                console.warn('Erro ao verificar e-mail:', verifyError);
-            }
+            } catch (verifyError) {}
 
             const userCredential = await auth.createUserWithEmailAndPassword(email, senha);
             const user = userCredential.user;
@@ -48,16 +45,12 @@ const AuthService = {
                     ultimoAcesso: new Date().toISOString(),
                     ativo: true
                 });
-            } catch (firestoreError) {
-                console.warn('Erro ao salvar no Firestore:', firestoreError);
-            }
-            
+            } catch (firestoreError) {}
+
             try {
                 await user.updateProfile({ displayName: nome });
-            } catch (profileError) {
-                console.warn('Erro ao atualizar perfil:', profileError);
-            }
-            
+            } catch (profileError) {}
+
             const userData = { 
                 uid: user.uid, 
                 email: email, 
@@ -66,13 +59,9 @@ const AuthService = {
             };
             EmpresaManager.salvarSessao(empresaFinal, userData);
             
-            // INICIALIZA OS DADOS DA EMPRESA NO FIRESTORE
             await FirestoreService.inicializarDadosEmpresa(empresaFinal);
-            
-            // 🔥 FORÇA SINCRONIZAÇÃO COMPLETA
             await FirestoreService.sincronizarDadosEmpresa(empresaFinal);
             
-            // INICIA OBSERVADORES EM TEMPO REAL
             FirestoreService.iniciarObservadores(() => {
                 if (typeof window.renderAll === 'function') {
                     window.renderAll();
@@ -86,7 +75,6 @@ const AuthService = {
                 empresaId: empresaFinal 
             };
         } catch (error) {
-            console.error('Erro no cadastro:', error);
             return this._cadastrarFallback(email, senha, nome, usuario, empresaId);
         }
     },
@@ -100,11 +88,9 @@ const AuthService = {
             
             const empresaFinal = empresaId || 'empresa_unica';
             
-            // 🔥 VERIFICA O LIMITE DE ADMINISTRADORES
             if (typeof PlanService !== 'undefined') {
                 const verificacao = PlanService.verificarCadastroAdmin(empresaFinal);
                 if (!verificacao.permitido) {
-                    // Mostra modal de upgrade
                     if (typeof window !== 'undefined' && typeof window.abrirModal === 'function') {
                         const modalHtml = PlanService.gerarModalUpgrade(empresaFinal);
                         window.abrirModal('🔒 Limite de Administradores Atingido', modalHtml);
@@ -144,7 +130,6 @@ const AuthService = {
             };
             EmpresaManager.salvarSessao(empresaFinal, userData);
             
-            // Verifica se está próximo do limite
             if (typeof PlanService !== 'undefined') {
                 const resumo = PlanService.getResumoPlano(empresaFinal);
                 if (resumo.estaProximo && !resumo.estaLimite) {
@@ -194,10 +179,8 @@ const AuthService = {
                         empresaFinal = data.empresaId;
                     }
                 }
-            } catch (error) {
-                console.warn('Erro ao buscar empresa do usuário:', error);
-            }
-            
+            } catch (error) {}
+
             let nomeUsuario = user.displayName || email.split('@')[0];
             let usuarioLogin = email.split('@')[0];
             let perfilUsuario = 'usuario';
@@ -211,10 +194,8 @@ const AuthService = {
                     usuarioLogin = data.usuario || data.nome || usuarioLogin;
                     perfilUsuario = data.perfil || 'usuario';
                 }
-            } catch (error) {
-                console.warn('Erro ao buscar dados do usuário:', error);
-            }
-            
+            } catch (error) {}
+
             if (perfilUsuario !== 'admin' && perfilUsuario !== 'superadmin') {
                 try {
                     if (firebase && firebase.auth) {
@@ -247,15 +228,12 @@ const AuthService = {
             };
             EmpresaManager.salvarSessao(empresaFinal, userData);
             
-            // 🔥 FORÇA LIMPEZA DE CACHE LOCAL
             if (typeof DB !== 'undefined') {
                 DB._clearAllCaches();
             }
             
-            // 🔥 SINCRONIZA AUTOMATICAMENTE AO LOGAR (FORÇA BUSCA DO FIRESTORE)
             await FirestoreService.sincronizarDadosEmpresa(empresaFinal, true);
             
-            // 🔥 INICIA OBSERVADORES EM TEMPO REAL
             FirestoreService.iniciarObservadores(() => {
                 if (typeof window.renderAll === 'function') {
                     window.renderAll();
@@ -271,7 +249,6 @@ const AuthService = {
                 perfil: perfilUsuario 
             };
         } catch (error) {
-            console.error('Erro no login:', error);
             this._loginInProgress = false;
             return this._loginFallback(email, senha, empresaId);
         }
@@ -337,7 +314,6 @@ const AuthService = {
             
             return { success: true, message: 'Logout realizado!' };
         } catch (error) {
-            console.error('Erro no logout:', error);
             window.location.href = 'login.html';
             return { success: true, message: 'Logout realizado!' };
         }
@@ -386,9 +362,7 @@ const AuthService = {
                 if (doc.exists) {
                     return { id: doc.id, ...doc.data() };
                 }
-            } catch (error) {
-                console.warn('Erro ao buscar dados do usuário:', error);
-            }
+            } catch (error) {}
         }
         
         if (usuarioId) {
@@ -443,7 +417,6 @@ const AuthService = {
             }
             return { success: false, message: 'Recuperação de senha disponível apenas online.' };
         } catch (error) {
-            console.error('Erro na recuperação:', error);
             return { success: false, message: this._getErrorMessage(error.code) || 'Erro ao recuperar senha.' };
         }
     },
@@ -490,9 +463,7 @@ const EmpresaManager = {
     _salvarSessoes(sessoes) {
         try {
             localStorage.setItem(this._getSessionKey(), JSON.stringify(sessoes));
-        } catch (e) {
-            console.warn('Erro ao salvar sessões:', e);
-        }
+        } catch (e) {}
     },
     
     getSessao(empresaId, usuarioId) {
@@ -606,9 +577,7 @@ const EmpresaManager = {
                     }
                 }
             }
-        } catch (e) {
-            console.warn('Erro ao buscar empresa do Firestore:', e);
-        }
+        } catch (e) {}
         
         const novaEmpresa = this._criarEmpresaUnica();
         this._empresaAtual = novaEmpresa.id;
@@ -705,9 +674,7 @@ const EmpresaManager = {
     _salvarEmpresas() {
         try {
             localStorage.setItem('dedetiza_empresas', JSON.stringify(this._empresas));
-        } catch (e) {
-            console.warn('Erro ao salvar empresas:', e);
-        }
+        } catch (e) {}
     },
     
     criarEmpresa(nome, dominio = null) {
@@ -876,7 +843,6 @@ const FirestoreService = {
             const parsed = JSON.parse(data);
             return Array.isArray(parsed) ? parsed : [];
         } catch (e) {
-            console.warn('Erro ao buscar dados locais de ' + collection + ':', e);
             return [];
         }
     },
@@ -886,9 +852,7 @@ const FirestoreService = {
             const key = this._getStorageKey(collection);
             const safeData = Array.isArray(data) ? data : [];
             localStorage.setItem(key, JSON.stringify(safeData));
-        } catch (e) {
-            console.warn('Erro ao salvar local:', e);
-        }
+        } catch (e) {}
     },
     
     _clearLocalCache(collection) {
@@ -913,7 +877,6 @@ const FirestoreService = {
         
         const merged = {};
         
-        // PRIORIDADE: Dados do Firestore sobrescrevem dados locais
         safeFirestore.forEach(item => {
             const id = String(item.id || item._docId || '');
             if (id) {
@@ -921,7 +884,6 @@ const FirestoreService = {
             }
         });
         
-        // Adiciona dados locais que não existem no Firestore
         safeLocal.forEach(item => {
             const id = String(item.id || item._docId || '');
             if (id && !merged[id]) {
@@ -932,10 +894,23 @@ const FirestoreService = {
         return Object.values(merged);
     },
     
+    _deepMerge: function(target, source) {
+        const result = { ...target };
+        for (const key in source) {
+            if (source.hasOwnProperty(key)) {
+                if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
+                    result[key] = this._deepMerge(result[key] || {}, source[key]);
+                } else {
+                    result[key] = source[key];
+                }
+            }
+        }
+        return result;
+    },
+    
     async getAll(collection, forceRefresh = false) {
         const empresaId = EmpresaManager.getEmpresaAtual();
         
-        // SEMPRE TENTA BUSCAR DO FIRESTORE PRIMEIRO
         if (this._isFirestoreAvailable()) {
             try {
                 const snapshot = await db.collection(collection)
@@ -952,7 +927,6 @@ const FirestoreService = {
                     });
                 });
                 
-                // Se encontrou dados no Firestore, mescla com os locais
                 if (items.length > 0 || forceRefresh) {
                     const localData = this._getLocalData(collection);
                     const mergedData = this._mergeData(localData, items);
@@ -960,12 +934,9 @@ const FirestoreService = {
                     this._clearLocalCache(collection);
                     return mergedData;
                 }
-            } catch (error) {
-                console.warn(`Erro ao buscar ${collection} do Firestore:`, error);
-            }
+            } catch (error) {}
         }
         
-        // FALLBACK: dados locais
         const localData = this._getLocalData(collection);
         return localData;
     },
@@ -987,50 +958,38 @@ const FirestoreService = {
             atualizadoEm: new Date().toISOString()
         };
         
-        // 🔥 VERIFICA SE O ITEM JÁ EXISTE LOCALMENTE
         const items = this._getLocalData(collection);
         const existing = items.find(item => String(item.id) === String(id));
         if (existing) {
-            console.warn(`⚠️ Item ${id} já existe em ${collection}, atualizando...`);
             return this.update(collection, id, data);
         }
         
-        // 🔥 VERIFICA SE O ITEM JÁ EXISTE NO FIRESTORE
         if (this._isFirestoreAvailable()) {
             try {
                 const docRef = db.collection(collection).doc(id);
                 const docSnap = await docRef.get();
                 if (docSnap.exists) {
-                    console.warn(`⚠️ Item ${id} já existe no Firestore, atualizando...`);
                     return this.update(collection, id, data);
                 }
-            } catch (error) {
-                console.warn('Erro ao verificar existência no Firestore:', error);
-            }
+            } catch (error) {}
         }
         
-        // Salva localmente apenas se não existir
         items.push(docData);
         this._setLocalData(collection, items);
         this._clearLocalCache(collection);
         
-        // ENVIA PARA O FIRESTORE
         if (this._isFirestoreAvailable()) {
             try {
                 await db.collection(collection).doc(id).set(docData);
             } catch (error) {
-                console.warn(`Erro ao adicionar ${collection} no Firestore:`, error);
                 setTimeout(async () => {
                     try {
                         await db.collection(collection).doc(id).set(docData);
-                    } catch (retryError) {
-                        console.warn(`Erro ao adicionar ${collection} no Firestore (retry):`, retryError);
-                    }
+                    } catch (retryError) {}
                 }, 1000);
             }
         }
         
-        // DISPARA EVENTO PARA ATUALIZAR INTERFACE
         document.dispatchEvent(new CustomEvent('dadosAtualizados', { 
             detail: { collection, action: 'add', item: docData } 
         }));
@@ -1042,21 +1001,28 @@ const FirestoreService = {
         const empresaId = EmpresaManager.getEmpresaAtual();
         const idStr = String(id);
         
-        const docData = {
-            ...data,
-            atualizadoEm: new Date().toISOString()
-        };
+        let docAtual = null;
+        try {
+            docAtual = await this.getById(collection, idStr);
+        } catch (e) {}
         
-        // Atualiza localmente
+        let docData = {};
+        if (docAtual) {
+            docData = { ...docAtual };
+        }
+        
+        const mergedData = this._deepMerge(docData, data);
+        mergedData.atualizadoEm = new Date().toISOString();
+        
         const items = this._getLocalData(collection);
         const index = items.findIndex(item => String(item.id) === idStr);
         if (index !== -1) {
-            items[index] = { ...items[index], ...docData };
+            items[index] = { ...items[index], ...mergedData };
             this._setLocalData(collection, items);
             this._clearLocalCache(collection);
         } else {
             const newItem = {
-                ...docData,
+                ...mergedData,
                 id: idStr,
                 empresaId: empresaId,
                 criadoEm: new Date().toISOString()
@@ -1066,34 +1032,18 @@ const FirestoreService = {
             this._clearLocalCache(collection);
         }
         
-        // ATUALIZA NO FIRESTORE
         if (this._isFirestoreAvailable()) {
             try {
-                await db.collection(collection).doc(idStr).update(docData);
+                await db.collection(collection).doc(idStr).set(mergedData, { merge: true });
             } catch (error) {
-                // Se falhou, tenta criar o documento
-                try {
-                    const fullData = items.find(item => String(item.id) === idStr);
-                    if (fullData) {
-                        await db.collection(collection).doc(idStr).set(fullData);
-                    }
-                } catch (setError) {
-                    console.warn(`Erro ao atualizar ${collection} no Firestore:`, setError);
-                    setTimeout(async () => {
-                        try {
-                            const fullData = items.find(item => String(item.id) === idStr);
-                            if (fullData) {
-                                await db.collection(collection).doc(idStr).set(fullData);
-                            }
-                        } catch (retryError) {
-                            console.warn(`Erro ao atualizar ${collection} no Firestore (retry):`, retryError);
-                        }
-                    }, 1000);
-                }
+                setTimeout(async () => {
+                    try {
+                        await db.collection(collection).doc(idStr).set(mergedData, { merge: true });
+                    } catch (retryError) {}
+                }, 1000);
             }
         }
         
-        // DISPARA EVENTO PARA ATUALIZAR INTERFACE
         document.dispatchEvent(new CustomEvent('dadosAtualizados', { 
             detail: { collection, action: 'update', item: items.find(item => String(item.id) === idStr) } 
         }));
@@ -1104,28 +1054,22 @@ const FirestoreService = {
     async delete(collection, id) {
         const idStr = String(id);
         
-        // Remove localmente
         const items = this._getLocalData(collection).filter(item => String(item.id) !== idStr);
         this._setLocalData(collection, items);
         this._clearLocalCache(collection);
         
-        // REMOVE DO FIRESTORE
         if (this._isFirestoreAvailable()) {
             try {
                 await db.collection(collection).doc(idStr).delete();
             } catch (error) {
-                console.warn(`Erro ao deletar ${collection} no Firestore:`, error);
                 setTimeout(async () => {
                     try {
                         await db.collection(collection).doc(idStr).delete();
-                    } catch (retryError) {
-                        console.warn(`Erro ao deletar ${collection} no Firestore (retry):`, retryError);
-                    }
+                    } catch (retryError) {}
                 }, 1000);
             }
         }
         
-        // DISPARA EVENTO PARA ATUALIZAR INTERFACE
         document.dispatchEvent(new CustomEvent('dadosAtualizados', { 
             detail: { collection, action: 'delete', id: idStr } 
         }));
@@ -1135,7 +1079,6 @@ const FirestoreService = {
     
     observeCollection: function(collection, onUpdate, onError) {
         if (!this._isFirestoreAvailable()) {
-            console.warn('Firestore não disponível para observação.');
             return () => {};
         }
 
@@ -1149,7 +1092,6 @@ const FirestoreService = {
                 items.push({ id: doc.id, ...doc.data() });
             });
 
-            // SEMPRE ATUALIZA COM OS DADOS DO FIRESTORE (SOBRESCREVE)
             const localData = this._getLocalData(collection);
             const mergedData = this._mergeData(localData, items);
             this._setLocalData(collection, mergedData);
@@ -1159,7 +1101,6 @@ const FirestoreService = {
                 onUpdate(mergedData);
             }
         }, (error) => {
-            console.error(`❌ Erro no observador de '${collection}':`, error);
             if (typeof onError === 'function') {
                 onError(error);
             }
@@ -1196,9 +1137,7 @@ const FirestoreService = {
                 if (typeof unsubscribe === 'function') {
                     try {
                         unsubscribe();
-                    } catch (e) {
-                        console.warn('Erro ao parar observador:', e);
-                    }
+                    } catch (e) {}
                 }
             });
             this._unsubscribers = {};
@@ -1209,7 +1148,6 @@ const FirestoreService = {
     
     async sincronizarDadosEmpresa(empresaId, force = false) {
         if (!this._isFirestoreAvailable()) {
-            console.warn('Firestore não disponível para sincronização');
             return 0;
         }
         
@@ -1220,7 +1158,6 @@ const FirestoreService = {
         
         for (const collection of this.collections) {
             try {
-                // SEMPRE BUSCA DO FIRESTORE
                 const snapshot = await db.collection(collection)
                     .where('empresaId', '==', empresaId)
                     .get();
@@ -1234,30 +1171,24 @@ const FirestoreService = {
                 const localData = this._getLocalData(collection);
                 
                 if (items.length > 0) {
-                    // PRIORIDADE: Dados do Firestore sobrescrevem locais
                     const mergedData = this._mergeData(localData, items);
                     this._setLocalData(collection, mergedData);
                     totalItens += mergedData.length;
                 } else if (localData.length > 0 && force) {
-                    // Se não há dados no Firestore e é força, sincroniza os locais
                     for (const item of localData) {
                         try {
                             await db.collection(collection).doc(String(item.id)).set({
                                 ...item,
                                 empresaId: empresaId
                             });
-                        } catch (syncError) {
-                            console.warn(`Erro ao sincronizar item ${item.id}:`, syncError);
-                        }
+                        } catch (syncError) {}
                     }
                     totalItens += localData.length;
                 } else {
-                    // Mantém os dados locais
                     totalItens += localData.length;
                 }
                 this._clearLocalCache(collection);
             } catch (error) {
-                console.warn(`Erro ao sincronizar ${collection}:`, error);
                 const localData = this._getLocalData(collection);
                 totalItens += localData.length;
             }
@@ -1269,7 +1200,6 @@ const FirestoreService = {
     
     async sincronizarColecao(collection) {
         if (!this._isFirestoreAvailable()) {
-            console.warn('Firestore não disponível para sincronização');
             return null;
         }
         
@@ -1287,37 +1217,31 @@ const FirestoreService = {
                 items.push({ id: data.id || doc.id, ...data });
             });
             
-            // PRIORIDADE: Firestore sobrescreve local
             if (items.length > 0) {
                 const mergedData = this._mergeData(localData, items);
                 this._setLocalData(collection, mergedData);
                 this._clearLocalCache(collection);
                 return mergedData;
             } else if (localData.length > 0) {
-                // Envia dados locais para o Firestore
                 for (const item of localData) {
                     try {
                         await db.collection(collection).doc(String(item.id)).set({
                             ...item,
                             empresaId: empresaId
                         });
-                    } catch (syncError) {
-                        console.warn(`Erro ao sincronizar ${item.id}:`, syncError);
-                    }
+                    } catch (syncError) {}
                 }
                 return localData;
             } else {
                 return localData;
             }
         } catch (error) {
-            console.warn(`Erro ao sincronizar ${collection}:`, error);
             return this._getLocalData(collection);
         }
     },
     
     async inicializarDadosEmpresa(empresaId) {
         if (!this._isFirestoreAvailable()) {
-            console.warn('Firestore não disponível para inicialização');
             return;
         }
         
@@ -1325,7 +1249,6 @@ const FirestoreService = {
         EmpresaManager.setEmpresaAtual(empresaId);
         
         try {
-            // Verifica se já existem modelos
             const modelos = await this.getAll('modelos', true);
             if (modelos.length === 0) {
                 const defaultModelos = [
@@ -1390,23 +1313,24 @@ const FirestoreService = {
                 }
             }
             
-            // VERIFICA SE HÁ CERTIFICADOS E SINCRONIZA
-            const certificados = await this.getAll('certificados', true);
+            await this.getAll('certificados', true);
             
-        } catch (error) {
-            console.warn('Erro ao inicializar dados padrão:', error);
-        }
+        } catch (error) {}
         
         EmpresaManager.setEmpresaAtual(empresaAnterior);
+    },
+
+    initializeDefaultData: function() {
+        const empresaId = EmpresaManager.getEmpresaAtual();
+        return this.inicializarDadosEmpresa(empresaId);
     }
 };
 
 // ============================================
-// SERVIÇO DE PLANOS E LIMITES - ATUALIZADO
+// SERVIÇO DE PLANOS E LIMITES
 // ============================================
 
 const PlanService = {
-    // Configuração dos planos conforme a imagem
     PLANOS: {
         'basico': {
             nome: 'Básico',
@@ -1466,67 +1390,44 @@ const PlanService = {
         }
     },
 
-    // Plano padrão para novas empresas
     PLANO_PADRAO: 'basico',
-    LIMITE_AVISO: 0.8, // 80% do limite
+    LIMITE_AVISO: 0.8,
     
-    /**
-     * Obtém o plano atual da empresa
-     */
     getPlanoEmpresa: function(empresaId) {
         const empresa = EmpresaManager.getEmpresa(empresaId);
         if (!empresa) return this.PLANOS[this.PLANO_PADRAO];
-        
         const planoNome = empresa.plano || this.PLANO_PADRAO;
         return this.PLANOS[planoNome] || this.PLANOS[this.PLANO_PADRAO];
     },
 
-    /**
-     * Obtém o nome do plano atual da empresa
-     */
     getPlanoNome: function(empresaId) {
         const empresa = EmpresaManager.getEmpresa(empresaId);
         return empresa.plano || this.PLANO_PADRAO;
     },
 
-    /**
-     * Atualiza o plano da empresa
-     */
     setPlanoEmpresa: function(empresaId, planoNome) {
         if (!this.PLANOS[planoNome]) {
-            console.warn('⚠️ Plano inválido:', planoNome);
             return false;
         }
-        
         const empresa = EmpresaManager.getEmpresa(empresaId);
         if (!empresa) return false;
-        
         empresa.plano = planoNome;
         this._salvarEmpresa(empresaId, empresa);
         return true;
     },
 
-    /**
-     * Conta o número de administradores da empresa
-     */
     contarAdmins: function(empresaId) {
         const empresa = EmpresaManager.getEmpresa(empresaId);
         if (!empresa) return 0;
         return empresa.admins ? empresa.admins.length : 0;
     },
 
-    /**
-     * Verifica se a empresa pode adicionar mais administradores
-     */
     podeAdicionarAdmin: function(empresaId) {
         const plano = this.getPlanoEmpresa(empresaId);
         const adminsAtuais = this.contarAdmins(empresaId);
         return adminsAtuais < plano.limiteAdmins;
     },
 
-    /**
-     * Calcula a porcentagem de uso do limite
-     */
     getPorcentagemUso: function(empresaId) {
         const plano = this.getPlanoEmpresa(empresaId);
         const adminsAtuais = this.contarAdmins(empresaId);
@@ -1534,52 +1435,33 @@ const PlanService = {
         return (adminsAtuais / plano.limiteAdmins) * 100;
     },
 
-    /**
-     * Verifica se está próximo do limite (>= 80%)
-     */
     isProximoLimite: function(empresaId) {
         const porcentagem = this.getPorcentagemUso(empresaId);
         return porcentagem >= this.LIMITE_AVISO * 100;
     },
 
-    /**
-     * Verifica se atingiu o limite
-     */
     isLimiteAtingido: function(empresaId) {
         return !this.podeAdicionarAdmin(empresaId);
     },
 
-    /**
-     * Salva a empresa atualizada
-     */
     _salvarEmpresa: function(empresaId, empresa) {
         try {
             const empresas = JSON.parse(localStorage.getItem('dedetiza_empresas') || '{}');
             empresas[empresaId] = empresa;
             localStorage.setItem('dedetiza_empresas', JSON.stringify(empresas));
             
-            // Atualiza a cache do EmpresaManager
             if (EmpresaManager._empresas) {
                 EmpresaManager._empresas[empresaId] = empresa;
             }
             
-            // Sincroniza com Firestore
             if (typeof FirestoreService !== 'undefined' && FirestoreService._isFirestoreAvailable()) {
                 try {
-                    db.collection('empresas').doc(empresaId).set(empresa, { merge: true })
-                        .catch(err => console.warn('Erro ao sincronizar plano:', err));
-                } catch (e) {
-                    console.warn('Erro ao sincronizar plano no Firestore:', e);
-                }
+                    db.collection('empresas').doc(empresaId).set(empresa, { merge: true });
+                } catch (e) {}
             }
-        } catch (e) {
-            console.warn('Erro ao salvar empresa:', e);
-        }
+        } catch (e) {}
     },
 
-    /**
-     * Gera as opções de plano para seleção
-     */
     gerarOpcoesPlano: function(empresaId) {
         const planoAtual = this.getPlanoNome(empresaId);
         return Object.entries(this.PLANOS).map(([key, plano]) => {
@@ -1593,9 +1475,6 @@ const PlanService = {
         }).join('');
     },
 
-    /**
-     * Obtém o resumo do plano para exibição
-     */
     getResumoPlano: function(empresaId) {
         const plano = this.getPlanoEmpresa(empresaId);
         const admins = this.contarAdmins(empresaId);
@@ -1619,9 +1498,6 @@ const PlanService = {
         };
     },
 
-    /**
-     * Gera a mensagem de alerta baseada no uso
-     */
     getMensagemAlerta: function(empresaId) {
         const resumo = this.getResumoPlano(empresaId);
         
@@ -1629,26 +1505,20 @@ const PlanService = {
             return {
                 tipo: 'danger',
                 titulo: '⚠️ Limite de Administradores Atingido!',
-                mensagem: `Sua empresa atingiu o limite de ${resumo.limiteAdmins} administradores do plano ${resumo.planoNome}. 
-                    Para adicionar mais administradores, faça upgrade para um plano superior.`,
+                mensagem: `Sua empresa atingiu o limite de ${resumo.limiteAdmins} administradores do plano ${resumo.planoNome}. Para adicionar mais administradores, faça upgrade para um plano superior.`,
                 acao: 'Ver Planos'
             };
         } else if (resumo.estaProximo) {
             return {
                 tipo: 'warning',
                 titulo: '🔔 Limite de Administradores Próximo!',
-                mensagem: `Você está utilizando ${resumo.porcentagemUso}% do limite de ${resumo.limiteAdmins} administradores do plano ${resumo.planoNome}.
-                    Restam ${resumo.limiteAdmins - resumo.adminsAtuais} vagas. Quando atingir o limite, será necessário fazer upgrade de plano.`,
+                mensagem: `Você está utilizando ${resumo.porcentagemUso}% do limite de ${resumo.limiteAdmins} administradores do plano ${resumo.planoNome}. Restam ${resumo.limiteAdmins - resumo.adminsAtuais} vagas. Quando atingir o limite, será necessário fazer upgrade de plano.`,
                 acao: 'Ver Planos'
             };
         }
         return null;
     },
 
-    /**
-     * Verifica o limite ao tentar cadastrar um novo administrador
-     * Retorna um objeto com status e mensagem
-     */
     verificarCadastroAdmin: function(empresaId) {
         const resumo = this.getResumoPlano(empresaId);
         
@@ -1678,9 +1548,6 @@ const PlanService = {
         };
     },
 
-    /**
-     * Gera o HTML do modal de planos/upgrade - Estilo conforme a imagem
-     */
     gerarModalUpgrade: function(empresaId) {
         const resumo = this.getResumoPlano(empresaId);
         
@@ -1802,7 +1669,6 @@ if (typeof window !== 'undefined') {
     Aguardo retorno para prosseguirmos com a contratação.
     Obrigado!`;
         
-        // Abre modal com opções de contato
         if (typeof window.abrirModal === 'function') {
             window.abrirModal('Solicitar Contratação - ' + plano.nome, `
                 <div style="text-align:center;padding:16px 0;">
@@ -1833,8 +1699,7 @@ if (typeof window !== 'undefined') {
                 </div>
 
                 <div style="background:#f0f7fc;padding:12px;border-radius:8px;border-left:4px solid #1d7a6b;font-size:0.85rem;color:#4d687a;">
-                    <strong>📌 Importante:</strong> Nossa equipe comercial entrará em contato em até 24 horas úteis 
-                    para dar continuidade ao processo de contratação.
+                    <strong>📌 Importante:</strong> Nossa equipe comercial entrará em contato em até 24 horas úteis para dar continuidade ao processo de contratação.
                 </div>
 
                 <div class="modal-footer" style="margin-top:16px;">
@@ -1843,7 +1708,6 @@ if (typeof window !== 'undefined') {
             `);
         }
         
-        // Salva a mensagem para uso nas funções
         window._upgradeMensagem = mensagem;
         window._upgradePlano = planoNome;
     };
@@ -1908,20 +1772,13 @@ if (typeof window !== 'undefined') {
         window.solicitarUpgrade(PlanService.PLANOS['profissional'].nome);
     };
 
-    // ============================================
-    // VERIFICAÇÃO DE LIMITE NO CADASTRO (HOOK)
-    // ============================================
-
-    // Hook para verificar limite antes de cadastrar novo admin
     const originalCadastrar = AuthService.cadastrar;
     AuthService.cadastrar = async function(email, senha, nome, usuario, empresaId = null) {
         const empresaFinal = empresaId || 'empresa_unica';
         
-        // Verifica o limite
         const verificacao = PlanService.verificarCadastroAdmin(empresaFinal);
         
         if (!verificacao.permitido) {
-            // Mostra modal de upgrade
             const modalHtml = PlanService.gerarModalUpgrade(empresaFinal);
             if (typeof window.abrirModal === 'function') {
                 window.abrirModal('🔒 Limite de Administradores Atingido', modalHtml);
@@ -1934,14 +1791,12 @@ if (typeof window !== 'undefined') {
             };
         }
         
-        // Se está próximo do limite, mostra aviso
         if (verificacao.tipo === 'aviso' && verificacao.mensagem) {
             setTimeout(() => {
                 alert(verificacao.mensagem);
             }, 100);
         }
         
-        // Chama a função original
         return originalCadastrar.call(this, email, senha, nome, usuario, empresaId);
     };
 }
@@ -1950,20 +1805,14 @@ if (typeof window !== 'undefined') {
 // INICIALIZAÇÃO AUTOMÁTICA
 // ============================================
 
-// Inicializa observadores automaticamente após o carregamento da página
 document.addEventListener('DOMContentLoaded', function() {
-    
-    // Aguarda um pouco para garantir que tudo está carregado
     setTimeout(async () => {
         try {
             const empresaId = EmpresaManager.getEmpresaAtual();
             
-            // Sincroniza dados automaticamente
             if (FirestoreService._isFirestoreAvailable()) {
-                // FORÇA SINCRONIZAÇÃO COMPLETA (FORCE = TRUE)
                 await FirestoreService.sincronizarDadosEmpresa(empresaId, true);
                 
-                // Inicia observadores se ainda não iniciados
                 if (!FirestoreService._isInitialized) {
                     FirestoreService.iniciarObservadores(() => {
                         if (typeof window.renderAll === 'function') {
@@ -1971,13 +1820,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         }
                     });
                 }
-                
-            } else {
-                console.warn('⚠️ Firestore não disponível, usando dados locais');
             }
-        } catch (error) {
-            console.warn('Erro na inicialização automática:', error);
-        }
+        } catch (error) {}
     }, 1000);
 });
 
