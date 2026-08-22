@@ -6158,7 +6158,7 @@ window.atualizarResponsavelCertificado = function (certId, tipo, membroId) {
                     <div class="form-group"><label>Nome</label><input type="text" id="modalNomeMembro" /></div>
                     <div class="form-group"><label>Cargo</label>
                         <select id="modalCargoMembro">
-                            ${['Técnico Sênior', 'Técnico', 'Técnica Especialista', 'Coordenador', 'Suporte', 'Estagiário'].map(c => `<option value="${c}">${c}</option>`).join('')}
+                            ${['Técnico(a) Sênior', 'Técnico(a)', 'Técnico(a) Especialista', 'Coordenador(a)', 'Suporte', 'Estagiário(a)'].map(c => `<option value="${c}">${c}</option>`).join('')}
                         </select>
                     </div>
                     <div class="modal-footer">
