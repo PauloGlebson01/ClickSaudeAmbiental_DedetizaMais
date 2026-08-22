@@ -1,15 +1,15 @@
 // firebase-config.js - Configuração do Firebase com suporte multi-empresa
 
 //CONFIGURAÇÕES DE DADOS
-const firebaseConfig = {
-  apiKey: "AIzaSyDL7SSJhSX_nTyofv-lgN16XiDgNrdmil0",
-  authDomain: "dedetizemais-teste.firebaseapp.com",
-  projectId: "dedetizemais-teste",
-  storageBucket: "dedetizemais-teste.firebasestorage.app",
-  messagingSenderId: "498228175971",
-  appId: "1:498228175971:web:e06cf995fbf8d160374456",
-  measurementId: "G-STDFBGF2BW"
-};
+  const firebaseConfig = {
+    apiKey: "AIzaSyDHt9ZAm6LfU77RP4OVvwxCyZ7q-NYoi00",
+    authDomain: "dedetiza-mais.firebaseapp.com",
+    projectId: "dedetiza-mais",
+    storageBucket: "dedetiza-mais.firebasestorage.app",
+    messagingSenderId: "559555651090",
+    appId: "1:559555651090:web:74d21126e40ea13c919acb",
+    measurementId: "G-4YQ6WJH6PX"
+  };
 
 if (typeof firebase !== 'undefined') {
     firebase.initializeApp(firebaseConfig);
