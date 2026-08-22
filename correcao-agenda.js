@@ -603,6 +603,250 @@ window.salvarEdicaoServico = function(id) {
     alert('✅ Serviço #' + String(id).padStart(3, '0') + ' atualizado para: ' + status);
 };
 
+/**
+ * CORREÇÃO: Sobrescreve a função de edição de cliente para atualizar agenda automaticamente
+ */
+const salvarEdicaoClienteOriginal = window.salvarEdicaoCliente;
+
+window.salvarEdicaoCliente = function(id) {
+    const tipoCliente = document.getElementById('modalTipoCliente')?.value || 'cpf';
+    const nome = document.getElementById('modalNome')?.value || '';
+    const documento = document.getElementById('modalDocumento')?.value || '';
+    const telefone = document.getElementById('modalTelefone')?.value || '';
+    const endereco = document.getElementById('modalEndereco')?.value || '';
+
+    let razaoSocial = '';
+    let nomeFantasia = '';
+
+    if (tipoCliente === 'cnpj') {
+        razaoSocial = document.getElementById('modalRazaoSocial')?.value || '';
+        nomeFantasia = document.getElementById('modalNomeFantasia')?.value || '';
+
+        if (!razaoSocial) {
+            alert('Razão Social é obrigatória para Pessoa Jurídica!');
+            return;
+        }
+        if (!nome) {
+            alert('Nome Fantasia é obrigatório para Pessoa Jurídica!');
+            return;
+        }
+    }
+
+    if (!nome) {
+        alert(tipoCliente === 'cnpj' ? 'Nome Fantasia é obrigatório' : 'Nome é obrigatório');
+        return;
+    }
+    if (!documento) {
+        alert(tipoCliente === 'cnpj' ? 'CNPJ é obrigatório' : 'CPF é obrigatório');
+        return;
+    }
+
+    const updateData = {
+        nome: nome,
+        tipoCliente: tipoCliente,
+        documento: documento,
+        telefone: telefone,
+        endereco: endereco
+    };
+
+    if (tipoCliente === 'cnpj') {
+        updateData.razaoSocial = razaoSocial;
+        updateData.nomeFantasia = nomeFantasia;
+    } else {
+        updateData.razaoSocial = null;
+        updateData.nomeFantasia = null;
+    }
+
+    const clienteAntigo = DB.getById('clientes', id);
+    DB.update('clientes', id, updateData);
+    DB.forceClearCache('clientes');
+
+    // Atualiza a agenda com o novo nome do cliente
+    setTimeout(function() {
+        const agendaKey = DB.getFullKey('agenda');
+        let agendaItems = JSON.parse(localStorage.getItem(agendaKey) || '[]');
+        let modificado = false;
+
+        const nomeCorreto = tipoCliente === 'cnpj' ? 
+            (nomeFantasia || razaoSocial || nome) : 
+            nome;
+
+        agendaItems = agendaItems.map(function(item) {
+            if (String(item.clienteId) === String(id)) {
+                if (item.clienteNome !== nomeCorreto) {
+                    item.clienteNome = nomeCorreto;
+                    item.atualizadoEm = new Date().toISOString();
+                    modificado = true;
+                }
+                
+                if (item.servicoId) {
+                    const servico = DB.getById('servicos', item.servicoId);
+                    if (servico) {
+                        const novaDescricao = gerarDescricaoServico(servico, nomeCorreto);
+                        if (item.descricao !== novaDescricao) {
+                            item.descricao = novaDescricao;
+                            modificado = true;
+                        }
+                    }
+                }
+            }
+            return item;
+        });
+
+        if (modificado) {
+            localStorage.setItem(agendaKey, JSON.stringify(agendaItems));
+            DB.forceClearCache('agenda');
+            
+            if (typeof FirestoreService !== 'undefined') {
+                setTimeout(function() {
+                    for (const item of agendaItems) {
+                        if (String(item.clienteId) === String(id) && item.id) {
+                            FirestoreService.update('agenda', item.id, item);
+                        }
+                    }
+                    FirestoreService.sincronizarColecao('agenda');
+                }, 100);
+            }
+        }
+
+        // Atualiza também os serviços
+        const servicos = DB.getAll('servicos');
+        let servicosModificados = false;
+        
+        servicos.forEach(function(servico) {
+            if (String(servico.clienteId) === String(id)) {
+                const servicoNome = tipoCliente === 'cnpj' ? 
+                    (nomeFantasia || razaoSocial || nome) : 
+                    nome;
+                if (servico.clienteNome !== servicoNome) {
+                    DB.update('servicos', servico.id, { clienteNome: servicoNome });
+                    servicosModificados = true;
+                }
+            }
+        });
+
+        if (servicosModificados && typeof FirestoreService !== 'undefined') {
+            setTimeout(function() {
+                FirestoreService.sincronizarColecao('servicos');
+            }, 100);
+        }
+
+        if (modificado || servicosModificados) {
+            renderAll();
+        }
+    }, 100);
+
+    fecharModal();
+    renderAll();
+    alert('Cliente atualizado com sucesso!');
+};
+
+/**
+ * CORREÇÃO: Sobrescreve a função de edição de serviço para atualizar agenda com nome correto
+ */
+const editarServicoOriginal = window.editarServico;
+
+window.editarServico = function(id) {
+    const s = DB.getById('servicos', id);
+    if (!s) return;
+
+    const validade = calcularValidadeServico(s);
+    let infoValidade = '';
+    if (validade) {
+        const statusMap = {
+            'valido': '🟢 Válido',
+            'proximo': '🟡 Próximo do vencimento',
+            'critico': '🔴 Vence em breve',
+            'vencido': '❌ Vencido'
+        };
+        infoValidade = `
+            <div style="background:#f8fbfd;padding:12px 16px;border-radius:8px;margin-bottom:16px;">
+                <strong>Validade:</strong> ${statusMap[validade.status] || 'Válido'} 
+                (${validade.diasRestantes > 0 ? validade.diasRestantes + ' dias restantes' : Math.abs(validade.diasRestantes) + ' dias vencido'})
+                <br><small style="color:#4d687a;">Vence em: ${validade.dataVencimento.toLocaleDateString('pt-BR')}</small>
+            </div>
+        `;
+    }
+
+    const clientes = DB.getAll('clientes');
+    
+    abrirModal('Editar Serviço', `
+        ${infoValidade}
+        <div class="form-group">
+            <label>Cliente</label>
+            <select id="modalClienteId" onchange="atualizarNomeClienteServico(this.value)">
+                ${clientes.map(function(c) {
+                    const nomeExibido = c.tipoCliente === 'cnpj' ? 
+                        (c.nomeFantasia || c.razaoSocial || c.nome) : 
+                        c.nome;
+                    return `<option value="${c.id}" ${c.id === s.clienteId ? 'selected' : ''}>${nomeExibido}</option>`;
+                }).join('')}
+            </select>
+        </div>
+        <div id="clienteNomeDisplay" style="background:#f0f7fc;padding:8px 14px;border-radius:8px;margin-bottom:12px;font-size:0.9rem;color:#4d687a;">
+            <i class="fas fa-user"></i> Cliente selecionado: <strong id="clienteNomeSelecionado">${getClienteNome(s.clienteId)}</strong>
+        </div>
+        <div class="form-group">
+            <label>Tipo de Serviço</label>
+            <select id="modalTipo">
+                ${['Desratização', 'Desinsetização', 'Descupinização'].map(function(t) {
+                    return `<option value="${t}" ${t === s.tipo ? 'selected' : ''}>${t}</option>`;
+                }).join('')}
+            </select>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>Data</label><input type="date" id="modalData" value="${s.data.split('/').reverse().join('-')}" /></div>
+            <div class="form-group"><label>Horário</label><input type="time" id="modalHorario" value="${s.horario || '09:00'}" /></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>Valor (R$)</label><input type="number" id="modalValor" value="${s.valor || 0}" step="0.01" /></div>
+            <div class="form-group"><label>Status</label>
+                <select id="modalStatus">
+                    ${['Concluído', 'Em andamento', 'Pendente', 'Agendado', 'Cancelado'].map(function(st) {
+                        return `<option value="${st}" ${st === s.status ? 'selected' : ''}>${st}</option>`;
+                    }).join('')}
+                </select>
+            </div>
+        </div>
+        <small style="color:#4d687a;font-size:0.8rem;display:block;margin-top:4px;">⚠️ Alterar o cliente ou status atualizará automaticamente a agenda.</small>
+        <div class="modal-footer">
+            <button class="btn-secondary" onclick="fecharModal()">Cancelar</button>
+            <button class="btn-primary" onclick="salvarEdicaoServico(${id})">Salvar</button>
+        </div>
+    `);
+    
+    setTimeout(function() {
+        const selectCliente = document.getElementById('modalClienteId');
+        if (selectCliente) {
+            selectCliente.addEventListener('change', function() {
+                const clienteId = parseInt(this.value);
+                const cliente = getCliente(clienteId);
+                const nomeCliente = cliente ? 
+                    (cliente.tipoCliente === 'cnpj' ? 
+                        (cliente.nomeFantasia || cliente.razaoSocial || cliente.nome) : 
+                        cliente.nome) : 
+                    'Cliente não encontrado';
+                const display = document.getElementById('clienteNomeSelecionado');
+                if (display) display.textContent = nomeCliente;
+            });
+        }
+    }, 100);
+};
+
+/**
+ * CORREÇÃO: Função para atualizar nome do cliente no serviço
+ */
+window.atualizarNomeClienteServico = function(clienteId) {
+    const cliente = getCliente(parseInt(clienteId));
+    const nomeCliente = cliente ? 
+        (cliente.tipoCliente === 'cnpj' ? 
+            (cliente.nomeFantasia || cliente.razaoSocial || cliente.nome) : 
+            cliente.nome) : 
+        'Cliente não encontrado';
+    const display = document.getElementById('clienteNomeSelecionado');
+    if (display) display.textContent = nomeCliente;
+};
+
 // Executa automaticamente o reparo ao carregar a página
 setTimeout(function() {
     try {
